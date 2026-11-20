@@ -25,13 +25,15 @@
 | V1-1 | 导入 Claude 对话（含 `--include-thinking`） | F5-01 至 F5-09；真实导出试导 | ✅ 2026-11-20 |
 | V1-2 | 导入 Gemini 对话 | 规格草案 `SPEC-DELTA-chat-import-gemini.md` | ⏳ 暂缓：等 Takeout |
 | V1-3 | GitHub 仓库：LICENSE、三系统 CI | CI 绿灯 | ✅ 2026-11-20（8 项全部通过；修了一个非中文 Windows 控制台崩溃的 bug） |
-| V1-4 | `llm-adapter` | 复核 SPEC-llm-adapter.md 后登记 F 编号 | ⬜ |
+| V1-4 | `llm-adapter` | F9-01 至 F9-07 | ✅ 2026-11-21（方案 A：两家官方 SDK；实现决定见 ADR 0003；真实调用未测，等作者有 key 时跑 `pytest -m live`） |
 
 ## 已确认
 
 - 2026-11-20：GitHub 仓库 https://github.com/CaoLongyang/everything-in-ai ，公开，MIT（版权人 CaoLongyang）。AI 助手可直接提交和推送，每次推送前告诉作者。
 
 ## 验证记录
+
+- 2026-11-21 Windows：`check.py` ALL PASSED（244 个测试，57 条验收通过，覆盖率 98%，`eia/llm/` 全部 100%）。全部是模拟返回，没有真的调用 AI。
 
 - 2026-11-18 Windows 实机：`check.py` ALL PASSED（39 条验收通过）；真实导出导入近千个对话，跳过 1 个空对话；重复导入全部「未变」。
 - 2026-11-18 手动验收（ChatGPT，作者）：M-01 Obsidian 正常显示 ✅；M-02 全局搜索可用 ✅；M-03 标签重新导入后仍在 ✅；M-04 数量与平台大致一致 ✅。

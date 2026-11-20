@@ -1,9 +1,9 @@
 # 验收报告
 
-生成时间：2026-11-20 22:48 +0800
+生成时间：2026-11-21 01:07 +0800
 本文件由 check 脚本自动生成，请勿手改。验收标准的原文见 TEST-PLAN.md。
 
-**共 50 条验收标准：50 条通过，0 条失败，0 条未实现。**
+**共 57 条验收标准：57 条通过，0 条失败，0 条未实现。**
 
 ## F1 创建 vault（`eia init`）
 
@@ -68,6 +68,18 @@
 | F5-07 | 重复导入满足 F6-01 至 F6-07 的全部要求（用 Claude 样例再测一遍） | 4 | 通过 |
 | F5-08 | `--include-thinking` 打开时思考过程以默认收起的折叠块出现在对应消息前；里面像消息标题的行不会被误认；只切换开关再导入时正文随之更新 | 5 | 通过 |
 | F5-09 | 空标题的对话标为「未命名对话」；导出里没有模型名时 `model` 为空，`eia validate` 通过 | 1 | 通过 |
+
+## F9 llm-adapter（V1，见 SPEC-DELTA-llm-adapter-v1.md；F8 留给暂缓中的 Gemini 导入）
+
+| 编号 | 验收标准 | 测试数 | 结果 |
+|---|---|---|---|
+| F9-01 | 没有 `llm` 配置、缺 `provider` / `model`、`api_key_env` 指向的环境变量不存在时，报出缺哪一项，退出码 1，不发任何请求 | 22 | 通过 |
+| F9-02 | 只改 `config.yaml`，`anthropic` 与 `openai_compatible`（含本地地址）两种后端都能走通 `complete` 和 `embed`（模拟返回） | 6 | 通过 |
+| F9-03 | `complete_json` 返回校验过的对象；输出不合法时重试，次数不超过 `max_retries`，最终抛 `LLMOutputError` | 3 | 通过 |
+| F9-04 | 网络错误、限流重试后抛 `LLMCallError`；模型拒绝回答抛 `LLMOutputError` | 20 | 通过 |
+| F9-05 | 日志、错误信息、`eia llm show` 里从不出现 key 本身和 prompt 全文 | 3 | 通过 |
+| F9-06 | 除 `eia/llm/` 的后端文件外，代码库没有 `import anthropic` / `import openai` | 1 | 通过 |
+| F9-07 | `eia llm test` 成功时报告延迟，失败时说明原因，退出码 1 | 3 | 通过 |
 
 ## F6 重复导入
 

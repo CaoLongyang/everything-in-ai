@@ -1,14 +1,17 @@
-"""命令行入口：eia init / validate / new / import。"""
+"""命令行入口：eia init / validate / new / import / llm。"""
 
 from __future__ import annotations
 
 import json
 import sys
+import time
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 
 import click
 
+from eia import llm
 from eia.chat import chatgpt, claude
 from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
@@ -139,6 +142,64 @@ def import_claude(
     except (ExportFormatError, VaultError) as exc:
         raise click.ClickException(f"{exc}。没有写入任何文件") from exc
     _report(len(conversations), result, dry_run)
+
+
+@main.group(name="llm")
+def llm_group() -> None:
+    """查看和测试 AI 服务配置（config.yaml 的 llm 段）。"""
+
+
+@llm_group.command(name="show")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def llm_show(vault: Path) -> None:
+    """打印解析后的配置。key 只显示有没有设置，不显示内容。"""
+    try:
+        config = llm.load_llm_config(vault, require_key=False)
+    except llm.LLMConfigError as exc:
+        raise click.ClickException(str(exc)) from exc
+    endpoints = [("文本", config.text)]
+    if config.embed is not None:
+        endpoints.append(("向量", config.embed))
+    for label, endpoint in endpoints:
+        click.echo(f"[{label}]")
+        click.echo(f"  provider     {endpoint.provider}")
+        click.echo(f"  model        {endpoint.model}")
+        click.echo(f"  api_base     {endpoint.api_base or '（官方默认地址）'}")
+        if endpoint.api_key_env:
+            state = "已设置" if endpoint.has_key else "未设置"
+            click.echo(f"  api_key_env  {endpoint.api_key_env}（{state}）")
+        else:
+            click.echo("  api_key_env  （不需要 key）")
+    if config.embed is None:
+        click.echo("[向量]  未配置")
+    click.echo(f"max_retries {config.max_retries}，timeout_s {config.timeout_s:g}")
+
+
+@llm_group.command(name="test")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def llm_test(vault: Path) -> None:
+    """发一个极短的请求，报告延迟和是否成功。会产生一次很小的费用。"""
+    try:
+        client = llm.get_client(vault)
+    except llm.LLMConfigError as exc:
+        raise click.ClickException(f"{exc}。没有发出任何请求") from exc
+    checks: list[tuple[str, Callable[[], object]]] = [
+        ("文本", lambda: client.complete("只回复 OK 两个字母。")),
+    ]
+    if client.config.embed is not None:
+        checks.append(("向量", lambda: client.embed(["测试"])))
+    failed = False
+    for label, call in checks:
+        started = time.monotonic()
+        try:
+            call()
+        except llm.LLMError as exc:
+            click.echo(f"失败  {label}：{exc}")
+            failed = True
+            continue
+        click.echo(f"成功  {label}：{(time.monotonic() - started) * 1000:.0f} 毫秒")
+    if failed:
+        sys.exit(1)
 
 
 def _report(total: int, result: ImportResult, dry_run: bool) -> None:

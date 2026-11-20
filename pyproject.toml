@@ -16,7 +16,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5", "mypy>=1.10", "types-PyYAML"]
+# AI 功能才需要。版本写死，升级要有意识地改这里（SPEC-DELTA-llm-adapter-v1 第 1 节）
+llm = ["anthropic==2.6.0", "openai==3.46.0"]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+    "everything-in-ai[llm]",
+]
 
 [project.scripts]
 eia = "eia.cli:main"
@@ -27,6 +36,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = ["live: 会真的调用 AI 服务、花钱，只在手动时用 pytest -m live 运行"]
+addopts = "-m 'not live'"
 
 [tool.ruff]
 line-length = 100

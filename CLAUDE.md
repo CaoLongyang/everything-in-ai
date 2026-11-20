@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目是什么
 
 `eia`（everything-in-ai）：把 AI 对话导入成纯 Markdown 的个人知识库（vault），用 Obsidian 浏览。
-V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`，进度见 `tasks/todo.md`，范围见 `ROADMAP.md`。
+V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`、`llm`（AI 服务接入），进度见 `tasks/todo.md`，范围见 `ROADMAP.md`。
 所有文档、命令输出、报错信息都是中文，新代码保持一致。
 
 ## 命令
@@ -42,7 +42,7 @@ ruff format .                      # 自动格式化
 
 ## 架构
 
-两个包，`src/eia/schema/`（数据契约）和 `src/eia/chat/`（导入），由 `src/eia/cli.py`（click）串起来。
+三个包，`src/eia/schema/`（数据契约）、`src/eia/chat/`（导入）和 `src/eia/llm/`（AI 服务接入），由 `src/eia/cli.py`（click）串起来。
 
 **schema/**
 - `model.py`：pydantic 模型。`Entry` 基类 + `ChatEntry` / `HeadlineEntry` / `DigestEntry`；`model_for(type)` 按 `type` 字段选模型。未知字段只警告。
@@ -58,6 +58,12 @@ ruff format .                      # 自动格式化
 - Gemini 导入暂缓（插件导出没有任何时间信息），草案见 `SPEC-DELTA-chat-import-gemini.md`，不要在作者批准前实现。
 - `render.py`：正文契约（SPEC-chat-import 第 5 节）。程序只拥有 `<!-- eia:conversation:start ... -->` 与 `<!-- eia:conversation:end -->` 之间的内容；消息标题为 `### 我 · 时间` / `### ChatGPT · 时间`；正文里像标题或标记的行会被转义。
 - `importer.py`：按 (platform, conversation_id) 在 vault 中索引已有文件（不依赖文件名，用户可改名）。新对话 → `create_new`；`updated` 更新了 → 只替换标记块 + 更新 frontmatter 的少数字段，保留用户的 tags、自加字段和标记下方的笔记；标记损坏、重复文件、YAML 坏掉 → 报"跳过"，不碰文件。
+
+**llm/**（规格 `SPEC-llm-adapter.md` + `SPEC-DELTA-llm-adapter-v1.md`，实现决定见 ADR 0003）
+- 其他模块只写 `from eia import llm`，用 `llm.complete` / `complete_json` / `embed` 或 `llm.get_client(vault)`。
+- `config.py`：解析 `config.yaml` 的 `llm` 段，key 从环境变量或 vault 的 `.env` 读。`client.py`：重试、JSON 校验、只记长度的日志。
+- `_anthropic.py` / `_openai.py` 是仅有的两个能 `import anthropic` / `import openai` 的文件（F9-06 测试强制），只负责发一次请求并翻译错误。
+- 测试全部模拟；`pytest -m live` 才会真的调用（默认不跑，需设置 `EIA_LIVE_VAULT`）。
 
 ## 改规格的方式
 
