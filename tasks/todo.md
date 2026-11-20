@@ -24,12 +24,12 @@
 |---|---|---|---|
 | V1-1 | 导入 Claude 对话（含 `--include-thinking`） | F5-01 至 F5-09；真实导出试导 | ✅ 2026-11-20 |
 | V1-2 | 导入 Gemini 对话 | 规格草案 `SPEC-DELTA-chat-import-gemini.md` | ⏳ 暂缓：等 Takeout |
-| V1-3 | GitHub 仓库：LICENSE、三系统 CI | CI 绿灯 | ⬜ |
+| V1-3 | GitHub 仓库：LICENSE、三系统 CI | CI 绿灯 | ✅ 2026-11-20（8 项全部通过；修了一个非中文 Windows 控制台崩溃的 bug） |
 | V1-4 | `llm-adapter` | 复核 SPEC-llm-adapter.md 后登记 F 编号 | ⬜ |
 
 ## 已确认
 
-- 2026-11-20：GitHub 仓库名 `everything-in-ai`，公开。待办：加 LICENSE 文件（MIT，需要署名）并启用 CI。
+- 2026-11-20：GitHub 仓库 https://github.com/CaoLongyang/everything-in-ai ，公开，MIT（版权人 CaoLongyang）。AI 助手可直接提交和推送，每次推送前告诉作者。
 
 ## 验证记录
 

@@ -28,9 +28,9 @@ Last reviewed: 2026-11-15
 | 类型 | 零错误（`src/` 下） | `mypy src` | 每次改动 |
 | 测试 | 全部通过 | `pytest -q` | 每个任务结束、CI |
 | 覆盖率 | 新增/修改代码行 ≥ 80% | `pytest --cov=eia --cov-report=term-missing` | 任务结束、CI |
-| 密钥 | 零发现 | `gitleaks dir . --redact --no-banner` | CI（**建仓库后启用**，目前未执行） |
-| 依赖安全 | 无 high 及以上 | `osv-scanner scan source -r .` | CI（**建仓库后启用**，目前未执行） |
-| 跨平台 | V0：Windows 通过；V1 起 macOS / Linux / Windows 全通过 | V0 在 作者 的 Windows 上手动跑 `check.py`；建仓库后用 GitHub Actions | 每个版本结束 |
+| 密钥 | 零发现 | `gitleaks`（GitHub Actions 里的 gitleaks-action，扫全部提交历史） | CI，每次推送（2026-11-20 启用） |
+| 依赖安全 | 零发现（比"无 high 及以上"更严：有任何已知漏洞都失败） | 安装后 `pip freeze` 出版本清单，`osv-scanner scan source -L` 扫描（项目没有锁文件） | CI，每次推送（2026-11-20 启用） |
+| 跨平台 | macOS / Linux / Windows × Python 3.11 / 3.13 全通过 | GitHub Actions 跑 `python scripts/check.py`（`.github/workflows/ci.yml`） | CI，每次推送（2026-11-20 启用） |
 
 失败处理：Floor 和测试 **阻断**；覆盖率、依赖安全在 V0 期间 **警告**，V1 起阻断。
 
