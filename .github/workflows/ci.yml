@@ -1,0 +1,66 @@
+# 每次推送和 PR 都跑一遍 CONSTRAINTS.md 里的检查。
+# 只读代码，不提交、不推送、不访问 vault；测试全部用合成样例，不需要任何密钥。
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: 安装
+        run: python -m pip install -e ".[dev]"
+      - name: 全部检查（ruff、mypy、pytest、验收报告）
+        run: python scripts/check.py
+      - name: 上传验收报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-${{ matrix.os }}-${{ matrix.python }}
+          path: reports/acceptance.md
+
+  secrets:
+    name: 密钥扫描 (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependencies:
+    name: 依赖安全 (osv-scanner)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: 列出实际安装的依赖版本
+        # 项目没有锁文件，先安装再导出版本清单给 osv-scanner 扫
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pip freeze --exclude-editable > installed-requirements.txt
+      - name: 下载 osv-scanner
+        run: |
+          curl -sSfL -o osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
+          chmod +x osv-scanner
+      - name: 扫描
+        run: ./osv-scanner scan source -L installed-requirements.txt
