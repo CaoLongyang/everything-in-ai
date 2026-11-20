@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # 让 Windows 机器上的日志也能显示中文
+  PYTHONIOENCODING: utf-8
+
 jobs:
   check:
     name: check (${{ matrix.os }}, Python ${{ matrix.python }})

@@ -106,6 +106,10 @@ def main() -> int:
     target = root / "reports" / "acceptance.md"
     target.parent.mkdir(exist_ok=True)
     target.write_text(text, encoding="utf-8")
+    # 控制台不支持中文（如英文版 Windows 的 cp1252）时用 ? 代替，而不是崩溃
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(errors="replace")
     print(
         f"验收标准：通过 {counts[PASSED]}，失败 {counts[FAILED]}，未实现 {counts[MISSING]}"
         f"（详见 reports/acceptance.md）"
