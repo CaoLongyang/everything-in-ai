@@ -47,6 +47,7 @@
 | `takeout-import` | 通用 Google Takeout 导入（Gemini 之外：YouTube 观看/搜索/订阅、Chrome、搜索记录），按类别勾选；schema 新增 `activity` 类型（需单独 spec） |
 | `activity-import` | TikTok 官方导出（JSON，选 All data）；B 站经浏览器插件导出的 JSON |
 | `interest-bootstrap` | 从搜索、订阅、收藏、AI 对话等生成兴趣草稿（按信号强弱加权，观看记录权重最低），用户确认后才生效；需用户主动开启并能看到推断依据 |
+| `chat-reader` 区分粘贴内容 | 「我」的消息里粘贴的文章、报错、AI 之前的回答，分析时不当成用户本人的想法（2026-11-21 从 V1 挪来；V1 的 chat-reader 不区分）。做法待定，倾向由 AI 在分析阶段判断，不在读取时用规则硬切 |
 | `profile` | 个人画像：AI 读取 vault 原文，生成"关于你"的结论，放在独立的 `profile/` 目录，与原始材料分开。从 3–4 个大类起步（参考结构：身份、价值观、认知、行为、关系、兴趣等），每条结论带来源条目 id（证据索引）；不确定的单列"未解问题"；画像按版本保留，可随时整份重新生成；AI 推断与用户本人的话分开标记；需用户明确开启（会把对话发给所配置的 LLM）。依赖 V0 对话导入与 V1 `llm-adapter` |
 | 导入便利 | `eia import <folder>` 自动识别平台；监视 `exports\` 与 OneDrive 中的 Takeout 定时导出，新包自动导入 |
 

@@ -18,7 +18,7 @@
 |---|---|---|
 | `vault-schema` | 目录结构、frontmatter 规范、`eia init` / `validate` / `new` | — |
 | `chat-import` | 各平台的对话导出 → `chat` 条目；重复导入只更新、保留用户的标签和笔记 | vault-schema |
-| `llm-adapter` | 统一的 `complete` / `embed` 接口，底层 LiteLLM | — |
+| `llm-adapter` | 统一的 `complete` / `embed` 接口，底层是 Anthropic、OpenAI 两家官方 SDK（2026-11-20 改，见 SPEC-DELTA-llm-adapter-v1） | — |
 | `chat-reader` | 按说话方读取对话，可以只取用户本人的话 | vault-schema |
 | `config-sync` | `eia sync-config`：由 `config.yaml` 生成外部工具的模型配置 | llm-adapter |
 | `headline-radar` | 大事通道：抓取 → 聚类 → 独立来源计数 | vault-schema、llm-adapter |

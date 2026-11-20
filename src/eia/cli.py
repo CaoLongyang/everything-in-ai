@@ -1,7 +1,8 @@
-"""命令行入口：eia init / validate / new / import / llm。"""
+"""命令行入口：eia init / validate / new / import / chats / llm。"""
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 import time
@@ -15,10 +16,12 @@ from eia import llm
 from eia.chat import chatgpt, claude
 from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
+from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
+from eia.chat.render import SPEAKERS, USER_LABEL
 from eia.schema.create import new_entry
 from eia.schema.model import EntryType, Platform
 from eia.schema.validate import ERROR, validate_vault
-from eia.schema.vault import VaultError, init_vault
+from eia.schema.vault import VaultError, init_vault, load_config
 
 _DIR = click.Path(file_okay=False, path_type=Path)
 
@@ -142,6 +145,128 @@ def import_claude(
     except (ExportFormatError, VaultError) as exc:
         raise click.ClickException(f"{exc}。没有写入任何文件") from exc
     _report(len(conversations), result, dry_run)
+
+
+@main.group(name="chats")
+def chats_group() -> None:
+    """读回 vault 里已导入的对话（只读，不改任何文件）。"""
+
+
+_DATE = click.DateTime(formats=["%Y-%m-%d"])
+
+
+@chats_group.command(name="dump")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--only-me", is_flag=True, help="只输出我说的话（和我的笔记）。")
+@click.option("--no-notes", is_flag=True, help="不输出我在对话文件里写的笔记。")
+@click.option("--platform", type=click.Choice([p.value for p in Platform]), help="只看一个平台。")
+@click.option("--since", type=_DATE, help="从这天起（含），按消息时间，格式 2026-01-31。")
+@click.option("--until", type=_DATE, help="到这天为止（含）。")
+@click.option(
+    "--format", "fmt", type=click.Choice(["text", "jsonl"]), default="text", show_default=True
+)
+def chats_dump(
+    vault: Path,
+    only_me: bool,
+    no_notes: bool,
+    platform: str | None,
+    since: dt.datetime | None,
+    until: dt.datetime | None,
+    fmt: str,
+) -> None:
+    """按说话方输出对话。jsonl 每行一条消息，给其他程序用；跳过的文件写到 stderr。"""
+    tz = _vault_timezone(vault)
+    window = (since.date() if since else None, until.date() if until else None)
+    for item in iter_chats(vault, tz, platform=platform):
+        if isinstance(item, Skipped):
+            click.echo(f"跳过  {item.path.relative_to(vault).as_posix()}  {item.reason}", err=True)
+            continue
+        picked = [
+            m
+            for m in item.messages
+            if (not only_me or m.role == "user") and _in_window(m.time, window, tz)
+        ]
+        if not no_notes and item.notes and _in_window(item.updated, window, tz):
+            picked.append(ReadMessage("note", None, item.notes))
+        if not picked:
+            continue
+        if fmt == "jsonl":
+            for message in picked:
+                click.echo(json.dumps(_record(item, message), ensure_ascii=False))
+        else:
+            click.echo(f"== {item.title}（{item.platform} · {item.id}）\n")
+            for message in picked:
+                click.echo(f"### {_label(item, message, tz)}\n\n{message.text}\n")
+
+
+@chats_group.command(name="stats")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def chats_stats(vault: Path) -> None:
+    """每个平台：对话数、我的消息数和字数、写了笔记的对话数。"""
+    tz = _vault_timezone(vault)
+    totals: dict[str, list[int]] = {}
+    skipped = 0
+    for item in iter_chats(vault, tz):
+        if isinstance(item, Skipped):
+            skipped += 1
+            continue
+        row = totals.setdefault(item.platform or "（未知平台）", [0, 0, 0, 0])
+        mine = item.user_messages()
+        row[0] += 1
+        row[1] += len(mine)
+        row[2] += sum(len(m.text) for m in mine)
+        row[3] += 1 if item.notes else 0
+    for name, (chats, messages, chars, notes) in sorted(totals.items()):
+        click.echo(
+            f"{name}：{chats} 个对话，我的消息 {messages} 条、{chars} 字，{notes} 个对话写了笔记"
+        )
+    if not totals:
+        click.echo("没有找到对话")
+    if skipped:
+        click.echo(f"跳过 {skipped} 个读不了的对话文件（用 eia chats dump 查看原因）")
+
+
+def _vault_timezone(vault: Path) -> dt.tzinfo | None:
+    try:
+        return load_config(vault).timezone
+    except VaultError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+def _in_window(
+    when: dt.datetime | None,
+    window: tuple[dt.date | None, dt.date | None],
+    tz: dt.tzinfo | None,
+) -> bool:
+    since, until = window
+    if since is None and until is None:
+        return True
+    if when is None:
+        return False
+    day = when.astimezone(tz).date()
+    return (since is None or day >= since) and (until is None or day <= until)
+
+
+def _label(chat: ReadChat, message: ReadMessage, tz: dt.tzinfo | None) -> str:
+    if message.role == "note":
+        return "我的笔记"
+    who = USER_LABEL if message.role == "user" else SPEAKERS.get(chat.platform, chat.platform)
+    when = message.time.astimezone(tz).strftime("%Y-%m-%d %H:%M") if message.time else "时间未知"
+    return f"{who} · {when}"
+
+
+def _record(chat: ReadChat, message: ReadMessage) -> dict[str, object]:
+    record: dict[str, object] = {
+        "id": chat.id,
+        "platform": chat.platform,
+        "title": chat.title,
+        "role": message.role,
+        "time": message.time.isoformat() if message.time else None,
+        "text": message.text,
+    }
+    if message.thinking:
+        record["thinking"] = message.thinking
+    return record
 
 
 @main.group(name="llm")

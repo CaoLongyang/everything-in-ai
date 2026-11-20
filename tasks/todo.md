@@ -25,7 +25,9 @@
 | V1-1 | 导入 Claude 对话（含 `--include-thinking`） | F5-01 至 F5-09；真实导出试导 | ✅ 2026-11-20 |
 | V1-2 | 导入 Gemini 对话 | 规格草案 `SPEC-DELTA-chat-import-gemini.md` | ⏳ 暂缓：等 Takeout |
 | V1-3 | GitHub 仓库：LICENSE、三系统 CI | CI 绿灯 | ✅ 2026-11-20（8 项全部通过；修了一个非中文 Windows 控制台崩溃的 bug） |
-| V1-4 | `llm-adapter` | F9-01 至 F9-07 | ✅ 2026-11-21（方案 A：两家官方 SDK；实现决定见 ADR 0003；真实调用未测，等作者有 key 时跑 `pytest -m live`） |
+| V1-4 | `llm-adapter` | F9-01 至 F9-07 | ✅ 2026-11-21（方案 A：两家官方 SDK；实现决定见 ADR 0003；2026-11-21 DeepSeek 实测通过） |
+
+| V1-5 | `chat-reader`：`eia chats dump` / `stats` | F10-01 至 F10-07 | ✅ 2026-11-21（笔记算「我」的话；粘贴内容的区分挪到 V2） |
 
 ## 已确认
 
@@ -34,6 +36,8 @@
 ## 验证记录
 
 - 2026-11-21 Windows：`check.py` ALL PASSED（244 个测试，57 条验收通过，覆盖率 98%，`eia/llm/` 全部 100%）。全部是模拟返回，没有真的调用 AI。
+- 2026-11-21 真实调用（DeepSeek，`openai_compatible`，`deepseek-v4-flash`）：`eia llm test` 成功（约 3 秒）；`pytest -m live` 文本与 JSON 输出通过，向量未配置跳过。Claude 后端和向量尚未实测。
+- 2026-11-21 Windows：`check.py` ALL PASSED（261 个测试，64 条验收通过，覆盖率 98%）。真实 vault 只读试跑 `eia chats stats` / `dump`：974 个对话，0 个跳过，「我」的消息 4,895 条 + 1 段笔记；运行前后所有文件哈希不变。
 
 - 2026-11-18 Windows 实机：`check.py` ALL PASSED（39 条验收通过）；真实导出导入近千个对话，跳过 1 个空对话；重复导入全部「未变」。
 - 2026-11-18 手动验收（ChatGPT，作者）：M-01 Obsidian 正常显示 ✅；M-02 全局搜索可用 ✅；M-03 标签重新导入后仍在 ✅；M-04 数量与平台大致一致 ✅。
