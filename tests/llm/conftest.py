@@ -13,7 +13,7 @@ from eia.llm._base import Reply
 from eia.llm.config import Endpoint
 from eia.schema.vault import CONFIG_NAME, init_vault
 
-SECRET = "sk-test-SECRET-0123456789"
+SECRET = "sk-test-SECRET-0123456789"  # 假 key，只用来检查它不会被打印 gitleaks:allow
 PROMPT = "这是一段只应该出现在请求里的私密提问内容 ABCDEFG"
 
 ANTHROPIC_LLM: dict[str, Any] = {
