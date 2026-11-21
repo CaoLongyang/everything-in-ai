@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from eia import llm
 from eia.chat.reader import ReadChat, Skipped, iter_chats
+from eia.db import history
 from eia.interests.config import Interest, InterestsError, load_interests
 from eia.interests.prompts import NAMING_SYSTEM
 from eia.interests.vectors import embed_client, embed_texts
@@ -321,5 +322,7 @@ def accept(root: Path) -> list[Interest]:
     ]
     if not chosen:
         raise InterestsError("草稿里一项都没勾，没有改动配置")
-    update_section(root, "interests", [interest.as_config() for interest in chosen])
+    data = [interest.as_config() for interest in chosen]
+    update_section(root, "interests", data)
+    history.record(root, data, "accept")
     return chosen

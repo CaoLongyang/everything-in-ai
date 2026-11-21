@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -460,12 +459,9 @@ def test_F13_04_scheduled_job_runs_digest_after_radar(
     assert not failed.ok and "新闻雷达成功，但兴趣过滤失败：坏了" in str(failed.error)
 
 
-def test_F13_04_shown_file_tolerates_damage(vault: Path) -> None:
-    (vault / digest_mod.SHOWN).parent.mkdir(parents=True, exist_ok=True)
-    (vault / digest_mod.SHOWN).write_text("not json", encoding="utf-8")
-    assert digest_mod._load_shown(vault, NOW) == {}
-    (vault / digest_mod.SHOWN).write_text(json.dumps([1]), encoding="utf-8")
-    assert digest_mod._load_shown(vault, NOW) == {}
+def test_F13_04_shown_records_expire_after_a_week(vault: Path) -> None:
+    digest_mod._save_shown(vault, {"old": "2026-11-01", "new": "2026-11-21"}, NOW)
+    assert digest_mod._load_shown(vault, NOW) == {"new": "2026-11-21"}
 
 
 def test_F13_03_config_edit_handles_unindented_lists(vault: Path) -> None:

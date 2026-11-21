@@ -199,7 +199,8 @@ input[type=password] { flex: 1; }
   <section class="tab" id="tab-chats">
     <div class="files">
       <aside class="card side">
-        <input type="search" id="convQ" placeholder="搜索对话标题">
+        <input type="search" id="fullQ" placeholder="搜所有对话的内容，回车（全文搜索）">
+        <input type="search" id="convQ" placeholder="或者只筛选标题" style="margin-top:6px">
         <div class="row" id="convPlatforms"></div>
         <div id="convList" class="filelist"><div class="empty">加载中……</div></div>
       </aside>
@@ -710,6 +711,20 @@ function drawConv() {
 }
 
 $("#convQ").addEventListener("input", convView);
+
+async function fullSearch() {
+  const q = $("#fullQ").value.trim();
+  if (!q) { convView(); return; }
+  $("#convList").innerHTML = `<div class="empty">搜索中……</div>`;
+  const r = await api("search", { q, type: "chat" });
+  if (r.error) { $("#convList").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  const mark = (s) => esc(s).replace(/【/g, "<b class=\"ok\">").replace(/】/g, "</b>");
+  $("#convList").innerHTML = `<div class="empty">找到 ${r.hits.length} 个对话（${r.seconds} 秒）${q.length < 3 ? "；少于 3 个字是逐条比对的" : ""}。清空搜索框回到列表。</div>` +
+    r.hits.map((h) => `<button data-p="${esc(h.path)}"><span class="t">${esc(h.title)}</span><span class="p">${mark(h.snippet)}</span></button>`).join("");
+  $("#convList").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openConv(b.dataset.p)));
+}
+$("#fullQ").addEventListener("keydown", (e) => { if (e.key === "Enter") fullSearch(); });
+$("#fullQ").addEventListener("input", () => { if (!$("#fullQ").value.trim()) convView(); });
 
 // ---------- 兴趣 ----------
 let interestRows = [];

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 import os
 import subprocess
 import sys
@@ -56,8 +55,13 @@ def test_F12_01_success_and_failure_are_recorded(
     failed = run_job(vault, "headlines", now=lambda: T0)
     assert not failed.ok and failed.error == "Ollama 没开 第二行"
     assert [r.ok for r in read_runs(vault, "headlines")] == [True, False]
-    lines = (vault / ".eia" / "runs" / "headlines.jsonl").read_text(encoding="utf-8").splitlines()
-    assert set(json.loads(lines[0])) == {"job", "started", "seconds", "ok", "summary", "error"}
+    first = read_runs(vault, "headlines")[0]
+    assert (first.job, first.started, first.ok, first.summary) == (
+        "headlines",
+        "2026-11-22T00:00:00Z",
+        True,
+        "新建 2，更新 1",
+    )
     assert not (vault / ".eia" / "locks" / "headlines.lock").exists()
 
 
@@ -149,9 +153,6 @@ def test_F12_03_keeps_only_recent_runs(vault: Path, monkeypatch: pytest.MonkeyPa
     records = read_runs(vault, "headlines")
     assert len(records) == KEEP_RUNS
     assert records[0].summary == "第 5 次" and records[-1].summary == f"第 {KEEP_RUNS + 4} 次"
-    path = vault / ".eia" / "runs" / "headlines.jsonl"
-    path.write_bytes(path.read_bytes() + b"{broken\n")
-    assert len(read_runs(vault, "headlines")) == KEEP_RUNS
 
 
 # ---------- F12-04 登记 ----------

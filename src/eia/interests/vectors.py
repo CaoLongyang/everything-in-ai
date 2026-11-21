@@ -1,18 +1,20 @@
-"""文本向量缓存（`.eia/interests/vectors.json`），按模型作废。对话、兴趣说明、评价过的标题都用它。"""
+"""文本向量缓存（数据库的 vectors 表，空间 text），按模型作废。
+
+对话、兴趣说明、评价过的标题都用它。
+"""
 
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
 from eia import llm
+from eia.db import database
+from eia.db import vectors as vec
 from eia.interests.config import InterestsError
-from eia.schema.io import atomic_write
 
-CACHE = Path(".eia") / "interests" / "vectors.json"
+SPACE = "text"
 BATCH = 32
 
 
@@ -43,24 +45,19 @@ def embed_texts(
 ) -> list[list[float]]:
     endpoint = client.config.embed
     assert endpoint is not None
-    path = root / CACHE
-    cache: dict[str, list[float]] = {}
-    if path.is_file():
-        try:
-            data: Any = json.loads(path.read_bytes().decode("utf-8"))
-        except ValueError:
-            data = {}
-        if isinstance(data, dict) and data.get("model") == endpoint.cache_key:
-            cache = {k: v for k, v in (data.get("vectors") or {}).items() if isinstance(v, list)}
     keys = [_key(text) for text in texts]
+    with database(root, readonly=not save) as conn:
+        cache = vec.get(conn, endpoint.cache_key, SPACE, keys)
     missing = sorted(
         {key: text for key, text in zip(keys, texts, strict=True) if key not in cache}.items()
     )
+    new: dict[str, list[float]] = {}
     for start in range(0, len(missing), BATCH):
         batch = missing[start : start + BATCH]
         for (key, _), vector in zip(batch, client.embed([text for _, text in batch]), strict=True):
-            cache[key] = vector
-    if save and missing:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        atomic_write(path, json.dumps({"model": endpoint.cache_key, "vectors": cache}))
+            new[key] = vector
+    if save and new:
+        with database(root) as conn:
+            vec.put(conn, endpoint.cache_key, SPACE, new)
+    cache.update(new)
     return [cache[key] for key in keys]

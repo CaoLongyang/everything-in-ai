@@ -18,6 +18,10 @@ from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
 from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
 from eia.chat.render import SPEAKERS, USER_LABEL
+from eia.db import DatabaseError, database
+from eia.db import ops as db_ops
+from eia.db.index import search as db_search
+from eia.db.index import sync
 from eia.headlines import run as headlines
 from eia.headlines.config import HeadlinesConfigError
 from eia.headlines.store import load_items
@@ -471,6 +475,94 @@ def digest_rate(
     except InterestsError as exc:
         raise _interests_error(exc) from exc
     click.echo(f"已记下  {record.title}")
+
+
+@main.group(name="db")
+def db_group() -> None:
+    """vault 的数据库（.eia/eia.db）：索引、向量、报道、运行记录、评价。"""
+
+
+def _db_report(state: db_ops.Status) -> None:
+    labels = {
+        "entries": "条目索引",
+        "entry_tags": "标签",
+        "items": "抓到的报道",
+        "vectors": "向量",
+        "runs": "运行记录",
+        "shown": "已看过的报道",
+        "feedback": "评价",
+        "interest_history": "兴趣历史",
+    }
+    click.echo(
+        f"数据库 {state.size_bytes / 1_000_000:.1f} MB，表结构版本 {state.schema_version}，"
+        f"全文搜索{'可用' if state.fts else '不可用（SQLite 版本太低）'}"
+    )
+    for table, count in state.counts.items():
+        click.echo(f"  {labels[table]:<8} {count}")
+    if state.index is not None:
+        i = state.index
+        click.echo(
+            f"索引已更新：新增 {i.added}，修改 {i.changed}，删除 {i.removed}，未变 {i.unchanged}"
+        )
+    if state.legacy:
+        moved = {k: v for k, v in state.legacy.items() if k != "at" and v}
+        if moved:
+            text = "、".join(f"{k} {v}" for k, v in moved.items())
+            click.echo(f"从旧版本的数据文件迁移过：{text}（旧文件在 .eia/old/）")
+
+
+@db_group.command(name="status")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def db_status(vault: Path) -> None:
+    """数据库大小、每张表多少行；顺便把索引更新到最新。"""
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+    try:
+        _db_report(db_ops.status(vault))
+    except DatabaseError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@db_group.command(name="rebuild")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--yes", is_flag=True, help="确认删掉重建。")
+def db_rebuild(vault: Path, yes: bool) -> None:
+    """删掉数据库重建：重新索引 Markdown、从 interests/feedback.jsonl 恢复评价。
+
+    抓到的报道和向量会丢，下次运行时重新抓、重新算；运行记录和兴趣历史也会丢。
+    """
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+    if not yes:
+        click.echo(
+            "会删掉 .eia/eia.db 再重建：报道、向量、运行记录、兴趣历史会丢，评价会从导出文件恢复。"
+        )
+        click.echo("确认的话加上 --yes 再运行一次")
+        return
+    _db_report(db_ops.rebuild(vault))
+
+
+@main.command(name="search")
+@click.argument("query")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option(
+    "--type", "entry_type", type=click.Choice([t.value for t in EntryType]), help="只搜一种条目。"
+)
+@click.option("--limit", type=click.IntRange(1, 500), default=20, show_default=True)
+def search_command(vault: Path, query: str, entry_type: str | None, limit: int) -> None:
+    """在 vault 的所有条目里搜全文（标题和正文）。"""
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+    try:
+        with database(vault) as conn:
+            sync(conn, vault)
+            hits = db_search(conn, query, entry_type=entry_type, limit=limit)
+    except (DatabaseError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    if not hits:
+        click.echo("没有找到")
+    for hit in hits:
+        click.echo(f"{hit.path}  {hit.title}\n    {hit.snippet}")
 
 
 @main.command(name="run")

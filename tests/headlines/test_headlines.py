@@ -402,7 +402,7 @@ def test_F11_07_real_run_reports_and_caches(
     result = CliRunner().invoke(main, ["headlines", "run", "--vault", str(root)])
     assert result.exit_code == 0, result.output
     assert "新建  inbox/headlines/" in result.output
-    assert (root / ".eia" / "headlines" / "items.jsonl").is_file()
+    assert (root / ".eia" / "eia.db").is_file() and len(load_items(root)) == 7
     # 第二次运行：向量全部来自缓存，不再调用模型
     calls = len(fake_llm.batches)
     again = CliRunner().invoke(main, ["headlines", "run", "--vault", str(root)])
@@ -465,16 +465,15 @@ def test_F11_08_vectors_are_batched_and_cache_resets_on_model_change(
 
 def test_F11_08_store_tolerates_damage(tmp_path: Path) -> None:
     item = Item("https://a", "A", "", "P", NOW, "https://f")
+    (tmp_path / "config.yaml").write_text("schema: 1\n", encoding="utf-8")
     save_items(tmp_path, [item])
-    path = tmp_path / ".eia" / "headlines" / "items.jsonl"
-    path.write_bytes(path.read_bytes() + b"{broken\n" + b'{"url": 1}\n')
     assert load_items(tmp_path) == [item]
+    save_items(tmp_path, [])  # 整体替换
+    assert load_items(tmp_path) == []
     old = Item("https://old", "O", "", "P", NOW - dt.timedelta(days=9), "https://f")
     dup = Item("https://a", "dup", "", "P", NOW, "https://f")
     assert merge_items([item, old], [dup], keep_after=NOW - dt.timedelta(days=3)) == [item]
 
-    vectors = tmp_path / ".eia" / "headlines" / "vectors.json"
-    vectors.write_bytes(b"not json")
     assert load_vectors(tmp_path, "m") == {}
 
 
@@ -482,13 +481,9 @@ def test_F11_08_mismatched_vectors_rejected(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="不同维度"):
         save_vectors(tmp_path, "m", {"a": [1.0, 2.0], "b": [1.0]})
     save_vectors(tmp_path, "m", {"a": [1.0, 2.0]})
-    (tmp_path / ".eia" / "headlines" / "vectors.json").write_text(
-        '{"model": "m", "dim": 2, "vectors": {"a": [1.0, 2.0], "b": [3.0]}}', encoding="utf-8"
-    )
     assert load_vectors(tmp_path, "m") == {"a": [1.0, 2.0]}
-    (tmp_path / ".eia" / "headlines" / "vectors.json").write_text(
-        '{"model": "m", "vectors": 3}', encoding="utf-8"
-    )
+    assert load_vectors(tmp_path, "other-model") == {}
+    save_vectors(tmp_path, "other-model", {"b": [3.0]})  # 换模型：旧模型的向量一起清掉
     assert load_vectors(tmp_path, "m") == {}
 
 

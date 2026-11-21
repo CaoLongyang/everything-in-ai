@@ -1,20 +1,24 @@
-"""对报道的评价：`interests/feedback.jsonl`（SPEC-interest-digest 第 9 节）。
+"""对报道的评价（SPEC-interest-digest 第 9 节、SPEC-storage F14-03）。
 
-放在 vault 里而不是 .eia/ 缓存：这是用户自己的数据，删缓存不能丢。
+存在数据库的 feedback 表，**每次写入同时导出**到 `interests/feedback.jsonl`：
+这是用户自己的数据，数据库删了要能从导出文件完整恢复（`eia db rebuild`）。
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import json
+import sqlite3
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from eia.db import database
+from eia.db.legacy import FEEDBACK_EXPORT
 from eia.headlines.urls import url_key
 from eia.interests.config import InterestsError
 from eia.schema.io import atomic_write
 
-FEEDBACK = Path("interests") / "feedback.jsonl"
+FEEDBACK = FEEDBACK_EXPORT
 
 
 @dataclass(frozen=True)
@@ -37,17 +41,36 @@ class Feedback:
         return self.relevant is False or (self.stars is not None and self.stars <= 2)
 
 
-def read_feedback(root: Path) -> list[Feedback]:
+def _rows(conn: sqlite3.Connection) -> list[Feedback]:
+    rows = conn.execute(
+        "SELECT url, title, publisher, interest, relevant, stars, why, rated FROM feedback"
+        " ORDER BY rated, key"
+    ).fetchall()
+    return [
+        Feedback(
+            url=r["url"],
+            title=r["title"],
+            publisher=r["publisher"],
+            interest=r["interest"],
+            relevant=None if r["relevant"] is None else bool(r["relevant"]),
+            stars=r["stars"],
+            why=r["why"],
+            rated=r["rated"],
+        )
+        for r in rows
+    ]
+
+
+def read_feedback(root: Path, *, readonly: bool = False) -> list[Feedback]:
+    with database(root, readonly=readonly) as conn:
+        return _rows(conn)
+
+
+def export(root: Path, conn: sqlite3.Connection) -> None:
+    lines = [json.dumps(asdict(r), ensure_ascii=False) for r in _rows(conn)]
     path = root / FEEDBACK
-    if not path.is_file():
-        return []
-    records: list[Feedback] = []
-    for line in path.read_bytes().decode("utf-8", errors="replace").splitlines():
-        try:
-            records.append(Feedback(**json.loads(line)))
-        except (ValueError, TypeError):
-            continue
-    return records
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write(path, "".join(line + "\n" for line in lines))
 
 
 def rate(
@@ -79,10 +102,20 @@ def rate(
         why=why,
         rated=when.isoformat().replace("+00:00", "Z"),
     )
-    key = url_key(record.url)
-    kept = [r for r in read_feedback(root) if url_key(r.url) != key]
-    path = root / FEEDBACK
-    path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [json.dumps(asdict(r), ensure_ascii=False) for r in [*kept, record]]
-    atomic_write(path, "".join(line + "\n" for line in lines))
+    with database(root) as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO feedback VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                url_key(record.url),
+                record.url,
+                record.title,
+                record.publisher,
+                record.interest,
+                None if relevant is None else int(relevant),
+                stars,
+                why,
+                record.rated,
+            ),
+        )
+        export(root, conn)
     return record

@@ -76,6 +76,7 @@ def test_requests_without_token_or_from_other_hosts_are_refused(
     with pytest.raises(urllib.error.HTTPError) as info:
         _post(base, {"action": "init", "params": {"vault": str(vault / "x")}}, token, host)
     assert info.value.code == 403
+    info.value.close()
     assert not (vault / "x").exists()
 
 
@@ -299,7 +300,8 @@ def _bad(base: str, token: str) -> str:
     try:
         _post(base, {"action": "rm_rf"}, token)
     except urllib.error.HTTPError as exc:
-        return exc.read().decode("utf-8")
+        with exc:
+            return exc.read().decode("utf-8")
     return ""
 
 

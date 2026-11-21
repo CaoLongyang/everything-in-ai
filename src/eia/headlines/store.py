@@ -1,43 +1,39 @@
-"""`.eia/headlines/` 里的暂存：抓到的报道和算好的向量。不是用户文件，可以随时删掉重来。
+"""新闻雷达的暂存：抓到的报道和算好的向量，存在 vault 的数据库里（SPEC-storage）。
 
-向量缓存记录模型名和维度；模型或维度变了，旧向量全部作废（SPEC-llm-adapter「给下游的注意」）。
+不是用户写的内容，可以随时删掉重来。向量缓存按模型名作废（SPEC-llm-adapter「给下游的注意」）。
 """
 
 from __future__ import annotations
 
 import datetime as dt
-import json
 from collections.abc import Iterable
-from dataclasses import asdict
 from pathlib import Path
-from typing import Any
 
+from eia.db import database
+from eia.db import vectors as vec
 from eia.headlines.feeds import Item
 from eia.headlines.urls import url_key
-from eia.schema.io import atomic_write
 
-STORE_DIR = Path(".eia") / "headlines"
-ITEMS_FILE = "items.jsonl"
-VECTORS_FILE = "vectors.json"
+SPACE = "item"
 
 
-def store_dir(root: Path) -> Path:
-    return root / STORE_DIR
-
-
-def load_items(root: Path) -> list[Item]:
-    path = store_dir(root) / ITEMS_FILE
-    if not path.is_file():
-        return []
-    items: list[Item] = []
-    for line in path.read_bytes().decode("utf-8", errors="replace").splitlines():
-        try:
-            data = json.loads(line)
-            data["published"] = dt.datetime.fromisoformat(data["published"])
-            items.append(Item(**data))
-        except (ValueError, TypeError, KeyError):
-            continue  # 坏掉的行丢掉即可，下次抓取会补回来
-    return items
+def load_items(root: Path, *, readonly: bool = False) -> list[Item]:
+    with database(root, readonly=readonly) as conn:
+        rows = conn.execute(
+            "SELECT url, title, summary, publisher, published, feed_url FROM items"
+            " ORDER BY published, url"
+        ).fetchall()
+    return [
+        Item(
+            url=r["url"],
+            title=r["title"],
+            summary=r["summary"],
+            publisher=r["publisher"],
+            published=dt.datetime.fromisoformat(r["published"]),
+            feed_url=r["feed_url"],
+        )
+        for r in rows
+    ]
 
 
 def merge_items(old: Iterable[Item], new: Iterable[Item], keep_after: dt.datetime) -> list[Item]:
@@ -51,43 +47,30 @@ def merge_items(old: Iterable[Item], new: Iterable[Item], keep_after: dt.datetim
 
 
 def save_items(root: Path, items: list[Item]) -> None:
-    lines = [
-        json.dumps({**asdict(item), "published": item.published.isoformat()}, ensure_ascii=False)
-        for item in items
+    """暂存的报道整体替换成 items。"""
+    rows = [
+        (
+            url_key(i.url),
+            i.url,
+            i.title,
+            i.summary,
+            i.publisher,
+            i.published.astimezone(dt.UTC).isoformat(),
+            i.feed_url,
+        )
+        for i in items
     ]
-    _write(store_dir(root) / ITEMS_FILE, "".join(line + "\n" for line in lines))
+    with database(root) as conn:
+        conn.execute("DELETE FROM items")
+        conn.executemany("INSERT OR IGNORE INTO items VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
 
 
-def load_vectors(root: Path, model: str) -> dict[str, list[float]]:
+def load_vectors(root: Path, model: str, *, readonly: bool = False) -> dict[str, list[float]]:
     """只返回同一个模型算出的向量；模型变了返回空。"""
-    path = store_dir(root) / VECTORS_FILE
-    if not path.is_file():
-        return {}
-    try:
-        data: Any = json.loads(path.read_bytes().decode("utf-8"))
-    except ValueError:
-        return {}
-    if not isinstance(data, dict) or data.get("model") != model:
-        return {}
-    vectors = data.get("vectors")
-    dim = data.get("dim")
-    if not isinstance(vectors, dict):
-        return {}
-    return {
-        key: value
-        for key, value in vectors.items()
-        if isinstance(value, list) and len(value) == dim
-    }
+    with database(root, readonly=readonly) as conn:
+        return vec.get(conn, model, SPACE)
 
 
 def save_vectors(root: Path, model: str, vectors: dict[str, list[float]]) -> None:
-    dims = {len(vector) for vector in vectors.values()}
-    if len(dims) > 1:
-        raise ValueError("同一个模型返回了不同维度的向量")
-    payload = {"model": model, "dim": dims.pop() if dims else 0, "vectors": vectors}
-    _write(store_dir(root) / VECTORS_FILE, json.dumps(payload))
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write(path, text)
+    with database(root) as conn:
+        vec.replace_space(conn, model, SPACE, vectors)

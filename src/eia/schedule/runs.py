@@ -6,17 +6,15 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 import os
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
-from eia.schema.io import atomic_write
+from eia.db import database
 
 LOCK_DIR = Path(".eia") / "locks"
-RUNS_DIR = Path(".eia") / "runs"
 STALE_LOCK = dt.timedelta(hours=2)
 KEEP_RUNS = 200
 
@@ -90,24 +88,36 @@ def run_job(root: Path, job: str, *, now: Callable[[], dt.datetime] | None = Non
 
 
 def read_runs(root: Path, job: str) -> list[RunRecord]:
-    path = root / RUNS_DIR / f"{job}.jsonl"
-    if not path.is_file():
-        return []
-    records: list[RunRecord] = []
-    for line in path.read_bytes().decode("utf-8", errors="replace").splitlines():
-        try:
-            records.append(RunRecord(**json.loads(line)))
-        except (ValueError, TypeError):
-            continue
-    return records
+    with database(root) as conn:
+        rows = conn.execute(
+            "SELECT job, started, seconds, ok, summary, error FROM runs WHERE job = ? ORDER BY id",
+            (job,),
+        ).fetchall()
+    return [
+        RunRecord(r["job"], r["started"], r["seconds"], bool(r["ok"]), r["summary"], r["error"])
+        for r in rows
+    ]
 
 
 def _append(root: Path, record: RunRecord) -> None:
-    records = [*read_runs(root, record.job), record][-KEEP_RUNS:]
-    path = root / RUNS_DIR / f"{record.job}.jsonl"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = "".join(json.dumps(asdict(r), ensure_ascii=False) + "\n" for r in records)
-    atomic_write(path, text)
+    with database(root) as conn:
+        conn.execute(
+            "INSERT INTO runs (job, started, seconds, ok, summary, error)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                record.job,
+                record.started,
+                record.seconds,
+                int(record.ok),
+                record.summary,
+                record.error,
+            ),
+        )
+        conn.execute(
+            "DELETE FROM runs WHERE job = ? AND id NOT IN"
+            " (SELECT id FROM runs WHERE job = ? ORDER BY id DESC LIMIT ?)",
+            (record.job, record.job, KEEP_RUNS),
+        )
 
 
 def _acquire(lock: Path, now: dt.datetime) -> bool:

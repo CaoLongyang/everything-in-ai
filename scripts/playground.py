@@ -31,7 +31,6 @@ from eia.cli import main
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
 from eia.schema.configedit import replace_section, save_config_text
 from eia.schema.io import FrontmatterError, read_document
-from eia.schema.validate import iter_markdown
 from eia.schema.vault import CONFIG_NAME, VaultError, is_vault, load_config
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -259,48 +258,58 @@ def action_headlines_list(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def action_files(params: dict[str, Any]) -> dict[str, Any]:
-    """列出 vault 里的 Markdown 文件（和 eia validate 看的范围一样）。只读 frontmatter。"""
+    """列出 vault 里的 Markdown 文件。用数据库索引（增量更新），不再每次读 988 个文件。"""
+    from eia.db import database
+    from eia.db.index import sync
+
     vault = Path(_vault(params))
     if not is_vault(vault):
         raise ValueError(f"{vault} 不是一个 vault")
+    with database(vault) as conn:
+        sync(conn, vault)
+        rows = conn.execute(
+            "SELECT path, title, type, updated, created, platform, message_count, error"
+            " FROM entries ORDER BY path"
+        ).fetchall()
     files = []
-    for path in iter_markdown(vault):
-        rel = path.relative_to(vault).as_posix()
-        entry: dict[str, Any] = {"path": rel, "folder": rel.rpartition("/")[0] or "（根目录）"}
-        files.append(entry | _summary(path))
+    for r in rows:
+        entry: dict[str, Any] = {
+            "path": r["path"],
+            "folder": r["path"].rpartition("/")[0] or "（根目录）",
+            "title": r["title"] or Path(r["path"]).stem,
+            "type": r["type"],
+            "updated": r["updated"] or r["created"] or "",
+            "platform": r["platform"],
+            "messages": r["message_count"],
+        }
+        if r["error"]:
+            entry["broken"] = True
+        files.append(entry)
     return {"files": files}
 
 
-_SUMMARIES: dict[Path, tuple[float, dict[str, Any]]] = {}
-_HEAD = re.compile(rb"\A(?:\xef\xbb\xbf)?---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.S | re.M)
-_Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+def action_search(params: dict[str, Any]) -> dict[str, Any]:
+    """全文搜索（标题和正文）。3 个字及以上走索引，更短的逐条比对。"""
+    from eia.db import database
+    from eia.db.index import search, sync
 
-
-def _summary(path: Path) -> dict[str, Any]:
-    """列表只要标题、类型、时间：只读文件开头的 frontmatter，按修改时间缓存。"""
-    mtime = path.stat().st_mtime
-    cached = _SUMMARIES.get(path)
-    if cached and cached[0] == mtime:
-        return cached[1]
-    with path.open("rb") as handle:
-        head = handle.read(64_000)
-    match = _HEAD.match(head)
-    try:
-        meta = yaml.load(match.group(1).decode("utf-8"), Loader=_Loader) if match else None
-    except (yaml.YAMLError, UnicodeDecodeError):
-        meta = None
-    if isinstance(meta, dict):
-        summary = {
-            "title": str(meta.get("title") or path.stem),
-            "type": meta.get("type"),
-            "updated": str(meta.get("updated") or meta.get("created") or ""),
-            "platform": meta.get("platform"),
-            "messages": meta.get("message_count"),
-        }
-    else:
-        summary = {"title": path.stem, "type": None, "updated": "", "broken": True}
-    _SUMMARIES[path] = (mtime, summary)
-    return summary
+    vault = Path(_vault(params))
+    query = _clean(params.get("q"))
+    if not query:
+        return {"hits": []}
+    started = time.monotonic()
+    with database(vault) as conn:
+        sync(conn, vault)
+        try:
+            hits = search(conn, query, entry_type=_clean(params.get("type")) or None, limit=100)
+        except RuntimeError as exc:
+            return {"error": str(exc)}
+    return {
+        "hits": [
+            {"path": h.path, "title": h.title, "type": h.type, "snippet": h.snippet} for h in hits
+        ],
+        "seconds": round(time.monotonic() - started, 3),
+    }
 
 
 def action_file(params: dict[str, Any]) -> dict[str, Any]:
@@ -682,7 +691,11 @@ def action_interests_save(params: dict[str, Any]) -> dict[str, Any]:
     ]
     if not chosen:
         return {"error": "一项都没勾，没有改动配置"}
-    backup = update_section(vault, "interests", [i.as_config() for i in chosen])
+    data = [i.as_config() for i in chosen]
+    backup = update_section(vault, "interests", data)
+    from eia.db import history
+
+    history.record(vault, data, "playground")
     return {"saved": len(chosen), "backup": str(backup)}
 
 

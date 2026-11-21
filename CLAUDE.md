@@ -81,6 +81,12 @@ ruff format .                      # 自动格式化
 - 定时任务 `headlines` 跑完雷达后，有兴趣清单就接着跑 `digest`。
 - 改 `config.yaml` 的某一段统一用 `schema/configedit.py`（保留注释、先备份）。
 
+**db/**（`SPEC-storage.md`，实现决定见 ADR 0007）
+- 原则：Markdown 是内容的唯一来源；机器用的数据在 `.eia/eia.db`，随时可删掉用 `eia db rebuild` 重建。评价例外地同时导出到 `interests/feedback.jsonl`。
+- 一律用 `with database(root) as conn:`；预览传 `readonly=True`（不写任何文件）。改表结构：`schema.py` 的 `SCHEMA_VERSION` + `MIGRATIONS`。
+- `index.py`：`sync` 增量索引 Markdown（比较修改时间和大小）；`search` 全文搜索（3 字以上 FTS5 trigram，更短的 LIKE）。
+- `legacy.py`：旧版本散文件的一次性导入（导入后移到 `.eia/old/`）。不要再新增 `.eia/` 下的散文件，加表。
+
 ## 改规格的方式
 
 已批准的 spec 不直接改，写 `SPEC-DELTA-<name>.md`；实现中做出的偏离 spec 的决定记到 `docs/adr/`。

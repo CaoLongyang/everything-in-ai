@@ -65,7 +65,7 @@ def run(
     statuses = fetch_all(config.feeds, now, fetcher)
     fresh = [item for status in statuses for item in status.items]
     window = dt.timedelta(hours=config.window_hours)
-    items = merge_items(load_items(root), fresh, keep_after=now - 2 * window)
+    items = merge_items(load_items(root, readonly=dry_run), fresh, keep_after=now - 2 * window)
     if not dry_run:
         save_items(root, items)
     recent = [item for item in items if item.published >= now - window]
@@ -101,7 +101,7 @@ def item_vectors(
     endpoint = client.config.embed
     assert endpoint is not None
     model = endpoint.cache_key
-    cache = load_vectors(root, model)
+    cache = load_vectors(root, model, readonly=not save)
     missing = [item for item in items if item.url not in cache]
     for start in range(0, len(missing), EMBED_BATCH):
         batch = missing[start : start + EMBED_BATCH]

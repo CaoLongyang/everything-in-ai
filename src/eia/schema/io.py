@@ -72,9 +72,13 @@ def _split(text: str) -> tuple[str, str, str] | None:
     return match.group(1), match.group(2), text[match.end(2) :]
 
 
+# libyaml 的 C 版本解析结果与 SafeLoader 相同，快很多；没装 libyaml 时退回纯 Python 版
+_Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
 def _parse(fm_text: str) -> dict[str, Any]:
     try:
-        data = yaml.safe_load(fm_text)
+        data = yaml.load(fm_text, Loader=_Loader)
     except yaml.YAMLError as exc:
         raise FrontmatterError(f"frontmatter 不是合法的 YAML：{exc}") from exc
     if data is None:

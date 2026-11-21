@@ -8,13 +8,13 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from eia import llm
+from eia.db import database
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
 from eia.headlines.feeds import Item
 from eia.headlines.run import item_vectors
@@ -45,7 +45,6 @@ from eia.schema.naming import entry_filename
 from eia.schema.vault import dir_for, load_config
 
 SOURCE = "eia-interests"
-SHOWN = Path(".eia") / "interests" / "shown.json"
 SHOWN_DAYS = 7
 NEAR = 0.85  # 和评价过的报道这么像，就当作同一类
 LIKE_BONUS = 0.05
@@ -95,11 +94,11 @@ def run_digest(
         window = load_headlines_config(root).window_hours
     except HeadlinesConfigError:
         window = DEFAULT_WINDOW_HOURS
-    shown = _load_shown(root, now)
+    shown = _load_shown(root, now, readonly=dry_run)
     today = now.astimezone(tz).date()
     recent = [
         item
-        for item in load_items(root)
+        for item in load_items(root, readonly=dry_run)
         if item.published >= now - dt.timedelta(hours=window)
         and shown.get(url_key(item.url), today.isoformat()) == today.isoformat()
     ]
@@ -108,7 +107,13 @@ def run_digest(
         raise InterestsError("最近没有报道可以挑。先运行 eia headlines run 抓取新闻")
 
     picks, dropped_feedback, dropped_exclude = score_items(
-        root, client, recent, interests, read_feedback(root), config
+        root,
+        client,
+        recent,
+        interests,
+        read_feedback(root, readonly=dry_run),
+        config,
+        save=not dry_run,
     )
     result.dropped_by_feedback = dropped_feedback
     result.dropped_by_exclude = dropped_exclude
@@ -123,7 +128,7 @@ def run_digest(
         result.path, result.created = path, created
         for pick in result.picks:
             shown[url_key(pick.item.url)] = today.isoformat()
-        _save_shown(root, shown)
+        _save_shown(root, shown, now)
     return result
 
 
@@ -134,6 +139,8 @@ def score_items(
     interests: list[Interest],
     feedback: list[Feedback],
     config: DigestConfig,
+    *,
+    save: bool = True,
 ) -> tuple[list[Pick], int, int]:
     import numpy as np
 
@@ -144,13 +151,13 @@ def score_items(
         return matrix / np.clip(np.linalg.norm(matrix, axis=1, keepdims=True), 1e-12, None)
 
     item_vecs = unit(item_vectors(root, client, items, save=False))
-    interest_vecs = unit(embed_texts(root, client, [i.text for i in interests]))
+    interest_vecs = unit(embed_texts(root, client, [i.text for i in interests], save=save))
     excludes = [(n, i.exclude) for n, i in enumerate(interests) if i.exclude]
-    exclude_vecs = unit(embed_texts(root, client, [text for _, text in excludes]))
+    exclude_vecs = unit(embed_texts(root, client, [text for _, text in excludes], save=save))
     liked = [f for f in feedback if f.liked]
     disliked = [f for f in feedback if f.disliked]
-    liked_vecs = unit(embed_texts(root, client, [f.title for f in liked]))
-    disliked_vecs = unit(embed_texts(root, client, [f.title for f in disliked]))
+    liked_vecs = unit(embed_texts(root, client, [f.title for f in liked], save=save))
+    disliked_vecs = unit(embed_texts(root, client, [f.title for f in disliked], save=save))
     disliked_keys = {url_key(f.url) for f in disliked}
     liked_keys = {url_key(f.url) for f in liked}
 
@@ -259,21 +266,15 @@ def _write(
     return target.relative_to(root).as_posix(), True
 
 
-def _load_shown(root: Path, now: dt.datetime) -> dict[str, str]:
-    path = root / SHOWN
-    if not path.is_file():
-        return {}
-    try:
-        data = json.loads(path.read_bytes().decode("utf-8"))
-    except ValueError:
-        return {}
+def _load_shown(root: Path, now: dt.datetime, *, readonly: bool = False) -> dict[str, str]:
     oldest = (now - dt.timedelta(days=SHOWN_DAYS)).date().isoformat()
-    if not isinstance(data, dict):
-        return {}
-    return {str(k): str(v) for k, v in data.items() if str(v) >= oldest}
+    with database(root, readonly=readonly) as conn:
+        rows = conn.execute("SELECT key, day FROM shown WHERE day >= ?", (oldest,)).fetchall()
+    return {row["key"]: row["day"] for row in rows}
 
 
-def _save_shown(root: Path, shown: dict[str, str]) -> None:
-    path = root / SHOWN
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write(path, json.dumps(shown, ensure_ascii=False))
+def _save_shown(root: Path, shown: dict[str, str], now: dt.datetime) -> None:
+    oldest = (now - dt.timedelta(days=SHOWN_DAYS)).date().isoformat()
+    with database(root) as conn:
+        conn.execute("DELETE FROM shown WHERE day < ?", (oldest,))
+        conn.executemany("INSERT OR REPLACE INTO shown VALUES (?, ?)", list(shown.items()))
