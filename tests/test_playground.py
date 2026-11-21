@@ -175,6 +175,126 @@ def test_chat_viewer(server: tuple[str, str, Path]) -> None:
     assert escape == {"error": "只能打开 vault 里的 .md 文件"}
 
 
+def test_replace_section_keeps_everything_else() -> None:
+    text = "# 注释\nschema: 1\nllm:\n  provider: old\n  model: x\n\n# 下一段\ntimezone:\n"
+    new = playground.replace_section(text, "llm", {"provider": "anthropic", "model": "m"})
+    assert (
+        new == "# 注释\nschema: 1\nllm:\n  provider: anthropic\n  model: m\n\n# 下一段\ntimezone:\n"
+    )
+    assert (
+        playground.replace_section(text, "llm", None)
+        == "# 注释\nschema: 1\n\n# 下一段\ntimezone:\n"
+    )
+    appended = playground.replace_section("schema: 1\n", "headlines", {"min_sources": 3})
+    assert appended == "schema: 1\n\nheadlines:\n  min_sources: 3\n"
+    # 注释里的 "# llm:" 不算
+    assert playground.replace_section("# llm:\n", "llm", None) == "# llm:\n"
+
+
+def test_settings_form_produces_a_working_config(server: tuple[str, str, Path]) -> None:
+    from eia.headlines.config import load_headlines_config
+    from eia.llm.config import load_llm_config
+
+    base, token, vault = server
+    got = _post(base, {"action": "config_get", "params": {"vault": str(vault)}}, token)
+    assert got["llm"] is None and got["headlines"] is None
+    assert len(got["recommended_feeds"]) == 13 and got["env_names"] == []
+    assert got["check"]["llm"]["ok"] is False
+
+    form = {
+        "vault": str(vault),
+        "llm": {
+            "enabled": True,
+            "provider": "openai_compatible",
+            "model": "deepseek-v4-flash",
+            "api_base": "https://api.deepseek.com",
+            "api_key_env": "EIA_PLAY_KEY",
+            "embed": {"enabled": True, "model": "bge-m3", "api_base": ""},
+        },
+        "headlines": {
+            "enabled": True,
+            "min_sources": "4",
+            "window_hours": "24",
+            "similarity": "",
+            "cluster": "embed",
+            "feeds": got["recommended_feeds"][:5],
+        },
+    }
+    saved = _post(base, {"action": "config_save_form", "params": form}, token)
+    assert saved["saved"] and saved["check"]["headlines"] == {"ok": True}
+    assert saved["check"]["llm"]["text_key_missing"] is True
+    text = (vault / "config.yaml").read_text(encoding="utf-8")
+    assert "# everything-in-ai vault 配置" in text  # 模板注释还在
+    assert (vault / ".eia" / "config.yaml.bak").is_file()
+    config = load_headlines_config(vault)
+    assert config.min_sources == 4 and len(config.feeds) == 5 and config.similarity == 0.68
+
+    key = _post(
+        base,
+        {
+            "action": "env_set_key",
+            "params": {"vault": str(vault), "name": "EIA_PLAY_KEY", "value": "sk-x"},
+        },
+        token,
+    )
+    assert key == {"saved": True, "env_names": ["EIA_PLAY_KEY"], "gitignored": True}
+    assert "sk-x" not in json.dumps(key)
+    llm_config = load_llm_config(vault, environ={})
+    assert llm_config.text.api_key == "sk-x"
+    assert llm_config.embed is not None and llm_config.embed.api_base == "http://127.0.0.1:11434/v1"
+
+    again = _post(
+        base,
+        {
+            "action": "env_set_key",
+            "params": {"vault": str(vault), "name": "EIA_PLAY_KEY", "value": "sk-y"},
+        },
+        token,
+    )
+    assert again["saved"]
+    assert (vault / ".env").read_text(encoding="utf-8").count("EIA_PLAY_KEY=") == 1
+
+    off = {**form, "llm": {"enabled": False}, "headlines": {"enabled": False}}
+    _post(base, {"action": "config_save_form", "params": off}, token)
+    text = (vault / "config.yaml").read_text(encoding="utf-8")
+    assert "\nllm:" not in text and "\nheadlines:" not in text
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "error"),
+    [("BAD NAME", "x", "只能用字母"), ("OK", "", "不能为空"), ("OK", "a\nb", "换行")],
+)
+def test_env_key_validation(
+    server: tuple[str, str, Path], name: str, value: str, error: str
+) -> None:
+    base, token, vault = server
+    result = _post(
+        base,
+        {"action": "env_set_key", "params": {"vault": str(vault), "name": name, "value": value}},
+        token,
+    )
+    assert error in result["error"]
+
+
+def test_raw_config_save_rejects_broken_yaml(server: tuple[str, str, Path]) -> None:
+    base, token, vault = server
+    before = (vault / "config.yaml").read_bytes()
+    for text, error in (("llm: [oops", "不是合法的 YAML"), ("- a\n- b\n", "最外层")):
+        result = _post(
+            base,
+            {"action": "config_save_raw", "params": {"vault": str(vault), "text": text}},
+            token,
+        )
+        assert error in result["error"]
+        assert (vault / "config.yaml").read_bytes() == before
+    ok = _post(
+        base,
+        {"action": "config_save_raw", "params": {"vault": str(vault), "text": "schema: 1\n"}},
+        token,
+    )
+    assert ok["saved"] and (vault / "config.yaml").read_text(encoding="utf-8") == "schema: 1\n"
+
+
 def _bad(base: str, token: str) -> str:
     try:
         _post(base, {"action": "rm_rf"}, token)

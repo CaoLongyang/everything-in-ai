@@ -107,6 +107,17 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
 .notes-box { margin-top: 18px; border: 1px dashed var(--warn); border-radius: 10px; padding: 10px 14px; }
 .notes-box .who { color: var(--warn); font-size: 12px; }
 @media (max-width: 800px) { .bubble { max-width: 100%; } }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 14px; margin: 10px 0; }
+.form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.form input, .form select { width: 100%; }
+input[type=number], input[type=password] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+input[type=password] { flex: 1; }
+.feed { display: grid; grid-template-columns: auto 160px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.feed .u { color: var(--muted); word-break: break-all; }
+.feed button { padding: 2px 8px; font-size: 12.5px; }
+.status-line { margin: 4px 0; }
+.disabled { opacity: .45; pointer-events: none; }
+@media (max-width: 600px) { .feed { grid-template-columns: auto 1fr; } .feed .u { grid-column: 1 / -1; } }
 @media (max-width: 800px) { .files { grid-template-columns: 1fr; } .side { position: static; max-height: 50vh; } }
 @media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
 </style>
@@ -128,6 +139,7 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
     <button data-tab="import">导入</button>
     <button data-tab="headlines">新闻雷达</button>
     <button data-tab="ai">AI 服务</button>
+    <button data-tab="settings">设置</button>
   </nav>
 </header>
 
@@ -258,6 +270,81 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
       <textarea id="prompt" placeholder="例如：用一句话解释什么是 RSS">用一句话解释什么是 RSS</textarea>
       <div class="row"><button class="primary" data-run="llm_ask">发送</button></div>
       <div id="answer"></div>
+    </div>
+  </section>
+  <!-- 设置 -->
+  <section class="tab" id="tab-settings">
+    <div class="card" id="cfgStatus"><div class="empty">加载中……</div></div>
+
+    <div class="card">
+      <h2>AI 服务</h2>
+      <p class="hint">以后用 AI 的功能都走这里。选一个服务商会自动填好地址；模型名没预填的，去服务商文档里查。</p>
+      <label class="check"><input type="checkbox" id="llmOn"> 启用 AI 服务</label>
+      <div id="llmForm">
+        <div class="row" id="presetChips"></div>
+        <div class="form">
+          <label>类型<select id="llmProvider"><option value="openai_compatible">openai_compatible（DeepSeek、OpenAI、通义、Kimi、Ollama……）</option><option value="anthropic">anthropic（Claude）</option></select></label>
+          <label>模型名<input type="text" id="llmModel" placeholder="例如 deepseek-v4-flash" spellcheck="false"></label>
+          <label>服务地址<input type="text" id="llmBase" placeholder="Claude 可以留空" spellcheck="false"></label>
+          <label>key 放在哪个变量<input type="text" id="llmKeyEnv" placeholder="例如 DEEPSEEK_API_KEY；本地 Ollama 留空" spellcheck="false"></label>
+        </div>
+        <div class="row">
+          <input type="password" id="llmKey" placeholder="粘贴 API key（只写进这个 vault 的 .env，页面不会再显示它）" autocomplete="off">
+          <button id="saveKey">保存 key</button>
+          <span id="keyState" class="hint"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>新闻雷达的 AI 过滤</h2>
+      <p class="hint">雷达用“向量模型”判断两篇报道讲的是不是同一件事。推荐本地 Ollama 的 bge-m3：不花钱、新闻不出电脑、中英文都能比。</p>
+      <label class="check"><input type="checkbox" id="embOn"> 用向量模型（不勾就只能按用词相似度比，中英文同一件事会分成两条）</label>
+      <div class="form" id="embForm">
+        <label>向量模型<input type="text" id="embModel" list="ollamaModels" placeholder="bge-m3" spellcheck="false"><datalist id="ollamaModels"></datalist></label>
+        <label>地址<input type="text" id="embBase" placeholder="http://127.0.0.1:11434/v1" spellcheck="false"></label>
+      </div>
+      <div class="hint" id="ollamaState"></div>
+      <div class="form">
+        <label>至少几家媒体在报才算大事<input type="number" id="hlMin" min="1" max="20" step="1"></label>
+        <label>多长时间内的报道放在一起比（小时）<input type="number" id="hlWindow" min="1" max="240" step="1"></label>
+        <label>多像才算同一件事（0–1，空着用默认：向量 0.68 / 用词 0.35）<input type="number" id="hlSim" min="0.1" max="1" step="0.01"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>新闻源</h2>
+      <p class="hint">勾上的才会抓。同一个媒体名的多个源只算一家。推荐源都在 2026-11 实测可用。</p>
+      <label class="check"><input type="checkbox" id="hlOn"> 启用新闻雷达</label>
+      <div id="feedList"></div>
+      <div class="row">
+        <input type="text" id="newPub" placeholder="媒体名，例如 Reuters 中文" style="flex:0 1 200px">
+        <input type="text" id="newUrl" placeholder="RSS 地址 https://..." spellcheck="false">
+        <button id="addFeed">添加</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button class="primary" id="saveForm">保存上面的设置</button>
+        <button data-goto="llm_test">保存后测试 AI 连接</button>
+        <button data-goto="headlines_check">保存后检查新闻源</button>
+      </div>
+      <div id="saveResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>配置文件 <span class="chip">config.yaml</span></h2>
+      <p class="hint">上面的表单改的就是这个文件。也可以直接在这里改，或者用记事本打开。保存前会检查格式，旧文件备份在 .eia\config.yaml.bak。</p>
+      <div class="row">
+        <button id="openCfg">用记事本打开</button>
+        <button id="revealCfg">在文件夹中显示</button>
+        <button id="reloadCfg">重新读取</button>
+        <span class="hint" id="cfgPath"></span>
+      </div>
+      <textarea id="cfgText" spellcheck="false" style="min-height:340px;font:13px/1.5 ui-monospace,Consolas,monospace"></textarea>
+      <div class="row"><button class="primary" id="saveRaw">保存这个文件</button></div>
+      <div id="rawResult"></div>
     </div>
   </section>
 </main>
@@ -535,6 +622,130 @@ function drawConv() {
 
 $("#convQ").addEventListener("input", convView);
 
+// ---------- 设置 ----------
+let cfg = null, feeds = [];
+
+function statusLine(ok, text) { return `<div class="status-line"><b class="${ok ? "ok" : "warn"}">${ok ? "✓" : "!"}</b> ${text}</div>`; }
+
+function drawStatus(check, envNames) {
+  const l = check.llm, h = check.headlines;
+  $("#cfgStatus").innerHTML = `<h2>现在的状态</h2>` +
+    (l.ok ? statusLine(!l.text_key_missing, l.text_key_missing ? "AI 服务已配置，但 key 还没设置" : "AI 服务已配置") : statusLine(false, "AI 服务：" + esc(l.error))) +
+    (l.ok ? statusLine(l.has_embed, l.has_embed ? "向量模型已配置" : "没有配置向量模型（新闻雷达默认需要）") : "") +
+    (h.ok ? statusLine(true, "新闻雷达已配置") : statusLine(false, "新闻雷达：" + esc(h.error))) +
+    `<p class="hint">这个 vault 的 .env 里已有的 key：${envNames.length ? envNames.map((n) => `<span class="chip">${esc(n)}</span>`).join("") : "无"}（只显示名字）</p>`;
+}
+
+async function loadSettings() {
+  const r = await api("config_get");
+  if (r.error) { $("#cfgStatus").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  cfg = r;
+  drawStatus(r.check, r.env_names);
+  $("#cfgText").value = r.text; $("#cfgPath").textContent = r.path;
+  $("#presetChips").innerHTML = `<span class="hint">服务商：</span>` + r.presets.map((p, i) => `<button data-i="${i}">${esc(p.name)}</button>`).join("");
+  $("#presetChips").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    const p = r.presets[b.dataset.i];
+    $("#llmProvider").value = p.provider; $("#llmModel").value = p.model; $("#llmBase").value = p.api_base; $("#llmKeyEnv").value = p.api_key_env;
+    if (!p.model) $("#llmModel").focus();
+    keyState();
+  }));
+  const l = r.llm || {}, e = l.embed || null, h = r.headlines || {};
+  $("#llmOn").checked = !!r.llm;
+  $("#llmProvider").value = l.provider || "openai_compatible"; $("#llmModel").value = l.model || "";
+  $("#llmBase").value = l.api_base || ""; $("#llmKeyEnv").value = l.api_key_env || "";
+  $("#embOn").checked = r.headlines ? (h.cluster || "embed") === "embed" : true;
+  $("#embModel").value = e ? e.model || "" : "bge-m3"; $("#embBase").value = e ? e.api_base || "" : "http://127.0.0.1:11434/v1";
+  $("#hlOn").checked = !!r.headlines;
+  $("#hlMin").value = h.min_sources || 3; $("#hlWindow").value = h.window_hours || 36; $("#hlSim").value = h.similarity ?? "";
+  const current = (h.feeds || []).map((f) => ({ publisher: f.publisher, url: f.url, on: true }));
+  const extra = r.recommended_feeds.filter((f) => !current.some((c) => c.url === f.url)).map((f) => ({ ...f, on: !r.headlines }));
+  feeds = [...current, ...extra];
+  drawFeeds(); syncForms(); keyState(); loadOllama();
+}
+
+function drawFeeds() {
+  $("#feedList").innerHTML = feeds.map((f, i) => `<div class="feed"><input type="checkbox" data-i="${i}" ${f.on ? "checked" : ""}>
+    <b>${esc(f.publisher)}</b><span class="u">${esc(f.url)}</span><button data-del="${i}">删除</button></div>`).join("");
+  $("#feedList").querySelectorAll("input").forEach((c) => c.addEventListener("change", () => (feeds[c.dataset.i].on = c.checked)));
+  $("#feedList").querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => { feeds.splice(+b.dataset.del, 1); drawFeeds(); }));
+}
+
+function syncForms() {
+  $("#llmForm").classList.toggle("disabled", !$("#llmOn").checked);
+  $("#embForm").classList.toggle("disabled", !$("#embOn").checked);
+  $("#feedList").classList.toggle("disabled", !$("#hlOn").checked);
+}
+
+function keyState() {
+  const name = $("#llmKeyEnv").value.trim();
+  $("#keyState").innerHTML = !name ? "这个服务不需要 key" : cfg && cfg.env_names.includes(name) ? `<span class="ok">${esc(name)} 已设置</span>` : `<span class="warn">${esc(name)} 还没设置</span>`;
+}
+
+async function loadOllama() {
+  const r = await api("ollama_models");
+  $("#ollamaModels").innerHTML = r.models.map((m) => `<option value="${esc(m.name.replace(/:latest$/, ""))}">`).join("");
+  const emb = r.models.filter((m) => m.embedding).map((m) => m.name);
+  $("#ollamaState").innerHTML = !r.running ? `<span class="warn">Ollama 没有开着（或没装）。打开 Ollama 后点“重新读取”。</span>`
+    : emb.length ? `<span class="ok">Ollama 在运行</span>，可用的向量模型：${emb.map((n) => `<span class="chip">${esc(n)}</span>`).join("")}`
+    : `<span class="warn">Ollama 在运行，但没有向量模型。在终端运行 ollama pull bge-m3</span>`;
+}
+
+function formPayload() {
+  const embedOn = $("#embOn").checked;
+  return {
+    llm: { enabled: $("#llmOn").checked, provider: $("#llmProvider").value, model: $("#llmModel").value, api_base: $("#llmBase").value, api_key_env: $("#llmKeyEnv").value,
+      embed: { enabled: embedOn, model: $("#embModel").value, api_base: $("#embBase").value } },
+    headlines: { enabled: $("#hlOn").checked, min_sources: $("#hlMin").value, window_hours: $("#hlWindow").value, similarity: $("#hlSim").value,
+      cluster: embedOn ? "embed" : "lexical", feeds: feeds.filter((f) => f.on) },
+  };
+}
+
+function saved(box, r) {
+  if (r.error) { box.innerHTML = `<div class="term"><span class="err">${esc(r.error)}</span></div>`; return false; }
+  box.innerHTML = `<div class="answer">已保存。旧文件备份在 ${esc(r.backup)}</div>`;
+  return true;
+}
+
+async function saveForm() {
+  if ($("#llmOn").checked && !$("#llmModel").value.trim()) { $("#saveResult").innerHTML = `<div class="term"><span class="err">请填写模型名</span></div>`; return false; }
+  const r = await api("config_save_form", formPayload());
+  const ok = saved($("#saveResult"), r);
+  if (ok) { await loadSettings(); refreshOverview(); }
+  return ok;
+}
+
+$("#saveForm").addEventListener("click", saveForm);
+document.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", async () => {
+  if (!(await saveForm())) return;
+  const action = b.dataset.goto;
+  document.querySelector(`#tabs button[data-tab="${action === "llm_test" ? "ai" : "headlines"}"]`).click();
+  run(action, document.querySelector(`[data-run="${action}"]`));
+}));
+$("#saveKey").addEventListener("click", async () => {
+  const name = $("#llmKeyEnv").value.trim(), value = $("#llmKey").value.trim();
+  if (!name) { $("#keyState").innerHTML = `<span class="warn">先填“key 放在哪个变量”</span>`; return; }
+  const r = await api("env_set_key", { name, value });
+  $("#llmKey").value = "";
+  if (r.error) { $("#keyState").innerHTML = `<span class="bad">${esc(r.error)}</span>`; return; }
+  cfg.env_names = r.env_names; keyState();
+  $("#keyState").innerHTML += r.gitignored ? "（.env 已被 .gitignore 排除，不会进 Git）" : `<span class="bad">注意：.gitignore 里没有 .env</span>`;
+  loadSettings();
+});
+$("#addFeed").addEventListener("click", () => {
+  const publisher = $("#newPub").value.trim(), url = $("#newUrl").value.trim();
+  if (!publisher || !/^https?:\/\//.test(url)) { alert("请填写媒体名和 http(s) 开头的 RSS 地址"); return; }
+  feeds.unshift({ publisher, url, on: true }); $("#newPub").value = ""; $("#newUrl").value = ""; $("#hlOn").checked = true; syncForms(); drawFeeds();
+});
+$("#saveRaw").addEventListener("click", async () => {
+  const r = await api("config_save_raw", { text: $("#cfgText").value });
+  if (saved($("#rawResult"), r)) { loadSettings(); refreshOverview(); }
+});
+$("#openCfg").addEventListener("click", () => api("open_config"));
+$("#revealCfg").addEventListener("click", () => api("open_config", { reveal: true }));
+$("#reloadCfg").addEventListener("click", loadSettings);
+for (const id of ["llmOn", "embOn", "hlOn"]) $("#" + id).addEventListener("change", syncForms);
+$("#llmKeyEnv").addEventListener("input", keyState);
+
 function syncThinking() { $("#thinkWrap").style.display = $("#impPlatform").value === "claude" ? "" : "none"; }
 
 document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", () => run(b.dataset.run, b)));
@@ -547,6 +758,7 @@ $("#tabs").addEventListener("click", (e) => {
   if (tab === "headlines" && !$("#hlList").innerHTML) run("headlines_list");
   if (tab === "files" && !allFiles.length) loadFiles();
   if (tab === "chats" && !allConvs.length) loadConvs();
+  if (tab === "settings") loadSettings();
 });
 $("#useVault").addEventListener("click", useVault);
 $("#vault").addEventListener("keydown", (e) => { if (e.key === "Enter") useVault(); });
