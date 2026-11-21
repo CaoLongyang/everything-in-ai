@@ -31,6 +31,7 @@
 | V1-7 | 定时运行：`eia run` / `eia schedule` | F12-01 至 F12-06 | ✅ 2026-11-21（先只做 Windows；作者电脑上已真实登记，每天 8:00；实现决定见 ADR 0005） |
 | V1-8 | 兴趣草稿 + 按兴趣过滤 + 评价（取代 feed-digest / config-sync） | F13-01 至 F13-09 | 🔄 代码完成 2026-11-21；等作者确认第 2 步（摘录发给 DeepSeek 起名）后用真实兴趣校准 `min_score` |
 | V1-9 | SQLite 数据库 + 全文搜索（`eia db` / `eia search`） | F14-01 至 F14-08 | ✅ 2026-11-21（作者两个 vault 已迁移；实现决定见 ADR 0007） |
+| V1-10 | 新闻源扩展：Google News 搜索（含按兴趣自动搜）、Hacker News、中文热榜、推荐源目录 | F15-01 至 F15-09 | ✅ 2026-11-21（Reddit 挪到 Backlog；实现决定见 ADR 0008） |
 
 ## 已确认
 

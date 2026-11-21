@@ -29,15 +29,15 @@
 | chat-import | `chat-import.md`、`chat-import.delta-v1.md`（Claude）、`chat-import.delta-gemini.md`（Gemini） | 导入 ChatGPT / Claude 对话 | ✅；Gemini 暂缓 |
 | llm-adapter | `llm-adapter.md`、`llm-adapter.delta-v1.md` | 接入 AI 服务（DeepSeek、Claude、本机 Ollama） | ✅ |
 | chat-reader | `chat-reader.md` | 把对话读回来给其他模块分析 | ✅ |
-| headline-radar | `headline-radar.md` | 新闻雷达：多家媒体都报道的大事 | ✅ |
+| headline-radar | `headline-radar.md`、`headline-radar.delta-sources.md`（新闻源扩展） | 新闻雷达：多家媒体都报道的大事 | ✅ |
 | scheduler | `scheduler.md` | 每天定时自动运行 | ✅ |
 | interest-digest | `interest-digest.md` | 从对话生成兴趣、按兴趣挑新闻、评价 | 🔄 等校准 |
 | storage | `storage.md` | SQLite 数据库和全文搜索 | ✅ |
 
 ## docs/adr/：实现中做的决定
 
-每个模块写代码时偏离规格、或规格没写到的决定，按编号记在这里（0001–0007，与上表模块对应：
-0001–0002 是 V0，0003 llm-adapter，0004 headline-radar，0005 scheduler，0006 interest-digest，0007 storage）。
+每个模块写代码时偏离规格、或规格没写到的决定，按编号记在这里（0001–0008，与上表模块对应：
+0001–0002 是 V0，0003 llm-adapter，0004 headline-radar，0005 scheduler，0006 interest-digest，0007 storage，0008 新闻源扩展）。
 
 ## 其他目录
 

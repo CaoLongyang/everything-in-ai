@@ -76,13 +76,15 @@ def learn(root: Path, plan: LearnPlan) -> list[DraftItem]:
     result = llm.get_client(root).complete_json(plan.prompt, _Suggestions, system=LEARN_SYSTEM)
     items: list[DraftItem] = []
     seen: set[str] = set()
+    # 提炼只改名字、说明和 exclude；搜索关键词沿用同名兴趣原来的
+    searches = {interest.name: interest.search for interest in load_interests(root)}
     for s in result.interests:
         name = s.name.strip()
         if not name or name in seen:
             continue
         seen.add(name)
         change = s.change if s.change in CHANGES else "修改"
-        interest = Interest(name, s.description.strip(), s.exclude.strip())
+        interest = Interest(name, s.description.strip(), s.exclude.strip(), searches.get(name, ()))
         items.append(DraftItem(interest, checked=change != "删除", change=change))
     if not items:
         raise InterestsError("AI 没有给出任何建议，兴趣清单没有改动")

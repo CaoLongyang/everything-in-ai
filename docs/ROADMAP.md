@@ -1,6 +1,6 @@
 # Roadmap（迭代计划）
 
-原则：每个版本都是"能用的整体"。新想法一律先进 Backlog，版本进行中不扩范围；重新排期只在版本之间做。已批准的规格要改，写 delta spec（`SPEC-DELTA-<name>.md`），不直接改旧 spec。
+原则：每个版本都是"能用的整体"。新想法一律先进 Backlog，版本进行中不扩范围；重新排期只在版本之间做。已批准的规格要改，写 delta spec（`docs/specs/<name>.delta-*.md`），不直接改旧 spec。
 
 ## V0 — 雏形：我的 AI 对话变成一个能浏览的知识库
 
@@ -72,3 +72,5 @@
 - 自有 UI / 每日简报网页
 - 调度：GitHub Actions 定时模板（vault 要推到 GitHub、云上用不了本机 Ollama，2026-11-21 从 V1 挪来）；运行失败时的系统通知；macOS / Linux 的 `eia schedule`
 - `chat-import`：Claude 导出中的 `projects`、`memories`、`artifact_data`（2026-11-20 定为以后再做）
+- 新闻源（2026-11-21，见 `docs/specs/headline-radar.delta-sources.md` 第 8 节）：Reddit 官方接口（用户自己申请免费密钥）；
+  GitHub 动态和版本发布；抓网页全文、AI 给热榜写摘要（V2）。X / Facebook / Threads / Quora / TikTok / 小红书不做（要登录或付费，抓取违反平台条款）

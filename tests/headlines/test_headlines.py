@@ -143,9 +143,12 @@ def test_F11_01_init_template_recommends_feeds_but_enables_nothing(tmp_path: Pat
     block = [line.removeprefix("# ") for line in lines[start:] if line.startswith("# ")]
     (tmp_path / "config.yaml").write_text("\n".join(block), encoding="utf-8")
     config = load_headlines_config(tmp_path)
-    assert len(config.feeds) == 13
-    assert len({feed.publisher for feed in config.feeds}) == 10
+    # 2026-11-21 起（delta-sources）：国际新闻 5 个 + Hacker News + 3 个中文热榜，外加按兴趣搜
+    assert len(config.feeds) == 9
+    assert {feed.kind for feed in config.feeds} == {"rss", "hackernews", "hotlist"}
+    assert len({feed.publisher for feed in config.feeds}) == 8
     assert config.min_sources == 3 and config.cluster == "embed"
+    assert config.interest_search is not None and config.interest_search.country == "MY"
 
 
 # ---------- F11-02 解析与单个源失败 ----------

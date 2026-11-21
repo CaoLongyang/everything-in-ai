@@ -9,7 +9,9 @@
   - `src/eia/headlines/urls.py`：链接规范化（改写自 `src/orchestrator.py` 的 `_deduplication_url_key` 和跟踪参数列表）
   - `src/eia/interests/select.py`：按组限量的选取算法（改写自 `src/orchestrator.py` 的 `apply_balanced_digest`）
   - `src/eia/interests/prompts.py`：提示词里的安全规则（改写自 `src/ai/prompting/common.py`）
-- 说明：见 `docs/specs/interest-digest.md` 第 10 节。
+  - `src/eia/headlines/feeds.py`、`src/eia/headlines/config.py`：Google News 搜索地址的拼法（hl / gl / ceid）、
+    取每篇报道的真实媒体名，Hacker News 按分数过滤（参考 `src/scrapers/google_news.py`、`src/scrapers/hackernews.py`）
+- 说明：见 `docs/specs/interest-digest.md` 第 10 节、`docs/specs/headline-radar.delta-sources.md` 第 2 节。
 
 ```
 MIT License

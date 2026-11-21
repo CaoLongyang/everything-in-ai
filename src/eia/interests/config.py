@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,18 +21,32 @@ class Interest:
     name: str
     description: str = ""
     exclude: str = ""
+    search: tuple[str, ...] = ()  # 按兴趣搜新闻用的关键词（headline-radar.delta-sources 第 5 节）
 
     @property
     def text(self) -> str:
         return f"{self.name}：{self.description}" if self.description else self.name
 
-    def as_config(self) -> dict[str, str]:
-        data = {"name": self.name}
+    def as_config(self) -> dict[str, Any]:
+        data: dict[str, Any] = {"name": self.name}
         if self.description:
             data["description"] = self.description
         if self.exclude:
             data["exclude"] = self.exclude
+        if self.search:
+            data["search"] = list(self.search)
         return data
+
+
+def split_terms(value: Any) -> tuple[str, ...]:
+    """关键词可以写成列表，也可以写成用顿号、逗号分隔的一行。去掉空的和重复的。"""
+    raw = value if isinstance(value, list) else re.split(r"[、,，;；]", str(value or ""))
+    terms: list[str] = []
+    for term in raw:
+        text = " ".join(str(term).split())
+        if text and text not in terms:
+            terms.append(text)
+    return tuple(terms)
 
 
 @dataclass(frozen=True)
@@ -70,6 +85,7 @@ def load_interests(root: Path) -> list[Interest]:
                 name=str(item["name"]).strip(),
                 description=str(item.get("description") or "").strip(),
                 exclude=str(item.get("exclude") or "").strip(),
+                search=split_terms(item.get("search")),
             )
         )
     return interests

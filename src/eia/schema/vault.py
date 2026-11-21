@@ -46,25 +46,27 @@ timezone:
 #     api_base: http://127.0.0.1:11434/v1
 
 # ---------- 新闻雷达 eia headlines（可选）----------
-# 下面的源 2026-11 实测可用。同一个 publisher 的多个源只算一家。去掉行首的 # 才生效。
+# 下面的源 2026-11 实测可用，更多见 eia headlines catalog（科技、AI、马来西亚、基督教……）。
+# 同一个 publisher 的多个源只算一家。去掉行首的 # 才生效。
 # headlines:
-#   min_sources: 3                     # 至少几家独立媒体在报才算大事
+#   min_sources: 3                     # 至少几家独立来源在报才算大事
 #   window_hours: 36
 #   cluster: embed                     # embed（需要上面的 llm.embed）| lexical
+#   interest_search:                   # 按兴趣清单自动搜 Google News（兴趣关键词会发给 Google）
+#     enabled: true
+#     lang: zh-CN                      # 中文关键词用的语言；英文关键词自动用英文搜
+#     country: MY                      # 搜哪个地区的新闻
 #   feeds:
 #     - {publisher: BBC, url: https://feeds.bbci.co.uk/news/world/rss.xml}
 #     - {publisher: BBC, url: https://feeds.bbci.co.uk/zhongwen/simp/rss.xml}
-#     - {publisher: The Guardian, url: https://www.theguardian.com/world/rss}
 #     - {publisher: Al Jazeera, url: https://www.aljazeera.com/xml/rss/all.xml}
-#     - {publisher: New York Times, url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml}
-#     - {publisher: New York Times, url: https://cn.nytimes.com/rss/}
-#     - {publisher: DW, url: https://rss.dw.com/rdf/rss-en-all}
-#     - {publisher: DW, url: https://rss.dw.com/rdf/rss-chi-all}
-#     - {publisher: RFI, url: https://www.rfi.fr/cn/rss}
-#     - {publisher: NPR, url: https://feeds.npr.org/1004/rss.xml}
 #     - {publisher: CNA, url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml"}
-#     - {publisher: ABC News Australia, url: https://www.abc.net.au/news/feed/2942460/rss.xml}
 #     - {publisher: 中国新闻网, url: https://www.chinanews.com.cn/rss/scroll-news.xml}
+#     - {type: hackernews, min_score: 100}     # 科技圈最热的讨论
+#     # 中文热榜：知乎、微博经 NewsNow（第三方开源服务，可能断；可用 newsnow: 换成自己架的地址）
+#     - {type: hotlist, platform: zhihu}
+#     - {type: hotlist, platform: weibo}
+#     - {type: hotlist, platform: bilibili}  # B站直接访问
 """
 
 GITIGNORE_TEMPLATE = """\

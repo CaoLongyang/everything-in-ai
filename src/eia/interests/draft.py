@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from eia import llm
 from eia.chat.reader import ReadChat, Skipped, iter_chats
 from eia.db import history
-from eia.interests.config import Interest, InterestsError, load_interests
+from eia.interests.config import Interest, InterestsError, load_interests, split_terms
 from eia.interests.prompts import NAMING_SYSTEM
 from eia.interests.vectors import embed_client, embed_texts
 from eia.schema.configedit import update_section
@@ -44,6 +44,9 @@ START = "<!-- eia:interests:start 这一段由 eia interests 生成，重新生�
 END = "<!-- eia:interests:end -->"
 _ITEM = re.compile(r"^- \[([ xX])\] \*\*(.+?)\*\*\s*[：:]?\s*(.*)$")
 _EXCLUDE = re.compile(r"^\s+- 不要[：:]\s*(.*)$")
+_SEARCH = re.compile(r"^\s+- 搜索[：:]\s*(.*)$")
+NOT_NEWS_HEADING = "## 不太适合挑新闻的（默认不勾）"
+NOT_NEWS_HINT = "AI 判断这些话题很少有新闻报道（作业、琐事等）。想用它们挑新闻，也可以勾上。"
 
 
 @dataclass
@@ -89,6 +92,7 @@ class DraftItem:
     checked: bool = True
     change: str = ""  # 保留 / 修改 / 新增 / 删除；空表示从对话归纳的新草稿
     evidence: list[str] = field(default_factory=list)
+    news: bool = True  # AI 判断这个话题会不会有新闻报道；False 的默认不勾
 
 
 def collect_docs(root: Path) -> tuple[list[ChatDoc], int]:
@@ -193,6 +197,8 @@ class _Named(BaseModel):
     group: int
     name: str
     description: str = ""
+    search: list[str] = []
+    news: bool = True
     skip: bool = False
 
 
@@ -220,10 +226,13 @@ def name_groups(root: Path, plan: Plan, *, max_interests: int = DEFAULT_MAX) -> 
             continue
         seen.add(name)
         group = plan.groups[named.group]
+        interest = Interest(name, named.description.strip(), search=split_terms(named.search))
+        # 不太会有新闻的话题（作业、琐事）默认不勾，放到草稿最后
         items.append(
-            DraftItem(Interest(name, named.description.strip()), evidence=_evidence(group))
+            DraftItem(interest, checked=named.news, news=named.news, evidence=_evidence(group))
         )
-    return items[:max_interests]
+    items = items[:max_interests]
+    return [item for item in items if item.news] + [item for item in items if not item.news]
 
 
 def _evidence(group: Group) -> list[str]:
@@ -259,10 +268,15 @@ def render_draft(items: list[DraftItem], *, heading: str) -> str:
         "改完运行 `eia interests accept`（或在试用页面点「确认」）才会生效。",
         "",
     ]
+    in_other = False
     for item in items:
+        if not item.news and not in_other:
+            in_other = True
+            lines += ["", NOT_NEWS_HEADING, "", NOT_NEWS_HINT, ""]
         mark = "x" if item.checked else " "
         tag = f"（{item.change}）" if item.change and item.change != "保留" else ""
         lines.append(f"- [{mark}] **{item.interest.name}**：{item.interest.description}{tag}")
+        lines.append(f"  - 搜索：{'、'.join(item.interest.search)}")
         lines.append(f"  - 不要：{item.interest.exclude}")
         lines.extend(f"  - 依据：{text}" for text in item.evidence)
     lines += ["", END, "", "（这条线以下是你自己的笔记，重新生成不会动）", ""]
@@ -304,13 +318,15 @@ def parse_draft(text: str) -> list[DraftItem]:
                 DraftItem(Interest(match.group(2).strip(), description), match.group(1) != " ")
             )
             continue
+        if not items:
+            continue
+        last = items[-1]
         exclude = _EXCLUDE.match(line)
-        if exclude and items:
-            last = items[-1]
-            items[-1] = DraftItem(
-                Interest(last.interest.name, last.interest.description, exclude.group(1).strip()),
-                last.checked,
-            )
+        if exclude:
+            last.interest = replace(last.interest, exclude=exclude.group(1).strip())
+        search = _SEARCH.match(line)
+        if search:
+            last.interest = replace(last.interest, search=split_terms(search.group(1)))
     return items
 
 

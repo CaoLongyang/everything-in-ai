@@ -114,6 +114,9 @@ input[type=number], input[type=password] { font: inherit; color: var(--ink); bac
 input[type=password] { flex: 1; }
 .feed { display: grid; grid-template-columns: auto 160px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
 .feed .u { color: var(--muted); word-break: break-all; }
+.fgroup { margin-top: 12px; padding: 4px 0; font-weight: 600; font-size: 13.5px; }
+.isearch { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.isearch label { font-size: 13.5px; }
 .feed button { padding: 2px 8px; font-size: 12.5px; }
 .status-line { margin: 4px 0; }
 .disabled { opacity: .45; pointer-events: none; }
@@ -129,7 +132,7 @@ input[type=password] { flex: 1; }
 .pick .rate select { padding: 3px 6px; font-size: 13px; }
 .interest { display: grid; grid-template-columns: auto 180px 1fr 1fr; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
 .interest input[type=text] { width: 100%; padding: 5px 8px; font-size: 13.5px; }
-.interest .ev { grid-column: 2 / -1; color: var(--muted); font-size: 12.5px; }
+.interest .kw, .interest .ev { grid-column: 2 / -1; } .interest .ev { color: var(--muted); font-size: 12.5px; }
 .interest .tag { font-size: 12px; color: var(--warn); }
 @media (max-width: 700px) { .interest { grid-template-columns: auto 1fr; } .interest input[type=text] { grid-column: 2; } }
 @media (max-width: 600px) { .feed { grid-template-columns: auto 1fr; } .feed .u { grid-column: 1 / -1; } }
@@ -394,10 +397,19 @@ input[type=password] { flex: 1; }
 
     <div class="card">
       <h2>新闻源</h2>
-      <p class="hint">勾上的才会抓。同一个媒体名的多个源只算一家。推荐源都在 2026-11 实测可用。</p>
+      <p class="hint">勾上的才会抓。同一个媒体（或同一个平台）的多个源只算一家；Google 搜索按每篇报道的真实媒体算。下面的推荐源都实测过。</p>
       <label class="check"><input type="checkbox" id="hlOn"> 启用新闻雷达</label>
+      <div class="isearch">
+        <label class="check"><input type="checkbox" id="isOn"> 按我的兴趣清单自动搜 Google News（每条兴趣搜一次；<b>兴趣关键词会发给 Google</b>）</label>
+        <div class="row">
+          <label>中文关键词用<select id="isLang"><option value="zh-CN">简体中文</option><option value="zh-TW">繁体中文</option></select></label>
+          <label>地区<input type="text" id="isCountry" placeholder="MY" maxlength="2" style="width:60px" spellcheck="false"></label>
+          <span class="hint">英文关键词自动用英文搜。地区用两个字母：MY 马来西亚、SG 新加坡、CN 中国、US 美国。</span>
+        </div>
+      </div>
       <div id="feedList"></div>
       <div class="row">
+        <select id="newType"><option value="rss">RSS 源</option><option value="google_news">Google 关键词搜索</option></select>
         <input type="text" id="newPub" placeholder="媒体名，例如 Reuters 中文" style="flex:0 1 200px">
         <input type="text" id="newUrl" placeholder="RSS 地址 https://..." spellcheck="false">
         <button id="addFeed">添加</button>
@@ -764,10 +776,10 @@ async function loadInterests() {
   const r = await api("interests_get");
   if (r.error) { $("#interestList").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
   const byName = new Map();
-  for (const c of r.current) byName.set(c.name, { ...c, description: c.description || "", exclude: c.exclude || "", checked: true, tag: "", evidence: "" });
+  for (const c of r.current) byName.set(c.name, { ...c, description: c.description || "", exclude: c.exclude || "", search: (c.search || []).join("、"), checked: true, tag: "", evidence: "" });
   for (const d of r.draft) {
     const old = byName.get(d.name);
-    const tag = old ? (old.description !== d.description || old.exclude !== d.exclude ? "草稿里改过" : "") : "草稿里新增";
+    const tag = old ? (old.description !== d.description || old.exclude !== d.exclude || old.search !== d.search ? "草稿里改过" : "") : "草稿里新增";
     byName.set(d.name, { ...d, tag: d.checked ? tag : (old ? "草稿建议删除" : "草稿里没勾") });
   }
   interestRows = [...byName.values()];
@@ -782,6 +794,7 @@ function drawInterests(feedbackCount) {
       <input type="text" data-k="name" value="${esc(it.name)}" placeholder="名字">
       <input type="text" data-k="description" value="${esc(it.description)}" placeholder="说明：关心的是什么">
       <input type="text" data-k="exclude" value="${esc(it.exclude)}" placeholder="不要：不想看的方向（可选）">
+      <input type="text" class="kw" data-k="search" value="${esc(it.search || "")}" placeholder="搜索关键词：按兴趣搜新闻时用，顿号分隔（空着就用名字搜）">
       ${it.tag || it.evidence ? `<div class="ev">${it.tag ? `<span class="tag">${esc(it.tag)}</span> ` : ""}${esc(it.evidence)}</div>` : ""}
     </div>`).join("");
   box.querySelectorAll(".interest").forEach((row) => {
@@ -791,7 +804,7 @@ function drawInterests(feedbackCount) {
   });
 }
 
-$("#addInterest").addEventListener("click", () => { interestRows.push({ name: "", description: "", exclude: "", checked: true, tag: "", evidence: "" }); drawInterests(); });
+$("#addInterest").addEventListener("click", () => { interestRows.push({ name: "", description: "", exclude: "", search: "", checked: true, tag: "", evidence: "" }); drawInterests(); });
 $("#saveInterests").addEventListener("click", async () => {
   const r = await api("interests_save", { items: interestRows });
   $("#interestResult").innerHTML = r.error ? `<div class="term"><span class="err">${esc(r.error)}</span></div>` : `<div class="answer">已保存 ${r.saved} 个兴趣。旧配置备份在 ${esc(r.backup)}</div>`;
@@ -835,15 +848,28 @@ async function loadSettings() {
   $("#embModel").value = e ? e.model || "" : "bge-m3"; $("#embBase").value = e ? e.api_base || "" : "http://127.0.0.1:11434/v1";
   $("#hlOn").checked = !!r.headlines;
   $("#hlMin").value = h.min_sources || 3; $("#hlWindow").value = h.window_hours || 36; $("#hlSim").value = h.similarity ?? "";
-  const current = (h.feeds || []).map((f) => ({ publisher: f.publisher, url: f.url, on: true }));
-  const extra = r.recommended_feeds.filter((f) => !current.some((c) => c.url === f.url)).map((f) => ({ ...f, on: !r.headlines }));
+  const current = r.current_feeds.map((f) => ({ ...f, group: "正在用", note: "", on: true }));
+  const extra = [];
+  for (const g of r.catalog) for (const s of g.sources) if (!current.some((c) => c.key === s.key)) extra.push({ ...s, group: g.name, note: g.note, on: false });
   feeds = [...current, ...extra];
+  const is = h.interest_search || {};
+  $("#isOn").checked = !!is.enabled; $("#isLang").value = is.lang || "zh-CN"; $("#isCountry").value = is.country || "MY";
   drawFeeds(); syncForms(); keyState(); loadOllama();
 }
 
+const KIND = { rss: "RSS", hackernews: "Hacker News", google_news: "Google 搜索", hotlist: "热榜" };
 function drawFeeds() {
-  $("#feedList").innerHTML = feeds.map((f, i) => `<div class="feed"><input type="checkbox" data-i="${i}" ${f.on ? "checked" : ""}>
-    <b>${esc(f.publisher)}</b><span class="u">${esc(f.url)}</span><button data-del="${i}">删除</button></div>`).join("");
+  let group = null, html = "";
+  feeds.forEach((f, i) => {
+    if (f.group !== group) {
+      group = f.group;
+      const n = feeds.filter((x) => x.group === group).length;
+      html += `<div class="fgroup">${esc(group)} <span class="hint">${n} 个${f.note ? " · " + esc(f.note) : ""}</span></div>`;
+    }
+    html += `<div class="feed"><input type="checkbox" data-i="${i}" ${f.on ? "checked" : ""}>
+    <b>${esc(f.name)} <span class="chip">${esc(KIND[f.kind] || "?")}</span></b><span class="u">${f.error ? `<span class="bad">${esc(f.error)}</span>` : esc(f.detail)}</span>${f.group === "正在用" ? `<button data-del="${i}">删除</button>` : "<span></span>"}</div>`;
+  });
+  $("#feedList").innerHTML = html;
   $("#feedList").querySelectorAll("input").forEach((c) => c.addEventListener("change", () => (feeds[c.dataset.i].on = c.checked)));
   $("#feedList").querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => { feeds.splice(+b.dataset.del, 1); drawFeeds(); }));
 }
@@ -874,7 +900,8 @@ function formPayload() {
     llm: { enabled: $("#llmOn").checked, no_thinking: $("#llmNoThinking").checked, provider: $("#llmProvider").value, model: $("#llmModel").value, api_base: $("#llmBase").value, api_key_env: $("#llmKeyEnv").value,
       embed: { enabled: embedOn, model: $("#embModel").value, api_base: $("#embBase").value } },
     headlines: { enabled: $("#hlOn").checked, min_sources: $("#hlMin").value, window_hours: $("#hlWindow").value, similarity: $("#hlSim").value,
-      cluster: embedOn ? "embed" : "lexical", feeds: feeds.filter((f) => f.on) },
+      cluster: embedOn ? "embed" : "lexical", feeds: feeds.filter((f) => f.on).map((f) => f.src),
+      interest_search: { enabled: $("#isOn").checked, lang: $("#isLang").value, country: $("#isCountry").value } },
   };
 }
 
@@ -909,10 +936,25 @@ $("#saveKey").addEventListener("click", async () => {
   $("#keyState").innerHTML += r.gitignored ? "（.env 已被 .gitignore 排除，不会进 Git）" : `<span class="bad">注意：.gitignore 里没有 .env</span>`;
   loadSettings();
 });
+function syncNewType() {
+  const rss = $("#newType").value === "rss";
+  $("#newPub").style.display = rss ? "" : "none";
+  $("#newUrl").placeholder = rss ? "RSS 地址 https://..." : "搜索关键词，例如 Malaysia car insurance";
+}
+$("#newType").addEventListener("change", syncNewType);
 $("#addFeed").addEventListener("click", () => {
-  const publisher = $("#newPub").value.trim(), url = $("#newUrl").value.trim();
-  if (!publisher || !/^https?:\/\//.test(url)) { alert("请填写媒体名和 http(s) 开头的 RSS 地址"); return; }
-  feeds.unshift({ publisher, url, on: true }); $("#newPub").value = ""; $("#newUrl").value = ""; $("#hlOn").checked = true; syncForms(); drawFeeds();
+  const rss = $("#newType").value === "rss", publisher = $("#newPub").value.trim(), value = $("#newUrl").value.trim();
+  let f;
+  if (rss) {
+    if (!publisher || !/^https?:\/\//.test(value)) { alert("请填写媒体名和 http(s) 开头的 RSS 地址"); return; }
+    f = { src: { publisher, url: value }, name: publisher, kind: "rss", detail: value };
+  } else {
+    if (!value) { alert("请填写要搜的关键词"); return; }
+    const src = { type: "google_news", query: value, lang: /[㐀-鿿]/.test(value) ? $("#isLang").value : "en", country: $("#isCountry").value.trim().toUpperCase() || "US" };
+    f = { src, name: "Google News：" + value, kind: "google_news", detail: value };
+  }
+  feeds.unshift({ ...f, key: JSON.stringify(f.src), group: "正在用", note: "", error: "", on: true });
+  $("#newPub").value = ""; $("#newUrl").value = ""; $("#hlOn").checked = true; syncForms(); drawFeeds();
 });
 $("#saveRaw").addEventListener("click", async () => {
   const r = await api("config_save_raw", { text: $("#cfgText").value });

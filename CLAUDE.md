@@ -67,6 +67,8 @@ ruff format .                      # 自动格式化
 - 测试全部模拟；`pytest -m live` 才会真的调用（默认不跑，需设置 `EIA_LIVE_VAULT`）。
 
 **headlines/**（`docs/specs/headline-radar.md`，实现决定见 ADR 0004）
+- 源的类型（`docs/specs/headline-radar.delta-sources.md`）：rss、google_news、hackernews、hotlist（NewsNow / B站），都在 `config.py` 解析成 `Feed`（实际请求的地址 + 计数用的媒体名），`feeds.py` 按 `kind` 选解析函数；`run.all_feeds` 再加上按兴趣自动生成的 Google News 搜索。推荐源目录在 `catalog.yaml`，加新源先实测。
+- 不冒充浏览器、不破解签名（所以没有 Reddit、小红书等，见 ADR 0008）。
 - 流程在 `run.py`：`feeds.py` 抓取解析（全仓库唯一 `import feedparser` 的地方）→ `store.py` 暂存到 `.eia/headlines/`（报道 + 向量缓存，向量按模型名作废）→ `cluster.py` 归组（`embed` 用 `llm.embed` + numpy，`lexical` 按词重合）→ `writer.py` 达到 `min_sources` 家的组写成 `headline` 条目。
 - numpy、feedparser 只在函数里导入（可选依赖 `[news]`），`import eia.cli` 不能拉进它们，有测试守着。
 - 测试用 `tests/headlines/conftest.py` 的虚构 RSS 和按关键词给向量的假模型；网络通过替换 `urllib.request.urlopen` 或传入 `fetcher` 隔离。

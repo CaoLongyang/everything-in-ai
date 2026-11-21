@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import sys
@@ -11,6 +12,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import click
+import yaml
 
 from eia import llm
 from eia.chat import chatgpt, claude
@@ -37,7 +39,7 @@ from eia.schedule.windows import ScheduleError, WindowsScheduler
 from eia.schema.create import new_entry
 from eia.schema.model import EntryType, Platform
 from eia.schema.validate import ERROR, validate_vault
-from eia.schema.vault import VaultError, init_vault, is_vault, load_config
+from eia.schema.vault import CONFIG_NAME, VaultError, init_vault, is_vault, load_config
 
 _DIR = click.Path(file_okay=False, path_type=Path)
 
@@ -303,9 +305,12 @@ def headlines_run(vault: Path, dry_run: bool) -> None:
         raise click.ClickException(
             f"向量模型调用失败：{exc}。如果用的是本地 Ollama，请确认它已经启动。没有写入任何条目"
         ) from exc
+    queries = [status.feed.query for status in result.feeds if status.feed.query]
+    if queries:
+        click.echo(f"按兴趣搜 Google News 的关键词：{'；'.join(queries)}")
     failed = [status for status in result.feeds if status.error]
     for status in failed:
-        click.echo(f"源失败  {status.feed.publisher}  {status.feed.url}  {status.error}")
+        click.echo(f"源失败  {status.feed.name}  {status.feed.url}  {status.error}")
     written = result.written
     for path, reason in written.skipped:
         click.echo(f"跳过  {path}  {reason}")
@@ -333,10 +338,13 @@ def headlines_check(vault: Path) -> None:
         raise click.ClickException(f"{exc}。没有访问任何新闻源") from exc
     failed = False
     for status in statuses:
-        where = f"{status.feed.publisher}  {status.feed.url}"
+        where = f"{status.feed.name}  {status.feed.url}"
         if status.error:
             failed = True
             click.echo(f"失败  {where}  {status.error}")
+            continue
+        if not status.items:  # 搜索没搜到东西是正常的
+            click.echo(f"正常  {where}  0 条")
             continue
         newest = max(item.published for item in status.items)
         age = (now - newest).total_seconds() / 3600
@@ -344,6 +352,37 @@ def headlines_check(vault: Path) -> None:
         click.echo(f"正常  {where}  {len(status.items)} 条，最新一条 {age:.0f} 小时前{stale}")
     if failed:
         sys.exit(1)
+
+
+@headlines_group.command(name="catalog")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def headlines_catalog(vault: Path) -> None:
+    """列出 eia 自带的推荐源，标出已经在用的。不访问网络。"""
+    from eia.headlines.catalog import load_catalog, source_key
+
+    in_use: set[str] = set()
+    with contextlib.suppress(OSError, yaml.YAMLError, AttributeError):
+        data = yaml.safe_load((vault / CONFIG_NAME).read_bytes().decode("utf-8")) or {}
+        for item in (data.get("headlines") or {}).get("feeds") or []:
+            if isinstance(item, dict):
+                in_use.add(source_key(item))
+    checked, groups = load_catalog()
+    click.echo(
+        f"推荐源目录（{checked} 实测可用）。"
+        "复制 {...} 那一段到 config.yaml 的 headlines.feeds 下。"
+    )
+    for group in groups:
+        click.echo(f"\n## {group.name}" + (f"（{group.note}）" if group.note else ""))
+        for source in group.sources:
+            mark = "已在用" if source.key in in_use else "      "
+            snippet = yaml.safe_dump(
+                source.config,
+                default_flow_style=True,
+                allow_unicode=True,
+                sort_keys=False,
+                width=500,
+            ).strip()
+            click.echo(f"  {mark}  {source.feed.name:24}  {snippet}")
 
 
 @main.group(name="interests")

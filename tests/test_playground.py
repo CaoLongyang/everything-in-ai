@@ -192,15 +192,25 @@ def test_replace_section_keeps_everything_else() -> None:
     assert playground.replace_section("# llm:\n", "llm", None) == "# llm:\n"
 
 
-def test_settings_form_produces_a_working_config(server: tuple[str, str, Path]) -> None:
+def test_F15_07_settings_form_saves_every_source_kind(server: tuple[str, str, Path]) -> None:
     from eia.headlines.config import load_headlines_config
     from eia.llm.config import load_llm_config
 
     base, token, vault = server
     got = _post(base, {"action": "config_get", "params": {"vault": str(vault)}}, token)
     assert got["llm"] is None and got["headlines"] is None
-    assert len(got["recommended_feeds"]) == 13 and got["env_names"] == []
+    assert got["current_feeds"] == [] and got["env_names"] == []
+    catalog = {g["name"]: g["sources"] for g in got["catalog"]}
+    assert len(catalog["国际新闻"]) == 13 and all(
+        not s["error"] for g in catalog.values() for s in g
+    )
     assert got["check"]["llm"]["ok"] is False
+    picked = [
+        *[s["src"] for s in catalog["国际新闻"][:3]],
+        next(s["src"] for s in catalog["中文热榜"] if s["src"]["platform"] == "zhihu"),
+        next(s["src"] for s in catalog["科技"] if s["kind"] == "hackernews"),
+        {"type": "google_news", "query": "Malaysia car", "lang": "en", "country": "MY", "x": 1},
+    ]
 
     form = {
         "vault": str(vault),
@@ -218,7 +228,8 @@ def test_settings_form_produces_a_working_config(server: tuple[str, str, Path]) 
             "window_hours": "24",
             "similarity": "",
             "cluster": "embed",
-            "feeds": got["recommended_feeds"][:5],
+            "feeds": picked,
+            "interest_search": {"enabled": True, "lang": "zh-CN", "country": "my"},
         },
     }
     saved = _post(base, {"action": "config_save_form", "params": form}, token)
@@ -228,7 +239,12 @@ def test_settings_form_produces_a_working_config(server: tuple[str, str, Path]) 
     assert "# everything-in-ai vault 配置" in text  # 模板注释还在
     assert (vault / ".eia" / "config.yaml.bak").is_file()
     config = load_headlines_config(vault)
-    assert config.min_sources == 4 and len(config.feeds) == 5 and config.similarity == 0.68
+    assert config.min_sources == 4 and len(config.feeds) == 6 and config.similarity == 0.68
+    assert [f.kind for f in config.feeds][3:] == ["hotlist", "hackernews", "google_news"]
+    assert config.interest_search is not None and config.interest_search.country == "MY"
+    assert "x: 1" not in text  # 不认识的键不写进配置
+    again = _post(base, {"action": "config_get", "params": {"vault": str(vault)}}, token)
+    assert [f["name"] for f in again["current_feeds"]][3:5] == ["知乎热榜", "Hacker News"]
 
     key = _post(
         base,

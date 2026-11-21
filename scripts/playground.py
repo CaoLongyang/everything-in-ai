@@ -87,7 +87,7 @@ def action_info(params: dict[str, Any]) -> dict[str, Any]:
         headlines = load_headlines_config(vault)
         info["headlines"] = {
             "feeds": len(headlines.feeds),
-            "publishers": len({feed.publisher for feed in headlines.feeds}),
+            "publishers": len({feed.name for feed in headlines.feeds}),
             "min_sources": headlines.min_sources,
             "cluster": headlines.cluster,
         }
@@ -435,14 +435,43 @@ def _env_names(vault: Path) -> list[str]:
     return sorted(name for name, value in read_env_file(vault / ENV_FILE).items() if value)
 
 
-def recommended_feeds() -> list[dict[str, str]]:
-    """从 eia init 的配置模板里取推荐源，保证和模板一致。"""
-    from eia.schema.vault import CONFIG_TEMPLATE
+FEED_KEYS = ("type", "publisher", "url", "min_score", "query", "lang", "country", "platform")
 
-    lines = CONFIG_TEMPLATE.splitlines()
-    block = [line.removeprefix("# ") for line in lines[lines.index("# headlines:") :]]
-    data = yaml.safe_load("\n".join(line for line in block if not line.startswith("#")))
-    return [dict(feed) for feed in data["headlines"]["feeds"]]
+
+def _describe(config: dict[str, Any]) -> dict[str, Any]:
+    """页面上显示一个源：名字、类型、地址或关键词。配置写错的也照样列出来，标上错误。"""
+    from eia.headlines.catalog import source_key
+    from eia.headlines.config import DEFAULT_NEWSNOW, parse_source
+
+    try:
+        feed = parse_source(config, "这个源", window=36, newsnow=DEFAULT_NEWSNOW)
+        name, kind, error = feed.name, feed.kind, ""
+    except HeadlinesConfigError as exc:
+        name, kind, error = str(config.get("publisher") or config.get("type") or "?"), "", str(exc)
+    detail = config.get("url") or config.get("query") or config.get("platform") or ""
+    return {
+        "src": config,
+        "key": source_key(config),
+        "name": name,
+        "kind": kind,
+        "detail": str(detail),
+        "error": error,
+    }
+
+
+def catalog_groups() -> list[dict[str, Any]]:
+    from eia.headlines.catalog import load_catalog
+
+    checked, groups = load_catalog()
+    return [
+        {
+            "name": group.name,
+            "note": group.note,
+            "checked": checked,
+            "sources": [_describe(source.config) for source in group.sources],
+        }
+        for group in groups
+    ]
 
 
 def _check_config(vault: Path) -> dict[str, Any]:
@@ -469,14 +498,17 @@ def action_config_get(params: dict[str, Any]) -> dict[str, Any]:
     text = path.read_bytes().decode("utf-8", errors="replace")
     data = yaml.safe_load(text) if text.strip() else {}
     data = data if isinstance(data, dict) else {}
+    headlines = data.get("headlines") if isinstance(data.get("headlines"), dict) else None
+    feeds = (headlines or {}).get("feeds") or []
     return {
         "path": str(path),
         "text": text,
         "llm": data.get("llm") if isinstance(data.get("llm"), dict) else None,
-        "headlines": data.get("headlines") if isinstance(data.get("headlines"), dict) else None,
+        "headlines": headlines,
+        "current_feeds": [_describe(f) for f in feeds if isinstance(f, dict)],
         "env_names": _env_names(path.parent),
         "presets": PROVIDER_PRESETS,
-        "recommended_feeds": recommended_feeds(),
+        "catalog": catalog_groups(),
         "check": _check_config(path.parent),
     }
 
@@ -539,10 +571,11 @@ def action_config_save_form(params: dict[str, Any]) -> dict[str, Any]:
     if isinstance(form_hl, dict):
         hl: dict[str, Any] | None = None
         if form_hl.get("enabled"):
+            # 各种类型的源原样保存，只留认识的键（不让页面写进别的东西）
             feeds = [
-                {"publisher": _clean(f.get("publisher")), "url": _clean(f.get("url"))}
+                {key: f[key] for key in FEED_KEYS if f.get(key) not in (None, "")}
                 for f in form_hl.get("feeds") or []
-                if isinstance(f, dict) and _clean(f.get("url"))
+                if isinstance(f, dict)
             ]
             hl = {
                 "min_sources": int(form_hl.get("min_sources") or 3),
@@ -551,7 +584,17 @@ def action_config_save_form(params: dict[str, Any]) -> dict[str, Any]:
             }
             if form_hl.get("similarity") not in (None, ""):
                 hl["similarity"] = float(form_hl["similarity"])
-            hl["feeds"] = feeds
+            old_hl = (yaml.safe_load(text) or {}).get("headlines") or {}
+            if isinstance(old_hl, dict) and old_hl.get("newsnow"):
+                hl["newsnow"] = old_hl["newsnow"]  # 表单里没有，原样保留
+            search = form_hl.get("interest_search")
+            if isinstance(search, dict) and search.get("enabled"):
+                hl["interest_search"] = {
+                    "enabled": True,
+                    "lang": _clean(search.get("lang")) or "zh-CN",
+                    "country": _clean(search.get("country")).upper() or "US",
+                }
+            hl["feeds"] = [f for f in feeds if f]
         text = replace_section(text, "headlines", hl)
     return _save_config(path, text)
 
@@ -664,6 +707,7 @@ def action_interests_get(params: dict[str, Any]) -> dict[str, Any]:
                 "name": i.interest.name,
                 "description": i.interest.description,
                 "exclude": i.interest.exclude,
+                "search": "、".join(i.interest.search),
                 "checked": i.checked,
                 "evidence": re.sub(
                     r"\[\[[^|\]]+\|([^\]]+)\]\]", r"「\1」", evidence.get(i.interest.name, "")
@@ -680,12 +724,17 @@ def action_interests_get(params: dict[str, Any]) -> dict[str, Any]:
 
 def action_interests_save(params: dict[str, Any]) -> dict[str, Any]:
     """页面上勾选、修改后直接写进 config.yaml 的 interests 段（效果同 eia interests accept）。"""
-    from eia.interests.config import Interest
+    from eia.interests.config import Interest, split_terms
     from eia.schema.configedit import update_section
 
     vault = Path(_vault(params))
     chosen = [
-        Interest(_clean(i.get("name")), _clean(i.get("description")), _clean(i.get("exclude")))
+        Interest(
+            _clean(i.get("name")),
+            _clean(i.get("description")),
+            _clean(i.get("exclude")),
+            split_terms(i.get("search")),
+        )
         for i in params.get("items") or []
         if isinstance(i, dict) and i.get("checked") and _clean(i.get("name"))
     ]

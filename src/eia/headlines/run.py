@@ -5,12 +5,20 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from eia import llm
 from eia.headlines.cluster import cluster_by_vectors, cluster_by_words, embed_text
-from eia.headlines.config import EMBED, Feed, HeadlinesConfigError, load_headlines_config
+from eia.headlines.config import (
+    EMBED,
+    Feed,
+    HeadlinesConfig,
+    HeadlinesConfigError,
+    google_news_feed,
+    load_headlines_config,
+    search_lang,
+)
 from eia.headlines.feeds import FeedError, Item, download, fetch_feed
 from eia.headlines.store import load_items, load_vectors, merge_items, save_items, save_vectors
 from eia.headlines.writer import WriteResult, publishers, write_groups
@@ -62,7 +70,7 @@ def run(
         client = _embed_client(root)
     now = now or dt.datetime.now(dt.UTC)
 
-    statuses = fetch_all(config.feeds, now, fetcher)
+    statuses = fetch_all(all_feeds(root, config), now, fetcher)
     fresh = [item for status in statuses for item in status.items]
     window = dt.timedelta(hours=config.window_hours)
     items = merge_items(load_items(root, readonly=dry_run), fresh, keep_after=now - 2 * window)
@@ -116,4 +124,39 @@ def check(
     root: Path, *, now: dt.datetime | None = None, fetcher: Fetcher = download
 ) -> list[FeedStatus]:
     config = load_headlines_config(root)
-    return fetch_all(config.feeds, now or dt.datetime.now(dt.UTC), fetcher)
+    return fetch_all(all_feeds(root, config), now or dt.datetime.now(dt.UTC), fetcher)
+
+
+def all_feeds(root: Path, config: HeadlinesConfig) -> tuple[Feed, ...]:
+    """配置里列的源 + 按兴趣自动生成的搜索（delta-sources 第 5 节）。"""
+    feeds = config.feeds + interest_feeds(root, config)
+    if not feeds:
+        raise HeadlinesConfigError(
+            "没有可抓的源：headlines.feeds 是空的，按兴趣搜索也没有兴趣可搜（先确认兴趣清单）"
+        )
+    return feeds
+
+
+def interest_feeds(root: Path, config: HeadlinesConfig) -> tuple[Feed, ...]:
+    """每条兴趣一个 Google News 搜索：用兴趣的 search 关键词，没有就用兴趣名。"""
+    search = config.interest_search
+    if search is None:
+        return ()
+    from eia.interests.config import InterestsError, load_interests
+
+    try:
+        interests = load_interests(root)
+    except InterestsError as exc:
+        raise HeadlinesConfigError(str(exc)) from exc
+    feeds: list[Feed] = []
+    for interest in interests:
+        query = " OR ".join(interest.search or (interest.name,))
+        feed = google_news_feed(
+            query,
+            search_lang(query, search),
+            search.country,
+            window_hours=config.window_hours,
+            label=f"按兴趣搜「{query}」",
+        )
+        feeds.append(replace(feed, query=query))
+    return tuple(feeds)

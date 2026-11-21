@@ -133,8 +133,8 @@ def test_F13_03_accept_writes_only_checked_items(vault: Path) -> None:
     text = text.replace("- [x] **Java 编程**", "- [ ] **Java 编程**")
     text = text.replace("**汽车生活**：car 相关", "**汽车生活**：买车、驾照、保险")
     text = text.replace(
-        "**汽车生活**：买车、驾照、保险\n  - 不要：",
-        "**汽车生活**：买车、驾照、保险\n  - 不要：赛车",
+        "**汽车生活**：买车、驾照、保险\n  - 搜索：\n  - 不要：",
+        "**汽车生活**：买车、驾照、保险\n  - 搜索：car insurance、驾照\n  - 不要：赛车",
     )
     path.write_text(text, encoding="utf-8")
     result = _cli("interests", "accept", "--vault", str(vault))
@@ -143,6 +143,7 @@ def test_F13_03_accept_writes_only_checked_items(vault: Path) -> None:
     assert set(interests) == {"汽车生活", "神学与信仰"}
     assert interests["汽车生活"].description == "买车、驾照、保险"
     assert interests["汽车生活"].exclude == "赛车"
+    assert interests["汽车生活"].search == ("car insurance", "驾照")
     config = (vault / CONFIG_NAME).read_text(encoding="utf-8")
     assert "# 用户自己的注释" in config and "deepseek-v4-flash" in config
     assert (vault / ".eia" / "config.yaml.bak").is_file()
