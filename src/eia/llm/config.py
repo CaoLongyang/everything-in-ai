@@ -22,6 +22,7 @@ PROVIDERS = (ANTHROPIC, OPENAI_COMPATIBLE)
 ENV_FILE = ".env"
 
 DEFAULT_MAX_RETRIES = 3
+DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TIMEOUT_S = 60.0
 
 
@@ -34,6 +35,9 @@ class Endpoint:
     api_base: str | None
     api_key_env: str | None
     api_key: str | None  # 从环境变量解析出的值；不打印、不写文件
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    # 原样传给服务商的额外参数，例如 DeepSeek 关闭思考模式：{"thinking": {"type": "disabled"}}
+    extra_body: dict[str, Any] | None = None
 
     @property
     def has_key(self) -> bool:
@@ -128,7 +132,13 @@ def _endpoint(
             f"环境变量 {key_env} 不存在或为空（{where}.api_key_env 指向它）。"
             f"请设置这个环境变量，或写进 vault 根目录的 {ENV_FILE}"
         )
-    return Endpoint(provider, model, api_base, key_env, key)
+    max_tokens = section.get("max_tokens", DEFAULT_MAX_TOKENS)
+    if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 1:
+        raise LLMConfigError(f"{where}.max_tokens 应该是正整数（单次回复最多多少 token）")
+    extra_body = section.get("extra_body")
+    if extra_body is not None and not isinstance(extra_body, dict):
+        raise LLMConfigError(f"{where}.extra_body 应该是一组键值，会原样传给服务商")
+    return Endpoint(provider, model, api_base, key_env, key, max_tokens, extra_body or None)
 
 
 def _text(section: dict[str, Any], name: str) -> str | None:

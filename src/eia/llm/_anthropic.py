@@ -7,9 +7,9 @@ from typing import Any
 import anthropic
 from anthropic.types import OutputConfigParam
 
-from eia.llm._base import MAX_TOKENS, Reply, safe_detail
+from eia.llm._base import Reply, safe_detail, truncated
 from eia.llm.config import Endpoint
-from eia.llm.errors import LLMCallError, LLMConfigError, TransientError
+from eia.llm.errors import LLMCallError, LLMConfigError, LLMOutputError, TransientError
 
 
 class AnthropicBackend:
@@ -29,6 +29,8 @@ class AnthropicBackend:
         kwargs: dict[str, Any] = {}
         if system is not None:
             kwargs["system"] = system
+        if self._endpoint.extra_body:
+            kwargs["extra_body"] = self._endpoint.extra_body
         if json_schema is not None:
             config: OutputConfigParam = {
                 "format": {"type": "json_schema", "schema": anthropic.transform_schema(json_schema)}
@@ -37,7 +39,7 @@ class AnthropicBackend:
         try:
             message = self._client.messages.create(
                 model=self._endpoint.model,
-                max_tokens=MAX_TOKENS,
+                max_tokens=self._endpoint.max_tokens,
                 messages=[{"role": "user", "content": prompt}],
                 **kwargs,
             )
@@ -45,6 +47,8 @@ class AnthropicBackend:
             raise self._translate(exc) from None
         if message.stop_reason == "refusal":
             return Reply("", refused=True)
+        if message.stop_reason == "max_tokens":
+            raise LLMOutputError(truncated("Claude", self._endpoint.max_tokens))
         text = "".join(block.text for block in message.content if block.type == "text")
         return Reply(text)
 

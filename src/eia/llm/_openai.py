@@ -12,7 +12,7 @@ from typing import Any
 import openai
 from openai.types.chat import ChatCompletionMessageParam
 
-from eia.llm._base import MAX_TOKENS, Reply, safe_detail
+from eia.llm._base import Reply, safe_detail, truncated
 from eia.llm.config import Endpoint
 from eia.llm.errors import LLMCallError, LLMOutputError, TransientError
 
@@ -45,7 +45,10 @@ class OpenAICompatibleBackend:
         messages.append({"role": "user", "content": prompt})
         try:
             response = self._client.chat.completions.create(
-                model=self._endpoint.model, messages=messages, max_tokens=MAX_TOKENS
+                model=self._endpoint.model,
+                messages=messages,
+                max_tokens=self._endpoint.max_tokens,
+                extra_body=self._endpoint.extra_body,
             )
         except openai.OpenAIError as exc:
             raise self._translate(exc) from None
@@ -54,6 +57,8 @@ class OpenAICompatibleBackend:
         choice = response.choices[0]
         if choice.message.refusal or choice.finish_reason == "content_filter":
             return Reply("", refused=True)
+        if choice.finish_reason == "length":
+            raise LLMOutputError(truncated(self._name, self._endpoint.max_tokens))
         return Reply(choice.message.content or "")
 
     def embed(self, texts: list[str]) -> list[list[float]]:

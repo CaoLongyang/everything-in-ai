@@ -8,7 +8,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-MAX_TOKENS = 4096
 _MAX_DETAIL = 200
 
 
@@ -26,6 +25,14 @@ class Backend(Protocol):
         ...
 
     def embed(self, texts: list[str]) -> list[list[float]]: ...
+
+
+def truncated(name: str, max_tokens: int) -> str:
+    return (
+        f"{name} 的回复超过了 {max_tokens} token 被截断，没有可用的结果。"
+        "可以在 llm.max_tokens 调大上限；如果是 DeepSeek 等有思考模式的模型，"
+        "也可以用 llm.extra_body 关闭思考（思考会占掉大部分额度）"
+    )
 
 
 def safe_detail(message: object, secret: str | None) -> str:

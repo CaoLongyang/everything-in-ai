@@ -366,6 +366,7 @@ input[type=password] { flex: 1; }
           <label>服务地址<input type="text" id="llmBase" placeholder="Claude 可以留空" spellcheck="false"></label>
           <label>key 放在哪个变量<input type="text" id="llmKeyEnv" placeholder="例如 DEEPSEEK_API_KEY；本地 Ollama 留空" spellcheck="false"></label>
         </div>
+        <label class="check"><input type="checkbox" id="llmNoThinking"> 关闭思考模式（DeepSeek 等模型默认会先“思考”，更慢、更贵，还可能把回复挤掉）</label>
         <div class="row">
           <input type="password" id="llmKey" placeholder="粘贴 API key（只写进这个 vault 的 .env，页面不会再显示它）" autocomplete="off">
           <button id="saveKey">保存 key</button>
@@ -806,6 +807,7 @@ async function loadSettings() {
   $("#presetChips").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
     const p = r.presets[b.dataset.i];
     $("#llmProvider").value = p.provider; $("#llmModel").value = p.model; $("#llmBase").value = p.api_base; $("#llmKeyEnv").value = p.api_key_env;
+    $("#llmNoThinking").checked = !!p.no_thinking;
     if (!p.model) $("#llmModel").focus();
     keyState();
   }));
@@ -813,6 +815,7 @@ async function loadSettings() {
   $("#llmOn").checked = !!r.llm;
   $("#llmProvider").value = l.provider || "openai_compatible"; $("#llmModel").value = l.model || "";
   $("#llmBase").value = l.api_base || ""; $("#llmKeyEnv").value = l.api_key_env || "";
+  $("#llmNoThinking").checked = !!(l.extra_body && l.extra_body.thinking && l.extra_body.thinking.type === "disabled");
   $("#embOn").checked = r.headlines ? (h.cluster || "embed") === "embed" : true;
   $("#embModel").value = e ? e.model || "" : "bge-m3"; $("#embBase").value = e ? e.api_base || "" : "http://127.0.0.1:11434/v1";
   $("#hlOn").checked = !!r.headlines;
@@ -853,7 +856,7 @@ async function loadOllama() {
 function formPayload() {
   const embedOn = $("#embOn").checked;
   return {
-    llm: { enabled: $("#llmOn").checked, provider: $("#llmProvider").value, model: $("#llmModel").value, api_base: $("#llmBase").value, api_key_env: $("#llmKeyEnv").value,
+    llm: { enabled: $("#llmOn").checked, no_thinking: $("#llmNoThinking").checked, provider: $("#llmProvider").value, model: $("#llmModel").value, api_base: $("#llmBase").value, api_key_env: $("#llmKeyEnv").value,
       embed: { enabled: embedOn, model: $("#embModel").value, api_base: $("#embBase").value } },
     headlines: { enabled: $("#hlOn").checked, min_sources: $("#hlMin").value, window_hours: $("#hlWindow").value, similarity: $("#hlSim").value,
       cluster: embedOn ? "embed" : "lexical", feeds: feeds.filter((f) => f.on) },

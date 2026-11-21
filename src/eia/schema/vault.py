@@ -39,6 +39,7 @@ timezone:
 #   model: deepseek-v4-flash
 #   api_base: https://api.deepseek.com
 #   api_key_env: DEEPSEEK_API_KEY
+#   extra_body: {thinking: {type: disabled}}   # DeepSeek：关闭思考模式，更快、更省
 #   embed:                             # 向量模型，新闻雷达要用；本地 Ollama 不花钱、数据不出电脑
 #     provider: openai_compatible
 #     model: bge-m3                    # 先运行 ollama pull bge-m3

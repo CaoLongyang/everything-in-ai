@@ -67,10 +67,16 @@ class Client:
         problem = ""
         for attempt in range(1, attempts + 1):
             reply = self._ask(prompt, system, json_schema)
+            if not reply.text.strip():
+                problem = "回复是空的"
+                log.warning("模型的回复是空的，第 %d/%d 次", attempt, attempts)
+                continue
             try:
                 return schema.model_validate_json(_strip_fence(reply.text))
             except ValidationError as exc:
-                problem = f"{exc.error_count()} 处不符合格式"
+                first = exc.errors()[0]
+                where = ".".join(str(part) for part in first["loc"]) or "整体"
+                problem = f"{exc.error_count()} 处不符合格式，例如 {where}：{first['type']}"
             log.warning("模型输出不是合法的 JSON（%s），第 %d/%d 次", problem, attempt, attempts)
         raise LLMOutputError(f"模型输出 {attempts} 次都不合法：{problem}")
 

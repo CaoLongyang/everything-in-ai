@@ -373,6 +373,7 @@ PROVIDER_PRESETS = [
         "model": "deepseek-v4-flash",
         "api_base": "https://api.deepseek.com",
         "api_key_env": "DEEPSEEK_API_KEY",
+        "no_thinking": True,  # 2026-11-21 实测：默认的思考模式会占掉大部分输出额度
     },
     {
         "name": "Claude",
@@ -508,6 +509,20 @@ def action_config_save_form(params: dict[str, Any]) -> dict[str, Any]:
                     "model": _clean(embed.get("model")),
                     "api_base": _clean(embed.get("api_base")) or "http://127.0.0.1:11434/v1",
                 }
+            # 表单里没有的设置（max_tokens、extra_body 的其他项）从现有配置里原样保留
+            old = (yaml.safe_load(text) or {}).get("llm") or {}
+            old = old if isinstance(old, dict) else {}
+            if isinstance(old.get("max_tokens"), int):
+                section["max_tokens"] = old["max_tokens"]
+            extra = (
+                dict(old.get("extra_body") or {}) if isinstance(old.get("extra_body"), dict) else {}
+            )
+            if form_llm.get("no_thinking"):
+                extra["thinking"] = {"type": "disabled"}
+            else:
+                extra.pop("thinking", None)
+            if extra:
+                section["extra_body"] = extra
             section["max_retries"] = 2
             section["timeout_s"] = 60
         text = replace_section(text, "llm", section)

@@ -132,3 +132,18 @@ def test_F9_01_show_reports_config_error(make_vault: Callable[..., Path]) -> Non
 def test_F9_01_public_client_reads_vault(make_vault: Callable[..., Path]) -> None:
     root = make_vault(OPENAI_LLM)
     assert get_client(root).config.text.api_key == SECRET
+
+
+@pytest.mark.parametrize(
+    ("extra", "expected"),
+    [
+        ({"max_tokens": 0}, "max_tokens 应该是正整数"),
+        ({"max_tokens": True}, "max_tokens"),
+        ({"extra_body": "x"}, "extra_body 应该是一组键值"),
+    ],
+)
+def test_F9_01_bad_max_tokens_or_extra_body(
+    make_vault: Callable[..., Path], extra: dict[str, Any], expected: str
+) -> None:
+    with pytest.raises(LLMConfigError, match=expected):
+        load_llm_config(make_vault({**OPENAI_LLM, **extra}))

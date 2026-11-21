@@ -242,3 +242,45 @@ def test_F9_04_openai_empty_or_short_responses(
         client.complete(PROMPT)
     with pytest.raises(LLMOutputError, match="返回了 1 个向量，应为 2 个"):
         client.embed(["a", "b"])
+
+
+def test_F9_04_truncated_replies_fail_fast_with_advice(
+    make_vault: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """2026-11-21：DeepSeek 默认先思考，长任务的思考占满 max_tokens，正文是空的。"""
+    chat = Recorder(_chat("", finish="length"), _chat("不会用到"))
+    monkeypatch.setattr(Completions, "create", chat)
+    with pytest.raises(LLMOutputError, match="被截断.*llm.max_tokens.*extra_body"):
+        _client(make_vault(OPENAI_LLM)).complete_json(PROMPT, Answer)
+    assert len(chat.kwargs) == 1  # 截断不重试：重试只会再花一次钱
+
+    create = Recorder(_claude_message("{", stop_reason="max_tokens"))
+    monkeypatch.setattr(Messages, "create", create)
+    with pytest.raises(LLMOutputError, match="Claude 的回复超过了 4096 token"):
+        _client(make_vault(ANTHROPIC_LLM)).complete(PROMPT)
+
+
+def test_F9_02_max_tokens_and_extra_body_reach_the_service(
+    make_vault: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chat = Recorder(_chat("好"))
+    monkeypatch.setattr(Completions, "create", chat)
+    extra = {"thinking": {"type": "disabled"}}
+    _client(make_vault({**OPENAI_LLM, "max_tokens": 8000, "extra_body": extra})).complete(PROMPT)
+    assert chat.kwargs[0]["max_tokens"] == 8000 and chat.kwargs[0]["extra_body"] == extra
+
+    create = Recorder(_claude_message("好"))
+    monkeypatch.setattr(Messages, "create", create)
+    _client(make_vault({**ANTHROPIC_LLM, "extra_body": {"x": 1}})).complete(PROMPT)
+    assert create.kwargs[0]["extra_body"] == {"x": 1} and create.kwargs[0]["max_tokens"] == 4096
+
+
+def test_F9_03_empty_replies_are_reported_as_empty(
+    make_vault: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(Completions, "create", Recorder(*[_chat("")] * 3, _chat('{"answer": 1}')))
+    with pytest.raises(LLMOutputError, match="回复是空的"):
+        _client(make_vault(OPENAI_LLM)).complete_json(PROMPT, Answer)
+    monkeypatch.setattr(Completions, "create", Recorder(*[_chat('{"answer": "x"}')] * 3))
+    with pytest.raises(LLMOutputError, match=r"例如 score：missing"):
+        _client(make_vault(OPENAI_LLM)).complete_json(PROMPT, Answer)
