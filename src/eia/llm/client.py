@@ -104,16 +104,17 @@ class Client:
 
     def _retry(self, call: Callable[[], R]) -> R:
         attempts = self.config.max_retries + 1
-        for attempt in range(1, attempts + 1):
+        for attempt in range(1, attempts):
             try:
                 return call()
             except TransientError as exc:
-                if attempt == attempts:
-                    raise LLMCallError(f"{exc}（已尝试 {attempts} 次）") from None
                 delay = min(2.0 ** (attempt - 1), _MAX_BACKOFF_S)
                 log.warning("%s，%.0f 秒后重试（第 %d/%d 次）", exc, delay, attempt, attempts)
                 self._sleep(delay)
-        raise AssertionError("unreachable")  # pragma: no cover
+        try:
+            return call()
+        except TransientError as exc:
+            raise LLMCallError(f"{exc}（已尝试 {attempts} 次）") from None
 
 
 def _strip_fence(text: str) -> str:

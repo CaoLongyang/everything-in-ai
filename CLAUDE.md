@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目是什么
 
 `eia`（everything-in-ai）：把 AI 对话导入成纯 Markdown 的个人知识库（vault），用 Obsidian 浏览。
-V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`、`llm`（AI 服务接入）、`chats`（按说话方读回对话），进度见 `tasks/todo.md`，范围见 `ROADMAP.md`。
+V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`、`llm`（AI 服务接入）、`chats`（按说话方读回对话）、`headlines`（新闻雷达），进度见 `tasks/todo.md`，范围见 `ROADMAP.md`。
 所有文档、命令输出、报错信息都是中文，新代码保持一致。
 
 ## 命令
@@ -42,7 +42,7 @@ ruff format .                      # 自动格式化
 
 ## 架构
 
-三个包，`src/eia/schema/`（数据契约）、`src/eia/chat/`（导入）和 `src/eia/llm/`（AI 服务接入），由 `src/eia/cli.py`（click）串起来。
+四个包，`src/eia/schema/`（数据契约）、`src/eia/chat/`（导入）、`src/eia/llm/`（AI 服务接入）和 `src/eia/headlines/`（新闻雷达），由 `src/eia/cli.py`（click）串起来。
 
 **schema/**
 - `model.py`：pydantic 模型。`Entry` 基类 + `ChatEntry` / `HeadlineEntry` / `DigestEntry`；`model_for(type)` 按 `type` 字段选模型。未知字段只警告。
@@ -65,6 +65,11 @@ ruff format .                      # 自动格式化
 - `config.py`：解析 `config.yaml` 的 `llm` 段，key 从环境变量或 vault 的 `.env` 读。`client.py`：重试、JSON 校验、只记长度的日志。
 - `_anthropic.py` / `_openai.py` 是仅有的两个能 `import anthropic` / `import openai` 的文件（F9-06 测试强制），只负责发一次请求并翻译错误。
 - 测试全部模拟；`pytest -m live` 才会真的调用（默认不跑，需设置 `EIA_LIVE_VAULT`）。
+
+**headlines/**（`SPEC-headline-radar.md`，实现决定见 ADR 0004）
+- 流程在 `run.py`：`feeds.py` 抓取解析（全仓库唯一 `import feedparser` 的地方）→ `store.py` 暂存到 `.eia/headlines/`（报道 + 向量缓存，向量按模型名作废）→ `cluster.py` 归组（`embed` 用 `llm.embed` + numpy，`lexical` 按词重合）→ `writer.py` 达到 `min_sources` 家的组写成 `headline` 条目。
+- numpy、feedparser 只在函数里导入（可选依赖 `[news]`），`import eia.cli` 不能拉进它们，有测试守着。
+- 测试用 `tests/headlines/conftest.py` 的虚构 RSS 和按关键词给向量的假模型；网络通过替换 `urllib.request.urlopen` 或传入 `fetcher` 隔离。
 
 ## 改规格的方式
 

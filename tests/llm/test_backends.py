@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from eia.llm import Client, LLMCallError, LLMConfigError, LLMOutputError
 from eia.llm._anthropic import AnthropicBackend
-from eia.llm._openai import JSON_INSTRUCTION
+from eia.llm._openai import JSON_INSTRUCTION, OpenAICompatibleBackend
 from eia.llm.config import load_llm_config
 
 from .conftest import ANTHROPIC_LLM, OPENAI_LLM, PROMPT, SECRET
@@ -120,12 +120,14 @@ def test_F9_02_openai_compatible_complete_json_and_embed(
 def test_F9_02_base_url_and_key_reach_the_sdk(make_vault: Callable[..., Path]) -> None:
     client = _client(make_vault(OPENAI_LLM))
     backend = client._factory(client.config.text, 5.0)
-    sdk = backend._client  # type: ignore[attr-defined]
+    assert isinstance(backend, OpenAICompatibleBackend)
+    sdk = backend._client
     assert str(sdk.base_url).startswith("https://api.deepseek.com")
     assert sdk.api_key == SECRET and sdk.max_retries == 0
     assert client.config.embed is not None
-    local = client._factory(client.config.embed, 5.0)._client  # type: ignore[attr-defined]
-    assert str(local.base_url).startswith("http://127.0.0.1:11434/v1")
+    local = client._factory(client.config.embed, 5.0)
+    assert isinstance(local, OpenAICompatibleBackend)
+    assert str(local._client.base_url).startswith("http://127.0.0.1:11434/v1")
 
 
 def test_F9_02_embed_without_embed_config(make_vault: Callable[..., Path]) -> None:

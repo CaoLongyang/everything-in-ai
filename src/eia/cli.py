@@ -1,4 +1,4 @@
-"""命令行入口：eia init / validate / new / import / chats / llm。"""
+"""命令行入口：eia init / validate / new / import / chats / headlines / llm。"""
 
 from __future__ import annotations
 
@@ -18,6 +18,8 @@ from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
 from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
 from eia.chat.render import SPEAKERS, USER_LABEL
+from eia.headlines import run as headlines
+from eia.headlines.config import HeadlinesConfigError
 from eia.schema.create import new_entry
 from eia.schema.model import EntryType, Platform
 from eia.schema.validate import ERROR, validate_vault
@@ -267,6 +269,67 @@ def _record(chat: ReadChat, message: ReadMessage) -> dict[str, object]:
     if message.thinking:
         record["thinking"] = message.thinking
     return record
+
+
+@main.group(name="headlines")
+def headlines_group() -> None:
+    """新闻雷达：多家独立媒体都在报的事，写进 inbox/headlines/。"""
+
+
+@headlines_group.command(name="run")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--dry-run", is_flag=True, help="只报告会做什么，不写 vault，也不写 .eia/ 缓存。")
+def headlines_run(vault: Path, dry_run: bool) -> None:
+    """抓取 → 归组 → 达到门槛的写成 headline 条目。"""
+    try:
+        result = headlines.run(vault, dry_run=dry_run)
+    except (HeadlinesConfigError, VaultError) as exc:
+        raise click.ClickException(f"{exc}。没有访问任何新闻源") from exc
+    except llm.LLMError as exc:
+        raise click.ClickException(
+            f"向量模型调用失败：{exc}。如果用的是本地 Ollama，请确认它已经启动。没有写入任何条目"
+        ) from exc
+    failed = [status for status in result.feeds if status.error]
+    for status in failed:
+        click.echo(f"源失败  {status.feed.publisher}  {status.feed.url}  {status.error}")
+    written = result.written
+    for path, reason in written.skipped:
+        click.echo(f"跳过  {path}  {reason}")
+    prefix = "（预览，未写入）" if dry_run else ""
+    click.echo(
+        f"{prefix}{len(result.feeds) - len(failed)}/{len(result.feeds)} 个源可用；"
+        f"时间窗口内 {result.in_window} 篇报道，{result.groups} 组，"
+        f"{result.qualifying} 组达到门槛：\n"
+        f"新建 {len(written.created)}，更新 {len(written.updated)}，未变 {written.unchanged}"
+    )
+    for path in written.created:
+        click.echo(f"新建  {path}")
+    for path in written.updated:
+        click.echo(f"更新  {path}")
+
+
+@headlines_group.command(name="check")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def headlines_check(vault: Path) -> None:
+    """逐个源测试能否访问、最新一条是什么时候。有源失败时退出码 1。"""
+    now = dt.datetime.now(dt.UTC)
+    try:
+        statuses = headlines.check(vault, now=now)
+    except (HeadlinesConfigError, VaultError) as exc:
+        raise click.ClickException(f"{exc}。没有访问任何新闻源") from exc
+    failed = False
+    for status in statuses:
+        where = f"{status.feed.publisher}  {status.feed.url}"
+        if status.error:
+            failed = True
+            click.echo(f"失败  {where}  {status.error}")
+            continue
+        newest = max(item.published for item in status.items)
+        age = (now - newest).total_seconds() / 3600
+        stale = "，超过 7 天没更新" if age > 24 * 7 else ""
+        click.echo(f"正常  {where}  {len(status.items)} 条，最新一条 {age:.0f} 小时前{stale}")
+    if failed:
+        sys.exit(1)
 
 
 @main.group(name="llm")

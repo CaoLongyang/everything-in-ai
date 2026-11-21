@@ -18,13 +18,15 @@ dependencies = [
 [project.optional-dependencies]
 # AI 功能才需要。版本写死，升级要有意识地改这里（SPEC-DELTA-llm-adapter-v1 第 1 节）
 llm = ["anthropic==2.6.0", "openai==3.46.0"]
+# 新闻雷达才需要（SPEC-headline-radar 第 8 节）
+news = ["feedparser==6.0.14", "numpy==2.4.4"]  # numpy 2.5 起不支持 Python 3.11
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
     "ruff>=0.5",
     "mypy>=1.10",
     "types-PyYAML",
-    "everything-in-ai[llm]",
+    "everything-in-ai[llm,news]",
 ]
 
 [project.scripts]
@@ -51,3 +53,8 @@ select = ["E", "F", "I", "B", "UP"]
 python_version = "3.11"
 strict = true
 files = ["src"]
+
+# feedparser 没有类型信息；只对它放开，用法集中在 eia/headlines/feeds.py（2026-11-21）
+[[tool.mypy.overrides]]
+module = ["feedparser"]
+ignore_missing_imports = true

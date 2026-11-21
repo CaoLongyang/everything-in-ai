@@ -31,6 +31,39 @@ schema: 1
 # 文件名里的日期按这个时区计算；留空则使用本机时区。
 # 例：timezone: Asia/Singapore
 timezone:
+
+# ---------- AI 服务（可选；不配置就不会调用任何 AI）----------
+# key 不写在这里：写进本目录的 .env（已被 .gitignore 排除），例如 DEEPSEEK_API_KEY=sk-...
+# llm:
+#   provider: openai_compatible        # anthropic | openai_compatible
+#   model: deepseek-v4-flash
+#   api_base: https://api.deepseek.com
+#   api_key_env: DEEPSEEK_API_KEY
+#   embed:                             # 向量模型，新闻雷达要用；本地 Ollama 不花钱、数据不出电脑
+#     provider: openai_compatible
+#     model: bge-m3                    # 先运行 ollama pull bge-m3
+#     api_base: http://127.0.0.1:11434/v1
+
+# ---------- 新闻雷达 eia headlines（可选）----------
+# 下面的源 2026-11 实测可用。同一个 publisher 的多个源只算一家。去掉行首的 # 才生效。
+# headlines:
+#   min_sources: 3                     # 至少几家独立媒体在报才算大事
+#   window_hours: 36
+#   cluster: embed                     # embed（需要上面的 llm.embed）| lexical
+#   feeds:
+#     - {publisher: BBC, url: https://feeds.bbci.co.uk/news/world/rss.xml}
+#     - {publisher: BBC, url: https://feeds.bbci.co.uk/zhongwen/simp/rss.xml}
+#     - {publisher: The Guardian, url: https://www.theguardian.com/world/rss}
+#     - {publisher: Al Jazeera, url: https://www.aljazeera.com/xml/rss/all.xml}
+#     - {publisher: New York Times, url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml}
+#     - {publisher: New York Times, url: https://cn.nytimes.com/rss/}
+#     - {publisher: DW, url: https://rss.dw.com/rdf/rss-en-all}
+#     - {publisher: DW, url: https://rss.dw.com/rdf/rss-chi-all}
+#     - {publisher: RFI, url: https://www.rfi.fr/cn/rss}
+#     - {publisher: NPR, url: https://feeds.npr.org/1004/rss.xml}
+#     - {publisher: CNA, url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml"}
+#     - {publisher: ABC News Australia, url: https://www.abc.net.au/news/feed/2942460/rss.xml}
+#     - {publisher: 中国新闻网, url: https://www.chinanews.com.cn/rss/scroll-news.xml}
 """
 
 GITIGNORE_TEMPLATE = """\

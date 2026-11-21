@@ -37,10 +37,11 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> Callable[[list[object]], FakeBacken
 
 def _bound_client(backend: FakeBackend) -> type:
     from eia.llm.client import Client
+    from eia.llm.config import LLMConfig
 
     class _Client(Client):
-        def __init__(self, config: object) -> None:
-            super().__init__(config, lambda endpoint, timeout: backend)  # type: ignore[arg-type]
+        def __init__(self, config: LLMConfig) -> None:
+            super().__init__(config, lambda endpoint, timeout: backend)
 
     return _Client
 
