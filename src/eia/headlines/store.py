@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from eia.headlines.feeds import Item
+from eia.headlines.urls import url_key
 from eia.schema.io import atomic_write
 
 STORE_DIR = Path(".eia") / "headlines"
@@ -40,11 +41,12 @@ def load_items(root: Path) -> list[Item]:
 
 
 def merge_items(old: Iterable[Item], new: Iterable[Item], keep_after: dt.datetime) -> list[Item]:
-    """按链接去重（先到的保留），丢掉太旧的，按发布时间排序。"""
+    """按规范化后的链接去重（先到的保留），丢掉太旧的，按发布时间排序。"""
     merged: dict[str, Item] = {}
     for item in [*old, *new]:
-        if item.published >= keep_after and item.url not in merged:
-            merged[item.url] = item
+        key = url_key(item.url)
+        if item.published >= keep_after and key not in merged:
+            merged[key] = item
     return sorted(merged.values(), key=lambda item: (item.published, item.url))
 
 

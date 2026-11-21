@@ -20,6 +20,13 @@ from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
 from eia.chat.render import SPEAKERS, USER_LABEL
 from eia.headlines import run as headlines
 from eia.headlines.config import HeadlinesConfigError
+from eia.headlines.store import load_items
+from eia.headlines.urls import url_key
+from eia.interests import digest as digest_mod
+from eia.interests import draft as draft_mod
+from eia.interests import feedback as feedback_mod
+from eia.interests import learn as learn_mod
+from eia.interests.config import InterestsError
 from eia.schedule import windows as schedule_windows
 from eia.schedule.runs import JOBS, read_runs, run_job
 from eia.schedule.windows import ScheduleError, WindowsScheduler
@@ -333,6 +340,137 @@ def headlines_check(vault: Path) -> None:
         click.echo(f"正常  {where}  {len(status.items)} 条，最新一条 {age:.0f} 小时前{stale}")
     if failed:
         sys.exit(1)
+
+
+@main.group(name="interests")
+def interests_group() -> None:
+    """兴趣清单：从对话生成草稿、确认、根据评价改进。"""
+
+
+def _interests_error(exc: Exception) -> click.ClickException:
+    return click.ClickException(str(exc))
+
+
+@interests_group.command(name="draft")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--max", "max_interests", type=click.IntRange(1, 50), default=20, show_default=True)
+@click.option(
+    "--yes", is_flag=True, help="确认把摘录发给文本模型起名。不加就只在本机归组并告诉你要发什么。"
+)
+def interests_draft(vault: Path, max_interests: int, yes: bool) -> None:
+    """从你说过的话里归纳兴趣草稿，写到 interests/draft.md。"""
+    try:
+        plan = draft_mod.plan_draft(vault, max_interests=max_interests)
+        click.echo(f"本机归组完成：{len(plan.groups)} 组（只用了你说的话，没有发出任何内容）。")
+        click.echo(
+            f"下一步要把 {plan.excerpt_count} 段摘录、共 {plan.excerpt_chars} 字发给 "
+            f"{plan.model}（{plan.service}）起名。"
+        )
+        if not yes:
+            click.echo("确认的话加上 --yes 再运行一次；不加就到此为止。")
+            return
+        items = draft_mod.name_groups(vault, plan, max_interests=max_interests)
+        items = draft_mod.merge_with_current(vault, items)
+        path = draft_mod.write_draft(vault, items, heading="## 从你的对话里归纳的兴趣")
+    except (InterestsError, llm.LLMError, VaultError) as exc:
+        raise _interests_error(exc) from exc
+    click.echo(f"已写草稿  {path.relative_to(vault).as_posix()}（{len(items)} 项）")
+    click.echo("在 Obsidian 或试用页面里勾选、修改，然后运行 eia interests accept")
+
+
+@interests_group.command(name="accept")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def interests_accept(vault: Path) -> None:
+    """把草稿里勾上的项写进 config.yaml（整份替换兴趣清单，旧配置会备份）。"""
+    try:
+        chosen = draft_mod.accept(vault)
+    except (InterestsError, VaultError) as exc:
+        raise _interests_error(exc) from exc
+    click.echo(f"兴趣清单已更新，共 {len(chosen)} 项：" + "、".join(i.name for i in chosen))
+
+
+@interests_group.command(name="learn")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--yes", is_flag=True, help="确认把兴趣清单和评价发给文本模型。")
+def interests_learn(vault: Path, yes: bool) -> None:
+    """根据你的评价，让 AI 提出兴趣清单的改进建议（写进草稿，确认后才生效）。"""
+    try:
+        plan = learn_mod.plan_learn(vault)
+        click.echo(
+            f"要把兴趣清单和 {plan.feedback} 条评价（报道标题、你写的理由）共 {plan.chars} 字"
+            f"发给 {plan.model}（{plan.service}）。"
+        )
+        if not yes:
+            click.echo("确认的话加上 --yes 再运行一次；不加就到此为止。")
+            return
+        items = learn_mod.learn(vault, plan)
+        path = draft_mod.write_draft(vault, items, heading="## 根据你的评价提出的修改建议")
+    except (InterestsError, llm.LLMError, VaultError) as exc:
+        raise _interests_error(exc) from exc
+    changes = [i for i in items if i.change != "保留"]
+    click.echo(f"已写草稿  {path.relative_to(vault).as_posix()}：{len(changes)} 处建议修改")
+    click.echo("看过后运行 eia interests accept 才会生效")
+
+
+@main.group(name="digest")
+def digest_group() -> None:
+    """按兴趣挑选资讯，写进 inbox/digest/。"""
+
+
+@digest_group.command(name="run")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--dry-run", is_flag=True, help="只报告会挑出什么，不写文件。")
+def digest_run(vault: Path, dry_run: bool) -> None:
+    """用确认过的兴趣给最近的报道打分（本机计算，不花钱）。"""
+    try:
+        result = digest_mod.run_digest(vault, dry_run=dry_run)
+    except (InterestsError, VaultError) as exc:
+        raise _interests_error(exc) from exc
+    except llm.LLMError as exc:
+        raise click.ClickException(
+            f"向量模型调用失败：{exc}。如果用的是本地 Ollama，请确认它已经启动"
+        ) from exc
+    click.echo(_digest_summary(result, dry_run))
+    for pick in result.picks:
+        click.echo(
+            f"  {pick.score:.2f}  [{pick.interest}]  {pick.item.title}（{pick.item.publisher}）"
+        )
+
+
+def _digest_summary(result: digest_mod.DigestResult, dry_run: bool) -> str:
+    prefix = "（预览，未写入）" if dry_run else ""
+    where = f"，{'新建' if result.created else '更新'} {result.path}" if result.path else ""
+    return (
+        f"{prefix}{result.candidates} 篇候选，挑出 {len(result.picks)} 篇"
+        f"（因评价排除 {result.dropped_by_feedback}，"
+        f"因「不要」排除 {result.dropped_by_exclude}）{where}"
+    )
+
+
+@digest_group.command(name="rate")
+@click.argument("url")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--relevant/--irrelevant", default=None, help="相关 / 不相关。")
+@click.option("--stars", type=click.IntRange(1, 5), help="1–5 星。")
+@click.option("--why", help="一句理由，例如「只关心芯片，不关心手机」。")
+def digest_rate(
+    url: str, vault: Path, relevant: bool | None, stars: int | None, why: str | None
+) -> None:
+    """评价一篇报道。三种方式可以任选、可以组合；同一篇再评会覆盖。"""
+    item = next((i for i in load_items(vault) if url_key(i.url) == url_key(url)), None)
+    try:
+        record = feedback_mod.rate(
+            vault,
+            url,
+            title=item.title if item else "",
+            publisher=item.publisher if item else "",
+            relevant=relevant,
+            stars=stars,
+            why=why,
+        )
+    except InterestsError as exc:
+        raise _interests_error(exc) from exc
+    click.echo(f"已记下  {record.title}")
 
 
 @main.command(name="run")

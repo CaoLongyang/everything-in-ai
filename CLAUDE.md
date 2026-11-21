@@ -75,6 +75,12 @@ ruff format .                      # 自动格式化
 - `runs.py`：`eia run <job>`，加锁（`.eia/locks/`）、写运行记录（`.eia/runs/<job>.jsonl`，最近 200 条）。新任务加到 `JOBS`。
 - `windows.py`：用 XML 调 `schtasks` 登记到 `\eia\`，`pythonw -m eia run ...` 不弹窗。测试里 `schtasks` 用假的 runner，绝不真的登记。
 
+**interests/**（`SPEC-interest-digest.md`，实现决定见 ADR 0006；部分代码改写自 Horizon，见 `THIRD_PARTY_NOTICES.md`）
+- `draft.py`：`interests draft` 两步。第 1 步按对话在本机归组（向量模型必须在本机），第 2 步要 `--yes` 才把摘录发给文本模型起名；`accept` 把草稿里勾上的写进 `config.yaml`。
+- `digest.py`：`digest run` 本机打分（复用雷达的报道向量），按兴趣限量（`select.py`），写当天的 `inbox/digest/` 条目；评价（`feedback.py`）和 `exclude` 影响打分；`learn.py` 根据评价提出修改建议（也要 `--yes`）。
+- 定时任务 `headlines` 跑完雷达后，有兴趣清单就接着跑 `digest`。
+- 改 `config.yaml` 的某一段统一用 `schema/configedit.py`（保留注释、先备份）。
+
 ## 改规格的方式
 
 已批准的 spec 不直接改，写 `SPEC-DELTA-<name>.md`；实现中做出的偏离 spec 的决定记到 `docs/adr/`。

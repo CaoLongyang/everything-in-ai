@@ -117,6 +117,21 @@ input[type=password] { flex: 1; }
 .feed button { padding: 2px 8px; font-size: 12.5px; }
 .status-line { margin: 4px 0; }
 .disabled { opacity: .45; pointer-events: none; }
+.pick { border-top: 1px solid var(--line); padding: 10px 0; }
+.pick:first-child { border-top: none; }
+.pick .t a { color: var(--ink); font-weight: 600; }
+.pick .m { color: var(--muted); font-size: 13px; margin: 2px 0 6px; }
+.pick .rate { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pick .rate button { padding: 3px 10px; font-size: 13px; }
+.pick .rate button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pick .rate button.on.no { background: var(--bad); border-color: var(--bad); }
+.pick .rate input[type=text] { flex: 1 1 180px; padding: 4px 8px; font-size: 13px; }
+.pick .rate select { padding: 3px 6px; font-size: 13px; }
+.interest { display: grid; grid-template-columns: auto 180px 1fr 1fr; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.interest input[type=text] { width: 100%; padding: 5px 8px; font-size: 13.5px; }
+.interest .ev { grid-column: 2 / -1; color: var(--muted); font-size: 12.5px; }
+.interest .tag { font-size: 12px; color: var(--warn); }
+@media (max-width: 700px) { .interest { grid-template-columns: auto 1fr; } .interest input[type=text] { grid-column: 2; } }
 @media (max-width: 600px) { .feed { grid-template-columns: auto 1fr; } .feed .u { grid-column: 1 / -1; } }
 @media (max-width: 800px) { .files { grid-template-columns: 1fr; } .side { position: static; max-height: 50vh; } }
 @media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
@@ -138,6 +153,7 @@ input[type=password] { flex: 1; }
     <button data-tab="files">文件</button>
     <button data-tab="import">导入</button>
     <button data-tab="headlines">新闻雷达</button>
+    <button data-tab="interests">兴趣</button>
     <button data-tab="ai">AI 服务</button>
     <button data-tab="settings">设置</button>
   </nav>
@@ -267,6 +283,53 @@ input[type=password] { flex: 1; }
       <p class="hint">按报道的媒体数排序。数字是独立媒体数，同一家媒体的中英文源只算一家。</p>
       <div class="row"><button data-run="headlines_list">刷新</button></div>
       <div id="hlList"></div>
+    </div>
+  </section>
+
+  <!-- 兴趣 -->
+  <section class="tab" id="tab-interests">
+    <div class="card">
+      <h2>今日兴趣 <span class="chip">eia digest</span></h2>
+      <p class="hint">用你的兴趣清单给新闻雷达抓到的报道打分（本机计算，不花钱）。评价会马上影响之后的挑选：标了不相关的，和它很像的报道以后不再出现。</p>
+      <div class="row">
+        <button data-run="digest_picks">刷新</button>
+        <button class="primary" data-run="digest_run">写进今天的文件</button>
+      </div>
+      <div data-out="digest_run"></div>
+      <div id="picks"></div>
+    </div>
+
+    <div class="card">
+      <h2>我的兴趣清单</h2>
+      <p class="hint">勾上的就是你的兴趣。可以直接改名字、说明，「不要」里写不想看的方向。下面的草稿（从对话生成的、根据评价改进的）也在这里，确认后才生效。</p>
+      <div id="interestList"></div>
+      <div class="row">
+        <button id="addInterest">加一项</button>
+        <button class="primary" id="saveInterests">保存为我的兴趣清单</button>
+      </div>
+      <div id="interestResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>从对话生成兴趣草稿 <span class="chip">eia interests draft</span></h2>
+      <p class="hint"><b>第 1 步</b>在本机把你说过的话按主题归组，不发出任何内容（第一次约 3 分钟）。<b>第 2 步</b>每组挑几段摘录发给你配置的 AI 起名字，发之前会告诉你发多少字。</p>
+      <div class="row">
+        <button data-run="interests_plan">第 1 步：本机归组</button>
+        <button class="primary" data-run="interests_name" id="nameBtn" disabled>第 2 步：确认发送并生成草稿</button>
+      </div>
+      <div data-out="interests_plan"></div>
+      <div data-out="interests_name"></div>
+    </div>
+
+    <div class="card">
+      <h2>根据评价改进兴趣 <span class="chip">eia interests learn</span></h2>
+      <p class="hint">把兴趣清单和你的评价（报道标题、你写的理由）发给 AI，让它提出修改建议。建议会出现在上面的清单里，你确认后才生效。</p>
+      <div class="row">
+        <button data-run="interests_learn_plan">看看要发什么</button>
+        <button class="primary" data-run="interests_learn" id="learnBtn" disabled>确认发送</button>
+      </div>
+      <div data-out="interests_learn_plan"></div>
+      <div data-out="interests_learn"></div>
     </div>
   </section>
 
@@ -410,6 +473,12 @@ const after = {
   },
   headlines_run() { run("headlines_list"); refreshOverview(); },
   schedule_install() { run("schedule_status"); },
+  digest_picks(r) { drawPicks(r); },
+  digest_run() { run("digest_picks"); },
+  interests_plan(r) { $("#nameBtn").disabled = !(r.exit_code === 0 && /下一步要把/.test(r.stdout)); },
+  interests_name(r) { $("#nameBtn").disabled = true; if (r.exit_code === 0) loadInterests(); },
+  interests_learn_plan(r) { $("#learnBtn").disabled = !(r.exit_code === 0 && /要把兴趣清单/.test(r.stdout)); },
+  interests_learn(r) { $("#learnBtn").disabled = true; if (r.exit_code === 0) loadInterests(); },
   schedule_remove() { run("schedule_status"); },
   schedule_run_now() { run("schedule_status"); run("headlines_list"); },
   import(r) { if (!$("#impDry").checked && r.exit_code === 0) refreshOverview(); },
@@ -641,6 +710,78 @@ function drawConv() {
 
 $("#convQ").addEventListener("input", convView);
 
+// ---------- 兴趣 ----------
+let interestRows = [];
+
+function drawPicks(r) {
+  const box = $("#picks");
+  if (r.error) { box.innerHTML = `<div class="empty warn">${esc(r.error)}</div>`; return; }
+  const head = `<p class="hint">${r.candidates} 篇候选，挑出 ${r.picks.length} 篇（因评价排除 ${r.dropped_feedback}，因「不要」排除 ${r.dropped_exclude}）</p>`;
+  if (!r.picks.length) { box.innerHTML = head + `<div class="empty">今天没有和你的兴趣足够相关的报道。</div>`; return; }
+  box.innerHTML = head + r.picks.map((p, i) => `<div class="pick" data-i="${i}">
+      <div class="t"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.title)}</a></div>
+      <div class="m"><span class="chip">${esc(p.interest)}</span>${esc(p.publisher)} · ${esc(p.published.slice(5, 16).replace("T", " "))} · 相关度 ${p.score.toFixed(2)}</div>
+      <div class="rate">
+        <button data-v="yes" class="${p.relevant === true ? "on" : ""}">👍 相关</button>
+        <button data-v="no" class="${p.relevant === false ? "on no" : ""}">👎 不相关</button>
+        <select title="打几颗星（可选）"><option value="">星数</option>${[1, 2, 3, 4, 5].map((s) => `<option ${p.stars === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+        <input type="text" placeholder="为什么（可选），例如：只关心芯片，不关心手机" value="${esc(p.why || "")}">
+        <button data-v="save">保存评价</button>
+        <span class="hint" data-state></span>
+      </div></div>`).join("");
+  box.querySelectorAll(".pick").forEach((row) => {
+    const p = r.picks[row.dataset.i];
+    let relevant = p.relevant;
+    const yes = row.querySelector('[data-v="yes"]'), no = row.querySelector('[data-v="no"]');
+    const save = async () => {
+      const stars = row.querySelector("select").value, why = row.querySelector("input").value.trim();
+      const res = await api("digest_rate", { url: p.url, title: p.title, publisher: p.publisher, interest: p.interest, relevant, stars, why });
+      row.querySelector("[data-state]").innerHTML = res.error ? `<span class="bad">${esc(res.error)}</span>` : `<span class="ok">已记下</span>`;
+    };
+    yes.addEventListener("click", () => { relevant = relevant === true ? null : true; yes.classList.toggle("on", relevant === true); no.classList.remove("on", "no"); save(); });
+    no.addEventListener("click", () => { relevant = relevant === false ? null : false; no.classList.toggle("on", relevant === false); no.classList.toggle("no", relevant === false); yes.classList.remove("on"); save(); });
+    row.querySelector('[data-v="save"]').addEventListener("click", save);
+  });
+}
+
+async function loadInterests() {
+  const r = await api("interests_get");
+  if (r.error) { $("#interestList").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  const byName = new Map();
+  for (const c of r.current) byName.set(c.name, { ...c, description: c.description || "", exclude: c.exclude || "", checked: true, tag: "", evidence: "" });
+  for (const d of r.draft) {
+    const old = byName.get(d.name);
+    const tag = old ? (old.description !== d.description || old.exclude !== d.exclude ? "草稿里改过" : "") : "草稿里新增";
+    byName.set(d.name, { ...d, tag: d.checked ? tag : (old ? "草稿建议删除" : "草稿里没勾") });
+  }
+  interestRows = [...byName.values()];
+  drawInterests(r.feedback);
+}
+
+function drawInterests(feedbackCount) {
+  const box = $("#interestList");
+  if (!interestRows.length) { box.innerHTML = `<div class="empty">还没有兴趣。用下面的“从对话生成兴趣草稿”，或者点“加一项”自己写。</div>`; return; }
+  box.innerHTML = (feedbackCount !== undefined ? `<p class="hint">已有 ${feedbackCount} 条评价。</p>` : "") + interestRows.map((it, i) => `<div class="interest" data-i="${i}">
+      <input type="checkbox" ${it.checked ? "checked" : ""} title="勾上才算你的兴趣">
+      <input type="text" data-k="name" value="${esc(it.name)}" placeholder="名字">
+      <input type="text" data-k="description" value="${esc(it.description)}" placeholder="说明：关心的是什么">
+      <input type="text" data-k="exclude" value="${esc(it.exclude)}" placeholder="不要：不想看的方向（可选）">
+      ${it.tag || it.evidence ? `<div class="ev">${it.tag ? `<span class="tag">${esc(it.tag)}</span> ` : ""}${esc(it.evidence)}</div>` : ""}
+    </div>`).join("");
+  box.querySelectorAll(".interest").forEach((row) => {
+    const it = interestRows[row.dataset.i];
+    row.querySelector("input[type=checkbox]").addEventListener("change", (e) => (it.checked = e.target.checked));
+    row.querySelectorAll("input[type=text]").forEach((inp) => inp.addEventListener("input", () => (it[inp.dataset.k] = inp.value)));
+  });
+}
+
+$("#addInterest").addEventListener("click", () => { interestRows.push({ name: "", description: "", exclude: "", checked: true, tag: "", evidence: "" }); drawInterests(); });
+$("#saveInterests").addEventListener("click", async () => {
+  const r = await api("interests_save", { items: interestRows });
+  $("#interestResult").innerHTML = r.error ? `<div class="term"><span class="err">${esc(r.error)}</span></div>` : `<div class="answer">已保存 ${r.saved} 个兴趣。旧配置备份在 ${esc(r.backup)}</div>`;
+  if (!r.error) { loadInterests(); run("digest_picks"); }
+});
+
 // ---------- 设置 ----------
 let cfg = null, feeds = [];
 
@@ -778,6 +919,7 @@ $("#tabs").addEventListener("click", (e) => {
   if (tab === "files" && !allFiles.length) loadFiles();
   if (tab === "chats" && !allConvs.length) loadConvs();
   if (tab === "settings") loadSettings();
+  if (tab === "interests") { loadInterests(); run("digest_picks"); }
 });
 $("#useVault").addEventListener("click", useVault);
 $("#vault").addEventListener("keydown", (e) => { if (e.key === "Enter") useVault(); });

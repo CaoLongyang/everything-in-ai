@@ -47,7 +47,21 @@ def _headlines(root: Path) -> str:
     )
     if result.feeds and working == 0:
         raise JobFailed(f"所有新闻源都连不上（{summary}）")
-    return summary
+    return summary + _digest(root)
+
+
+def _digest(root: Path) -> str:
+    """雷达跑完接着按兴趣挑（SPEC-interest-digest 第 8 节第 3 条）。没有兴趣清单就跳过。"""
+    from eia.interests.config import load_interests
+    from eia.interests.digest import run_digest
+
+    if not load_interests(root):
+        return ""
+    try:
+        result = run_digest(root)
+    except Exception as exc:  # 雷达已经成功：兴趣过滤失败要记下来，并让这次运行算失败
+        raise JobFailed(f"新闻雷达成功，但兴趣过滤失败：{_reason(exc)}") from exc
+    return f"；今日兴趣挑出 {len(result.picks)} 篇"
 
 
 JOBS: dict[str, Callable[[Path], str]] = {"headlines": _headlines}

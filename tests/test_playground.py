@@ -301,3 +301,55 @@ def _bad(base: str, token: str) -> str:
     except urllib.error.HTTPError as exc:
         return exc.read().decode("utf-8")
     return ""
+
+
+def test_interest_actions(server: tuple[str, str, Path]) -> None:
+    from eia.interests.config import load_interests
+    from eia.interests.feedback import read_feedback
+
+    base, token, vault = server
+    got = _post(base, {"action": "interests_get", "params": {"vault": str(vault)}}, token)
+    assert got == {"draft": [], "current": [], "feedback": 0}
+    items = [
+        {"name": "芯片", "description": "半导体", "exclude": "手机", "checked": True},
+        {"name": "不要的", "checked": False},
+        {"name": "", "checked": True},
+    ]
+    saved = _post(
+        base, {"action": "interests_save", "params": {"vault": str(vault), "items": items}}, token
+    )
+    assert saved["saved"] == 1
+    assert [i.as_config() for i in load_interests(vault)] == [
+        {"name": "芯片", "description": "半导体", "exclude": "手机"}
+    ]
+    none = _post(
+        base, {"action": "interests_save", "params": {"vault": str(vault), "items": []}}, token
+    )
+    assert "一项都没勾" in none["error"]
+
+    rated = _post(
+        base,
+        {
+            "action": "digest_rate",
+            "params": {
+                "vault": str(vault),
+                "url": "https://a/1",
+                "title": "T",
+                "relevant": False,
+                "stars": "2",
+                "why": "不看",
+            },
+        },
+        token,
+    )
+    assert rated == {"saved": True, "title": "T"}
+    [record] = read_feedback(vault)
+    assert record.relevant is False and record.stars == 2 and record.why == "不看"
+    empty = _post(
+        base,
+        {"action": "digest_rate", "params": {"vault": str(vault), "url": "https://a/2"}},
+        token,
+    )
+    assert "至少要选" in empty["error"]
+    picks = _post(base, {"action": "digest_picks", "params": {"vault": str(vault)}}, token)
+    assert "error" in picks  # 没有配置向量模型

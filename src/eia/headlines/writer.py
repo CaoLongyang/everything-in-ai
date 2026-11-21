@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from eia.headlines.feeds import Item
+from eia.headlines.urls import url_key
 from eia.schema.ids import new_id
 from eia.schema.io import (
     FrontmatterError,
@@ -64,7 +65,7 @@ def write_groups(
     for group in sorted(groups, key=len, reverse=True):
         counts: dict[Path, int] = {}
         for item in group:
-            path = by_url.get(item.url)
+            path = by_url.get(url_key(item.url))
             if path is not None and path not in claimed:
                 counts[path] = counts.get(path, 0) + 1
         if counts:
@@ -94,7 +95,7 @@ def _index(root: Path, result: WriteResult) -> tuple[dict[str, Path], dict[Path,
         documents[path] = document.raw
         for source in sources:
             if isinstance(source, dict) and isinstance(source.get("url"), str):
-                by_url.setdefault(source["url"], path)
+                by_url.setdefault(url_key(source["url"]), path)
     return by_url, documents
 
 
@@ -186,8 +187,8 @@ def _update(
 ) -> None:
     rel = path.relative_to(root).as_posix()
     old = [s for s in parse_text(raw, path).meta.get("sources", []) if isinstance(s, dict)]
-    known = {source.get("url") for source in old}
-    added = [_source(item) for item in group if item.url not in known]
+    known = {url_key(str(source.get("url"))) for source in old}
+    added = [_source(item) for item in group if url_key(item.url) not in known]
     if not added:
         result.unchanged += 1
         return

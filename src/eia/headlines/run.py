@@ -72,7 +72,7 @@ def run(
 
     if config.cluster == EMBED:
         assert client is not None
-        vectors = _vectors(root, client, recent, dry_run)
+        vectors = item_vectors(root, client, recent, save=not dry_run)
         groups = cluster_by_vectors(recent, vectors, config.similarity)
     else:
         groups = cluster_by_words(recent, config.similarity)
@@ -94,17 +94,20 @@ def _embed_client(root: Path) -> llm.Client:
     return client
 
 
-def _vectors(root: Path, client: llm.Client, items: list[Item], dry_run: bool) -> list[list[float]]:
+def item_vectors(
+    root: Path, client: llm.Client, items: list[Item], *, save: bool
+) -> list[list[float]]:
+    """报道的向量，缓存在 .eia/headlines/。save=True 时缓存只保留这些报道的向量。"""
     endpoint = client.config.embed
     assert endpoint is not None
-    model = f"{endpoint.provider}:{endpoint.api_base}:{endpoint.model}"
+    model = endpoint.cache_key
     cache = load_vectors(root, model)
     missing = [item for item in items if item.url not in cache]
     for start in range(0, len(missing), EMBED_BATCH):
         batch = missing[start : start + EMBED_BATCH]
         for item, vector in zip(batch, client.embed([embed_text(i) for i in batch]), strict=True):
             cache[item.url] = vector
-    if not dry_run:
+    if save:
         save_vectors(root, model, {item.url: cache[item.url] for item in items})
     return [cache[item.url] for item in items]
 

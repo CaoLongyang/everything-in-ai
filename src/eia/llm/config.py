@@ -39,6 +39,19 @@ class Endpoint:
     def has_key(self) -> bool:
         return bool(self.api_key)
 
+    @property
+    def cache_key(self) -> str:
+        """向量缓存用：服务、地址、模型任何一个变了，旧向量都作废。"""
+        return f"{self.provider}:{self.api_base}:{self.model}"
+
+    @property
+    def is_local(self) -> bool:
+        """服务在本机（数据不出电脑）。"""
+        from urllib.parse import urlsplit
+
+        host = (urlsplit(self.api_base or "").hostname or "").lower()
+        return host in {"127.0.0.1", "localhost", "::1"}
+
 
 @dataclass(frozen=True)
 class LLMConfig:

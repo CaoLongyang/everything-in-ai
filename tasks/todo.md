@@ -29,6 +29,7 @@
 | V1-5 | `chat-reader`：`eia chats dump` / `stats` | F10-01 至 F10-07 | ✅ 2026-11-21（笔记算「我」的话；粘贴内容的区分挪到 V2） |
 | V1-6 | `headline-radar`：`eia headlines run` / `check` | F11-01 至 F11-08 | ✅ 2026-11-21（默认 embed + 本地 bge-m3，相似度 0.68 用真实数据校准；实现决定见 ADR 0004） |
 | V1-7 | 定时运行：`eia run` / `eia schedule` | F12-01 至 F12-06 | ✅ 2026-11-21（先只做 Windows；作者电脑上已真实登记，每天 8:00；实现决定见 ADR 0005） |
+| V1-8 | 兴趣草稿 + 按兴趣过滤 + 评价（取代 feed-digest / config-sync） | F13-01 至 F13-09 | 🔄 代码完成 2026-11-21；等作者确认第 2 步（摘录发给 DeepSeek 起名）后用真实兴趣校准 `min_score` |
 
 ## 已确认
 

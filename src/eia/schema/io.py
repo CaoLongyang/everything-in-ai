@@ -35,7 +35,10 @@ class Document:
 
 
 class _Dumper(yaml.SafeDumper):
-    pass
+    def ignore_aliases(self, data: Any) -> bool:
+        """同一个对象出现两次（例如 created 和 updated 是同一个时间）时照写两遍，
+        不写成 &id001 / *id001：人看不懂，按行修改字段时还会把文件弄坏。"""
+        return True
 
 
 def _represent_datetime(dumper: yaml.SafeDumper, value: dt.datetime) -> yaml.ScalarNode:

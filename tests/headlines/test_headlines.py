@@ -490,3 +490,17 @@ def test_F11_08_mismatched_vectors_rejected(tmp_path: Path) -> None:
         '{"model": "m", "vectors": 3}', encoding="utf-8"
     )
     assert load_vectors(tmp_path, "m") == {}
+
+
+def test_F11_05_tracking_parameters_do_not_duplicate_sources() -> None:
+    from eia.headlines.urls import url_key
+
+    base = "https://www.bbc.co.uk/news/articles/abc"
+    assert url_key(base + "?at_medium=RSS&at_campaign=rss") == url_key(base)
+    assert url_key("HTTPS://WWW.BBC.CO.UK:443/news/articles/abc/?utm_source=x") == url_key(base)
+    assert url_key(base + "?id=1&fbclid=z") == base + "?id=1"
+    assert url_key("https://a.example/x?page=2") != url_key("https://a.example/x?page=3")
+    assert url_key("http://[bad") == "http://[bad"
+    one = Item(base + "?at_medium=RSS", "t", "", "BBC", NOW, "f")
+    two = Item(base, "t", "", "BBC", NOW, "f")
+    assert len(merge_items([one], [two], keep_after=NOW - dt.timedelta(days=1))) == 1

@@ -29,6 +29,7 @@ from eia import llm
 from eia.chat.reader import ChatReadError, read_chat
 from eia.cli import main
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
+from eia.schema.configedit import replace_section, save_config_text
 from eia.schema.io import FrontmatterError, read_document
 from eia.schema.validate import iter_markdown
 from eia.schema.vault import CONFIG_NAME, VaultError, is_vault, load_config
@@ -362,9 +363,7 @@ def action_conversation(params: dict[str, Any]) -> dict[str, Any]:
 # ---------- 设置：在网页里改 config.yaml 和 .env ----------
 
 ENV_FILE = ".env"
-BACKUP = Path(".eia") / "config.yaml.bak"
 _ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_TOP_KEY = re.compile(r"^([A-Za-z_][\w-]*)\s*:")
 
 # 只预填确认过的模型名；其他留空，让用户去服务商文档查
 PROVIDER_PRESETS = [
@@ -474,49 +473,14 @@ def action_config_get(params: dict[str, Any]) -> dict[str, Any]:
 
 def _save_config(path: Path, text: str) -> dict[str, Any]:
     try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        return {"error": f"不是合法的 YAML，没有保存：{exc}"}
-    if data is not None and not isinstance(data, dict):
-        return {"error": "配置文件最外层必须是 键: 值 的形式，没有保存"}
-    backup = path.parent / BACKUP
-    backup.parent.mkdir(parents=True, exist_ok=True)
-    backup.write_bytes(path.read_bytes())
-    from eia.schema.io import atomic_write
-
-    atomic_write(path, text)
+        backup = save_config_text(path.parent, text)
+    except VaultError as exc:
+        return {"error": str(exc)}
     return {"saved": True, "backup": str(backup), "check": _check_config(path.parent)}
 
 
 def action_config_save_raw(params: dict[str, Any]) -> dict[str, Any]:
     return _save_config(_config_path(params), str(params.get("text") or ""))
-
-
-def replace_section(text: str, key: str, section: dict[str, Any] | None) -> str:
-    """替换（或删除、追加）顶层的 key: 段。其他行，包括注释，原样保留。"""
-    lines = text.splitlines(keepends=True)
-    start = next((i for i, line in enumerate(lines) if _top_key(line) == key), None)
-    end = start
-    if start is not None:
-        end = start + 1
-        while end < len(lines) and (not lines[end].strip() or lines[end][0] in " \t"):
-            end += 1
-        while end > start + 1 and not lines[end - 1].strip():
-            end -= 1  # 段后的空行留给下一段
-    block = ""
-    if section is not None:
-        block = yaml.safe_dump({key: section}, allow_unicode=True, sort_keys=False, width=1000)
-    if start is None:
-        if not block:
-            return text
-        sep = "" if not text or text.endswith("\n\n") else ("\n" if text.endswith("\n") else "\n\n")
-        return text + sep + block
-    return "".join(lines[:start]) + block + "".join(lines[end:])
-
-
-def _top_key(line: str) -> str | None:
-    match = _TOP_KEY.match(line)
-    return match.group(1) if match else None
 
 
 def _clean(value: Any) -> str:
@@ -630,6 +594,143 @@ def action_open_config(params: dict[str, Any]) -> dict[str, Any]:
     else:
         subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(path)])
     return {"opened": str(path)}
+
+
+# ---------- 兴趣 ----------
+
+
+def action_interests_plan(params: dict[str, Any]) -> dict[str, Any]:
+    """第 1 步：本机归组，并告诉用户第 2 步要发什么。不调用文本模型。"""
+    return run_cli("interests", "draft", "--vault", _vault(params))
+
+
+def action_interests_name(params: dict[str, Any]) -> dict[str, Any]:
+    """第 2 步：用户在页面上点了确认，才把摘录发给文本模型起名。"""
+    return run_cli("interests", "draft", "--vault", _vault(params), "--yes")
+
+
+def action_interests_learn_plan(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("interests", "learn", "--vault", _vault(params))
+
+
+def action_interests_learn(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("interests", "learn", "--vault", _vault(params), "--yes")
+
+
+def action_interests_get(params: dict[str, Any]) -> dict[str, Any]:
+    from eia.interests import draft as draft_mod
+    from eia.interests.config import InterestsError, load_interests
+    from eia.interests.feedback import read_feedback
+
+    vault = Path(_vault(params))
+    draft_path = vault / draft_mod.DRAFT
+    draft = []
+    if draft_path.is_file():
+        text = draft_path.read_bytes().decode("utf-8")
+        evidence: dict[str, str] = {}
+        name = None
+        for line in text.splitlines():
+            match = re.match(r"^- \[[ xX]\] \*\*(.+?)\*\*", line)
+            if match:
+                name = match.group(1)
+            elif name and line.strip().startswith("- 依据："):
+                evidence[name] = line.strip().removeprefix("- 依据：")
+        draft = [
+            {
+                "name": i.interest.name,
+                "description": i.interest.description,
+                "exclude": i.interest.exclude,
+                "checked": i.checked,
+                "evidence": re.sub(
+                    r"\[\[[^|\]]+\|([^\]]+)\]\]", r"「\1」", evidence.get(i.interest.name, "")
+                ),
+            }
+            for i in draft_mod.parse_draft(text)
+        ]
+    try:
+        current = [i.as_config() for i in load_interests(vault)]
+    except InterestsError as exc:
+        return {"error": str(exc)}
+    return {"draft": draft, "current": current, "feedback": len(read_feedback(vault))}
+
+
+def action_interests_save(params: dict[str, Any]) -> dict[str, Any]:
+    """页面上勾选、修改后直接写进 config.yaml 的 interests 段（效果同 eia interests accept）。"""
+    from eia.interests.config import Interest
+    from eia.schema.configedit import update_section
+
+    vault = Path(_vault(params))
+    chosen = [
+        Interest(_clean(i.get("name")), _clean(i.get("description")), _clean(i.get("exclude")))
+        for i in params.get("items") or []
+        if isinstance(i, dict) and i.get("checked") and _clean(i.get("name"))
+    ]
+    if not chosen:
+        return {"error": "一项都没勾，没有改动配置"}
+    backup = update_section(vault, "interests", [i.as_config() for i in chosen])
+    return {"saved": len(chosen), "backup": str(backup)}
+
+
+def action_digest_run(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("digest", "run", "--vault", _vault(params))
+
+
+def action_digest_picks(params: dict[str, Any]) -> dict[str, Any]:
+    """今天会挑出的报道（预览，不写文件），附上已有的评价。"""
+    from eia.headlines.urls import url_key
+    from eia.interests.config import InterestsError
+    from eia.interests.digest import run_digest
+    from eia.interests.feedback import read_feedback
+
+    vault = Path(_vault(params))
+    try:
+        result = run_digest(vault, dry_run=True)
+    except (InterestsError, llm.LLMError) as exc:
+        return {"error": str(exc)}
+    rated = {url_key(f.url): f for f in read_feedback(vault)}
+    picks = []
+    for pick in result.picks:
+        fb = rated.get(url_key(pick.item.url))
+        picks.append(
+            {
+                "url": pick.item.url,
+                "title": pick.item.title,
+                "publisher": pick.item.publisher,
+                "interest": pick.interest,
+                "score": pick.score,
+                "published": pick.item.published.isoformat(),
+                "relevant": fb.relevant if fb else None,
+                "stars": fb.stars if fb else None,
+                "why": fb.why if fb else None,
+            }
+        )
+    return {
+        "picks": picks,
+        "candidates": result.candidates,
+        "dropped_feedback": result.dropped_by_feedback,
+        "dropped_exclude": result.dropped_by_exclude,
+    }
+
+
+def action_digest_rate(params: dict[str, Any]) -> dict[str, Any]:
+    from eia.interests.config import InterestsError
+    from eia.interests.feedback import rate
+
+    stars = params.get("stars")
+    try:
+        record = rate(
+            Path(_vault(params)),
+            _clean(params.get("url")),
+            title=_clean(params.get("title")),
+            publisher=_clean(params.get("publisher")),
+            interest=_clean(params.get("interest")) or None,
+            relevant=params.get("relevant") if isinstance(params.get("relevant"), bool) else None,
+            stars=int(stars) if stars not in (None, "", 0) else None,
+            why=_clean(params.get("why")) or None,
+        )
+    except InterestsError as exc:
+        return {"error": str(exc)}
+    return {"saved": True, "title": record.title}
 
 
 ACTIONS = {

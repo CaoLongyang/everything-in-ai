@@ -192,3 +192,13 @@ def test_F7_04_new_files_are_written_readably() -> None:
 def test_F7_04_titles_that_look_like_yaml_survive_a_roundtrip(title: str) -> None:
     text = render_document(base_meta(title=title), "")
     assert parse_text(text, Path("a.md")).meta["title"] == title
+
+
+def test_F7_04_same_value_twice_is_written_twice_not_as_an_alias() -> None:
+    """2026-11-21 发现：created 和 updated 是同一个时间对象时，YAML 会写成 &id001 / *id001。"""
+    when = dt.datetime(2026, 11, 22, 1, 0, tzinfo=dt.UTC)
+    text = render_document(base_meta(created=when, updated=when), "正文\n")
+    assert "&id" not in text and "*id" not in text
+    assert text.count("2026-11-22T01:00:00Z") == 2
+    changed = update_frontmatter(text, {"updated": when + dt.timedelta(hours=1)})
+    assert parse_text(changed, Path("x.md")).meta["updated"] == when + dt.timedelta(hours=1)
