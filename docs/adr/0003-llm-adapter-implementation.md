@@ -1,7 +1,7 @@
 # ADR 0003：llm-adapter 实现中的决定
 
 日期：2026-11-21　状态：已采纳
-相关：`SPEC-llm-adapter.md`、`SPEC-DELTA-llm-adapter-v1.md`（方案 A：两家官方 SDK）
+相关：`docs/specs/llm-adapter.md`、`docs/specs/llm-adapter.delta-v1.md`（方案 A：两家官方 SDK）
 
 规格没写到、实现时定下的几件事：
 

@@ -1,7 +1,7 @@
 """provider: openai_compatible。全仓库只有这里 import openai（F9-06）。
 
 不是所有兼容服务都支持 JSON 模式，所以 JSON 输出一律用"prompt 里给出 schema + 解析校验"
-（SPEC-DELTA-llm-adapter-v1 第 3 节），校验和重试在 client.py。
+（docs/specs/llm-adapter.delta-v1.md 第 3 节），校验和重试在 client.py。
 """
 
 from __future__ import annotations

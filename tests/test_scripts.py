@@ -15,7 +15,8 @@ def test_acceptance_report_survives_a_console_without_chinese(tmp_path: Path) ->
     """2026-11-20 GitHub Actions 的 Windows 机器（cp1252 控制台）上打印中文时崩溃。"""
     (tmp_path / "scripts").mkdir()
     shutil.copy(ROOT / "scripts" / "acceptance_report.py", tmp_path / "scripts")
-    shutil.copy(ROOT / "TEST-PLAN.md", tmp_path)
+    (tmp_path / "docs").mkdir()
+    shutil.copy(ROOT / "docs" / "TEST-PLAN.md", tmp_path / "docs")
     env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
     result = subprocess.run(
         [sys.executable, "scripts/acceptance_report.py"],

@@ -1,7 +1,7 @@
 # Spec: interest-digest（兴趣草稿 + 按兴趣过滤资讯）
 
 Status: 已批准 2026-11-21（第 8–10 节）　版本：V1
-取代：ROADMAP V1 的 `feed-digest`（原计划接 Horizon）和 `config-sync`；把 V2 的 `interest-bootstrap` 中「从对话生成兴趣」这一部分提前到 V1。
+取代：docs/ROADMAP.md V1 的 `feed-digest`（原计划接 Horizon）和 `config-sync`；把 V2 的 `interest-bootstrap` 中「从对话生成兴趣」这一部分提前到 V1。
 
 ## 1. 为什么改计划
 
@@ -35,7 +35,7 @@ eia 已经有了需要的部分：抓新闻源（headline-radar）、AI 接入�
 1. **本机归类，不出电脑**：用 `llm.embed`（bge-m3）给每条消息算向量，缓存在 `.eia/interests/`，归成若干主题（只保留至少 5 条消息的主题）。
 2. **少量摘录发给 AI 起名**：每个主题挑最有代表性的 5 条，每条截到 200 字，发给配置的文本模型（DeepSeek），让它给出一个简短的名字和一句说明。
    - 发出去的只有这些摘录（例如 20 个主题 × 5 条 × 200 字 ≈ 2 万字）。**每次运行前先告诉你要发多少段、多少字，你确认后才发**（`--yes` 或在试用页面点确认）。
-   - 这是 CONSTRAINTS 要求的「明确开启」：不确认就只做第 1 步，不调用任何 AI。
+   - 这是 docs/CONSTRAINTS.md 要求的「明确开启」：不确认就只做第 1 步，不调用任何 AI。
 3. **写草稿**：`interests/draft.md`，每个兴趣一行，带消息条数、时间范围和 3 个来源对话的链接（证据）。
 
 **确认**：你在草稿里勾选（或在试用页面勾选），运行 `eia interests accept` 后写进 `config.yaml` 的 `interests:` 段。之后可以直接手动增删改。
@@ -72,7 +72,7 @@ digest:
 
 新增「兴趣」标签页：生成草稿（先显示要发送多少字，确认后才发）、勾选确认、查看今天的兴趣资讯。
 
-## 7. 测试编号（批准后登记到 TEST-PLAN.md，F13）
+## 7. 测试编号（批准后登记到 docs/TEST-PLAN.md，F13）
 
 | 编号 | 验收标准 |
 |---|---|

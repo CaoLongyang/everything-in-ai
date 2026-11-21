@@ -25,9 +25,9 @@
 
 | 功能 | 范围 |
 |---|---|
-| `llm-adapter` | 单模型配置、`complete` / `complete_json` / `embed`、`eia llm test`（见 SPEC-llm-adapter.md） |
+| `llm-adapter` | 单模型配置、`complete` / `complete_json` / `embed`、`eia llm test`（见 docs/specs/llm-adapter.md） |
 | `headline-radar` | 抓取 → 聚类 → 独立来源计数 → 每日 `inbox/headlines/`；向量优先走 `llm-adapter.embed`，避免强制安装 torch |
-| `interest-digest` | 从对话生成兴趣草稿、按兴趣过滤资讯、反馈后 AI 提炼兴趣（2026-11-21 取代原 `feed-digest` / `config-sync`：不接 Horizon，借鉴其架构，见 SPEC-interest-digest.md） |
+| `interest-digest` | 从对话生成兴趣草稿、按兴趣过滤资讯、反馈后 AI 提炼兴趣（2026-11-21 取代原 `feed-digest` / `config-sync`：不接 Horizon，借鉴其架构，见 docs/specs/interest-digest.md） |
 | `web-clip` | 剪藏插件模板对齐 schema |
 | 调度 | `eia run <job>` + 本机定时（Windows 任务计划 / cron / launchd）；GitHub Actions 模板，runner 唯一负责 commit/push，同一 vault 只启用一种调度 |
 | `chat-import` | 增加 Claude（官方导出，原 V0 项）和 Gemini（浏览器插件导出的 JSON，样例已有；Takeout 需换到第二个 Google 账号再试）；`--include-thinking` 选项，把模型思考过程以折叠块导入。**进度：Claude ✅ 2026-11-20；Gemini 暂缓（插件导出没有时间，等 Takeout）** |

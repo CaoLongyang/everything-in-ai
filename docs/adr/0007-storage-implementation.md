@@ -1,7 +1,7 @@
 # ADR 0007：SQLite 数据库实现中的决定
 
 日期：2026-11-21　状态：已采纳
-相关：`SPEC-storage.md`
+相关：`docs/specs/storage.md`
 
 1. **对外的函数签名不变**（`load_items`、`save_items`、`load_vectors`、`save_vectors`、`read_feedback`、`rate`、`read_runs`），
    只把里面的读写换成数据库。所以 F11–F13 的测试几乎不用改；改的只是那几条直接检查旧文件位置的断言。

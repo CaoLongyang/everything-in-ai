@@ -1,7 +1,7 @@
 """所有需要 AI 的模块的唯一入口。模块代码只写 `from eia import llm`，不出现厂商名。
 
 用哪家服务、哪个模型完全由 vault 的 config.yaml 决定
-（SPEC-llm-adapter、SPEC-DELTA-llm-adapter-v1）。vault 默认是当前目录。
+（docs/specs/llm-adapter.md、docs/specs/llm-adapter.delta-v1.md）。vault 默认是当前目录。
 """
 
 from __future__ import annotations

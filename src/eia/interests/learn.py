@@ -1,6 +1,6 @@
 """`eia interests learn`：根据评价让 AI 提出兴趣清单的改进建议，写进草稿。
 
-规格：SPEC-interest-digest 第 9 节。
+规格：docs/specs/interest-digest.md 第 9 节。
 
 发出去的只有：现有的兴趣清单、被评价报道的标题和媒体（公开信息）、用户写的理由。不确认就不发。
 """

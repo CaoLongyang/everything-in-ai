@@ -1,12 +1,12 @@
 # Delta Spec: chat-import V1（Gemini 部分）
 
 Status: **暂缓**（2026-11-20 作者选第 7 节第 1 条 B：等用对的 Google 账号拿到 Takeout，看有没有时间信息再做）　版本：V1
-改动对象：`SPEC-chat-import.md`（已批准）；与 `SPEC-DELTA-chat-import-v1.md`（Claude）并列
+改动对象：`docs/specs/chat-import.md`（已批准）；与 `docs/specs/chat-import.delta-v1.md`（Claude）并列
 依据：2026-11-20 对作者用浏览器插件导出的 Gemini 对话做的结构检查（只读字段名、类型和计数，不读、不复制对话内容）。
 
 ## 1. 为什么不是官方导出
 
-Google Takeout 三次导出都没有对话（很可能用错了 Google 账号，见 ROADMAP V1）。现有数据来自一个浏览器插件：
+Google Takeout 三次导出都没有对话（很可能用错了 Google 账号，见 docs/ROADMAP.md V1）。现有数据来自一个浏览器插件：
 它打开 gemini.google.com 上的每个对话，把页面上显示的内容存成 JSON。所以：
 
 - **没有任何时间信息**：对话和消息都没有创建时间、更新时间，只有导出时间。
@@ -43,7 +43,7 @@ Google Takeout 三次导出都没有对话（很可能用错了 Google 账号，
 - frontmatter 的 `created` 和 `updated` 都写**第一次导入时这份导出的 `exportedAt`**。之后重新导入不改 `created`。
 - 文件名里的日期因此是导出那天，不是聊天那天。
 - 每条消息的标题写成 `### 我 · 时间未知` / `### Gemini · 时间未知`。前缀 `### 我 · ` 与已有契约一致，以后的 `chat-reader` 不用改。
-- frontmatter 加 `time_known: false`，以后拿到带时间的数据（比如 Takeout）时，程序能认出哪些文件的时间要补。这是 chat 条目的一个新的可选字段，`SPEC-DELTA-vault-schema-v1.md` 同步补一行。
+- frontmatter 加 `time_known: false`，以后拿到带时间的数据（比如 Takeout）时，程序能认出哪些文件的时间要补。这是 chat 条目的一个新的可选字段，`docs/specs/vault-schema.delta-v1.md` 同步补一行。
 
 ## 4. 重复导入怎么判断「有没有变」
 
@@ -64,7 +64,7 @@ eia import gemini <插件导出的 zip> [--vault <路径>] [--dry-run]
 - 结束时多打印一行：`提示  插件报告侧边栏共 N 个对话，其中 M 个没有导出成功`。
 - 其余行为（汇总、退出码、先完整解析再写入）与另外两个平台相同，复用 `importer.py`。
 
-## 6. 对 TEST-PLAN.md 的修改（批准后生效）
+## 6. 对 docs/TEST-PLAN.md 的修改（批准后生效）
 
 新增「F8 导入 Gemini 对话」：
 

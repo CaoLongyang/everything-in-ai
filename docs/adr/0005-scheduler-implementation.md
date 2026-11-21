@@ -1,7 +1,7 @@
 # ADR 0005：定时运行实现中的决定
 
 日期：2026-11-21　状态：已采纳
-相关：`SPEC-scheduler.md`
+相关：`docs/specs/scheduler.md`
 
 1. **用 `pythonw.exe -m eia run ...`**，不用 `eia.exe`：后者是控制台程序，每次运行都会闪出黑色窗口。为此加了 `src/eia/__main__.py`。
    pythonw 下没有 stdout，click 的 echo 会直接跳过，结果都写进运行记录。

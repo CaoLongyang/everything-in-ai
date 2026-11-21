@@ -92,7 +92,7 @@ tests/llm/
 
 ## Out of Scope (Deferred)
 
-见 ROADMAP.md。本模块延后项：多模型分组（profiles）、每日预算上限（需先定义未知价格与时区规则）、结果缓存、多 provider 自动切换。
+见 docs/ROADMAP.md。本模块延后项：多模型分组（profiles）、每日预算上限（需先定义未知价格与时区规则）、结果缓存、多 provider 自动切换。
 
 给下游的注意：向量与 `embed_model` 强绑定。存向量的模块必须同时记录模型名和维度，模型变化时强制重建索引（V1 headline-radar 实现）。
 

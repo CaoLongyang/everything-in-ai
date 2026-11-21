@@ -1,4 +1,4 @@
-"""config.yaml 的 interests 段和 digest 段（SPEC-interest-digest 第 3、5、9 节）。"""
+"""config.yaml 的 interests 段和 digest 段（docs/specs/interest-digest.md 第 3、5、9 节）。"""
 
 from __future__ import annotations
 

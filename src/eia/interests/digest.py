@@ -1,6 +1,6 @@
 """`eia digest run`：用确认过的兴趣给最近的报道打分，写成当天的 digest 条目。
 
-规格：SPEC-interest-digest 第 4、9 节。
+规格：docs/specs/interest-digest.md 第 4、9 节。
 
 全部在本机算：报道向量复用新闻雷达的缓存，兴趣和评价过的报道用 .eia/interests/ 的缓存。
 """

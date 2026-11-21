@@ -1,7 +1,7 @@
 # Spec: scheduler（定时运行）
 
 Status: 已批准 2026-11-21（第 7 节全部按推荐：每天 8:00、错过补跑、先只做 Windows、GitHub Actions 挪到 Backlog、只记录不通知）　版本：V1
-相关：ROADMAP V1「调度」、`SPEC-headline-radar.md`（第一个要定时跑的任务）。
+相关：docs/ROADMAP.md V1「调度」、`docs/specs/headline-radar.md`（第一个要定时跑的任务）。
 
 ## 1. Objective
 
@@ -55,7 +55,7 @@ eia schedule remove headlines [--vault <路径>]                   # 删除
 
 「新闻雷达」标签页加一块：是否已登记、下次运行时间、最近几次结果；可以一键登记 / 删除。
 
-## 6. 测试编号（批准后登记到 TEST-PLAN.md，F12）
+## 6. 测试编号（批准后登记到 docs/TEST-PLAN.md，F12）
 
 | 编号 | 验收标准 |
 |---|---|

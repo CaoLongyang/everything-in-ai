@@ -1,7 +1,7 @@
 # Spec: headline-radar
 
 Status: 已批准 2026-11-21（第 8 节：推荐源以注释给出、门槛 3、默认 embed、AI 标题挪到 V2、用 feedparser）　版本：V1
-相关：`SPEC-vault-schema.md`（`headline` 条目字段）、`SPEC-llm-adapter.md`、ROADMAP V1「大事不漏」。
+相关：`docs/specs/vault-schema.md`（`headline` 条目字段）、`docs/specs/llm-adapter.md`、docs/ROADMAP.md V1「大事不漏」。
 
 ## 1. Objective
 
@@ -92,7 +92,7 @@ eia headlines check [--vault <路径>]               # 逐个源测试能否访�
 
 定时运行属于 V1 的「调度」模块，这里只做手动命令。
 
-## 7. 测试编号（批准后登记到 TEST-PLAN.md，F11）
+## 7. 测试编号（批准后登记到 docs/TEST-PLAN.md，F11）
 
 | 编号 | 验收标准 |
 |---|---|
@@ -113,6 +113,6 @@ eia headlines check [--vault <路径>]               # 逐个源测试能否访�
 2. **门槛**：`min_sources` 默认 3。
 3. **聚类默认 `embed`**：作者本机已有 Ollama，推荐向量模型 `bge-m3`（约 1.2 GB，多语言，中文好），配置在 `llm.embed`。
    - 没有配置 `llm.embed`、或者 Ollama 没开时，报出原因并退出，**不悄悄改用 lexical**。`lexical` 只在配置里明确写了才用。
-   - 向量缓存在 `.eia/headlines/` 里，记录模型名和维度；模型或维度变了，旧向量全部作废重算（SPEC-llm-adapter「给下游的注意」）。
+   - 向量缓存在 `.eia/headlines/` 里，记录模型名和维度；模型或维度变了，旧向量全部作废重算（docs/specs/llm-adapter.md「给下游的注意」）。
 4. **AI 中文标题**：V1 不做，挪到 V2。
 5. **RSS 解析**：用 `feedparser`，版本写死，放在可选依赖 `[news]`。

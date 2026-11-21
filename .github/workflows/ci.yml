@@ -1,4 +1,4 @@
-# 每次推送和 PR 都跑一遍 CONSTRAINTS.md 里的检查。
+# 每次推送和 PR 都跑一遍 docs/CONSTRAINTS.md 里的检查。
 # 只读代码，不提交、不推送、不访问 vault；测试全部用合成样例，不需要任何密钥。
 name: CI
 

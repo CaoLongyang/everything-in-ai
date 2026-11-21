@@ -1,7 +1,7 @@
 # Test Plan（测试文档）— V0
 
 目的：让"功能还能不能用"随时可查，不依赖任何人的口头保证。
-规则来源：test-driven-development（先写测试再写代码）+ CONSTRAINTS.md（测试不许删、不许跳过）。
+规则来源：test-driven-development（先写测试再写代码）+ docs/CONSTRAINTS.md（测试不许删、不许跳过）。
 
 ## 1. 你怎么知道现在是好的
 
@@ -63,7 +63,7 @@
 | F4-09 | `--dry-run` 不写任何文件，但报出会新建、更新多少个 | 自动 |
 | F4-10 | 每条消息以 `### 我 · ` 或 `### ChatGPT · ` 开头；消息正文里出现同样文字时不会被误认成新消息 | 自动 |
 
-### F5 导入 Claude 对话（V1，见 SPEC-DELTA-chat-import-v1.md）
+### F5 导入 Claude 对话（V1，见 docs/specs/chat-import.delta-v1.md）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F5-01 | 样例导出中的每个对话生成一个文件，数量一致；文件在 `chats/claude/`，全部通过 `eia validate` | 自动 |
@@ -76,7 +76,7 @@
 | F5-08 | `--include-thinking` 打开时思考过程以默认收起的折叠块出现在对应消息前；里面像消息标题的行不会被误认；只切换开关再导入时正文随之更新 | 自动 |
 | F5-09 | 空标题的对话标为「未命名对话」；导出里没有模型名时 `model` 为空，`eia validate` 通过 | 自动 |
 
-### F9 llm-adapter（V1，见 SPEC-DELTA-llm-adapter-v1.md；F8 留给暂缓中的 Gemini 导入）
+### F9 llm-adapter（V1，见 docs/specs/llm-adapter.delta-v1.md；F8 留给暂缓中的 Gemini 导入）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F9-01 | 没有 `llm` 配置、缺 `provider` / `model`、`api_key_env` 指向的环境变量不存在时，报出缺哪一项，退出码 1，不发任何请求 | 自动 |
@@ -87,7 +87,7 @@
 | F9-06 | 除 `eia/llm/` 的后端文件外，代码库没有 `import anthropic` / `import openai` | 自动 |
 | F9-07 | `eia llm test` 成功时报告延迟，失败时说明原因，退出码 1 | 自动 |
 
-### F10 chat-reader（V1，见 SPEC-chat-reader.md）
+### F10 chat-reader（V1，见 docs/specs/chat-reader.md）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F10-01 | 用 `eia import` 生成的 ChatGPT、Claude 文件，读回的每条消息的说话方、时间（到分钟）、文字与导入前一致 | 自动 |
@@ -98,7 +98,7 @@
 | F10-06 | 命令执行前后 vault 里所有文件逐字节不变 | 自动 |
 | F10-07 | 标记之外的笔记以 `role: note` 输出（不含导入提示行），`--no-notes` 时不出现；没写笔记的对话没有这一条 | 自动 |
 
-### F11 headline-radar（V1，见 SPEC-headline-radar.md）
+### F11 headline-radar（V1，见 docs/specs/headline-radar.md）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F11-01 | 没有 `headlines` 配置或源列表为空时报错退出，不访问网络 | 自动 |
@@ -110,7 +110,7 @@
 | F11-07 | `--dry-run` 不写 vault，也不写 `.eia/` | 自动 |
 | F11-08 | `cluster: embed` 时用 `llm.embed`；没配置向量模型时说明原因并退出；向量缓存在模型变化后作废 | 自动 |
 
-### F12 定时运行（V1，见 SPEC-scheduler.md）
+### F12 定时运行（V1，见 docs/specs/scheduler.md）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F12-01 | `eia run headlines` 成功和失败都写运行记录，退出码对应；记录里没有 key 和新闻全文 | 自动 |
@@ -120,7 +120,7 @@
 | F12-05 | `list` / `status` / `remove` 正确；vault 不存在的任务被标出 | 自动 |
 | F12-06 | 非 Windows 系统上 `eia schedule` 说明暂不支持并给出手动做法，退出码 1；`eia run` 照常可用 | 自动 |
 
-### F13 兴趣草稿与按兴趣过滤（V1，见 SPEC-interest-digest.md）
+### F13 兴趣草稿与按兴趣过滤（V1，见 docs/specs/interest-digest.md）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F13-01 | 草稿只用「我」的消息和笔记；AI 的回答和思考过程不会进入归类和摘录 | 自动 |
@@ -133,7 +133,7 @@
 | F13-08 | 标过不相关的报道的相似报道不再出现；标过相关的相似报道分数提高；更像 `exclude` 的报道被排除 | 自动 |
 | F13-09 | `learn` 不确认不调用 AI；建议写进草稿，确认后才改 `config.yaml` | 自动 |
 
-### F14 数据库（V1，见 SPEC-storage.md）
+### F14 数据库（V1，见 docs/specs/storage.md）
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
 | F14-01 | 第一次运行自动迁移：旧文件里的报道、向量、运行记录、shown、评价全部进入数据库，数量一致；旧文件移到 `.eia/old/`，评价导出文件保留 | 自动 |

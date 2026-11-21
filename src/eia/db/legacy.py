@@ -1,4 +1,4 @@
-"""把旧版本留下的散文件导入数据库（SPEC-storage 第 5 节、F14-01）。
+"""把旧版本留下的散文件导入数据库（docs/specs/storage.md 第 5 节、F14-01）。
 
 只做一次：导入后在 meta 里记下 `legacy_import`。旧文件移到 `.eia/old/`（不删）；
 `interests/feedback.jsonl` 是评价的导出文件，留在原处。

@@ -16,9 +16,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# AI 功能才需要。版本写死，升级要有意识地改这里（SPEC-DELTA-llm-adapter-v1 第 1 节）
+# AI 功能才需要。版本写死，升级要有意识地改这里（docs/specs/llm-adapter.delta-v1.md 第 1 节）
 llm = ["anthropic==2.6.0", "openai==3.46.0"]
-# 新闻雷达才需要（SPEC-headline-radar 第 8 节）
+# 新闻雷达才需要（docs/specs/headline-radar.md 第 8 节）
 news = ["feedparser==6.0.14", "numpy==2.4.4"]  # numpy 2.5 起不支持 Python 3.11
 dev = [
     "pytest>=8",
@@ -58,3 +58,7 @@ files = ["src"]
 [[tool.mypy.overrides]]
 module = ["feedparser"]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+# 覆盖率数据放进 reports/，根目录少一个文件
+data_file = "reports/.coverage"

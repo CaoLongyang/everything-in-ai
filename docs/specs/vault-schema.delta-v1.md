@@ -1,7 +1,7 @@
 # Delta Spec: vault-schema V1
 
-Status: 已批准 2026-11-20（随 SPEC-DELTA-chat-import-v1.md 第 7 节第 2 条：A）　版本：V1
-改动对象：`SPEC-vault-schema.md`（已批准，本文件不改它）
+Status: 已批准 2026-11-20（随 docs/specs/chat-import.delta-v1.md 第 7 节第 2 条：A）　版本：V1
+改动对象：`docs/specs/vault-schema.md`（已批准，本文件不改它）
 
 ## 改动
 

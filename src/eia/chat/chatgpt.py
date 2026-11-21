@@ -1,7 +1,7 @@
 """解析 ChatGPT 官方导出的 zip。
 
 只读 `conversations.json` 或 `conversations-NNN.json`，账号、设置等其他文件一律不读。
-格式说明见 SPEC-chat-import.md 第 2 节。
+格式说明见 docs/specs/chat-import.md 第 2 节。
 """
 
 from __future__ import annotations

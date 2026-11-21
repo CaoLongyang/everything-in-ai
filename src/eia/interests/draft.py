@@ -1,4 +1,6 @@
-"""`eia interests draft / accept`：从「我」说过的话归纳兴趣草稿（SPEC-interest-digest 第 3 节）。
+"""`eia interests draft / accept`：从「我」说过的话归纳兴趣草稿。
+
+规格见 docs/specs/interest-digest.md 第 3 节。
 
 第 1 步（本机，不出电脑）：每个对话把我说的话拼起来，用本机向量模型算向量，按主题归组。
 第 2 步（要确认）：每组挑几段代表性摘录发给文本模型起名。不确认就停在第 1 步。

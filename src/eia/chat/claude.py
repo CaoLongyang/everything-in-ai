@@ -1,7 +1,7 @@
 """解析 Claude 官方导出的 conversations-NNN.zip。
 
 只读其中的 `conversations.json`；projects、memories、账号信息等其他分类一律不读。
-格式说明见 SPEC-DELTA-chat-import-v1.md。
+格式说明见 docs/specs/chat-import.delta-v1.md。
 """
 
 from __future__ import annotations

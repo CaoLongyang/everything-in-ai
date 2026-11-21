@@ -1,4 +1,4 @@
-"""把测试结果按 TEST-PLAN.md 里的功能编号汇总成 reports/acceptance.md。
+"""把测试结果按 docs/TEST-PLAN.md 里的功能编号汇总成 reports/acceptance.md。
 
 测试函数名里带编号（test_F2_04_...），所以每条验收标准都能对上它的测试。
 """
@@ -72,7 +72,7 @@ def build(plan: Path, junit: Path) -> tuple[str, dict[str, int], list[str]]:
         "# 验收报告",
         "",
         f"生成时间：{dt.datetime.now().astimezone().strftime('%Y-%m-%d %H:%M %z')}",
-        "本文件由 check 脚本自动生成，请勿手改。验收标准的原文见 TEST-PLAN.md。",
+        "本文件由 check 脚本自动生成，请勿手改。验收标准的原文见 docs/TEST-PLAN.md。",
         "",
     ]
     current = ""
@@ -95,14 +95,14 @@ def build(plan: Path, junit: Path) -> tuple[str, dict[str, int], list[str]]:
     )
     lines[5:5] = [f"**{summary}**"]
     if orphans:
-        lines += ["", "## 没有登记在 TEST-PLAN.md 里的测试编号", "", "、".join(orphans)]
-    lines += ["", "手动验收（M-01 等）不在本报告内，见 TEST-PLAN.md。", ""]
+        lines += ["", "## 没有登记在 docs/TEST-PLAN.md 里的测试编号", "", "、".join(orphans)]
+    lines += ["", "手动验收（M-01 等）不在本报告内，见 docs/TEST-PLAN.md。", ""]
     return "\n".join(lines), counts, orphans
 
 
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
-    text, counts, orphans = build(root / "TEST-PLAN.md", root / "reports" / "junit.xml")
+    text, counts, orphans = build(root / "docs" / "TEST-PLAN.md", root / "reports" / "junit.xml")
     target = root / "reports" / "acceptance.md"
     target.parent.mkdir(exist_ok=True)
     target.write_text(text, encoding="utf-8")
@@ -115,7 +115,7 @@ def main() -> int:
         f"（详见 reports/acceptance.md）"
     )
     if orphans:
-        print(f"有测试编号没登记在 TEST-PLAN.md：{'、'.join(orphans)}")
+        print(f"有测试编号没登记在 docs/TEST-PLAN.md：{'、'.join(orphans)}")
     return 1 if counts[FAILED] or orphans else 0
 
 

@@ -1,7 +1,7 @@
 # ADR 0004：headline-radar 实现中的决定
 
 日期：2026-11-21　状态：已采纳
-相关：`SPEC-headline-radar.md`（第 8 节作者的决定）
+相关：`docs/specs/headline-radar.md`（第 8 节作者的决定）
 
 1. **加了 `numpy`（`numpy==2.4.4`，放在 `[news]`）。** 一次运行窗口内约 300 篇、每篇 1024 维，纯 Python 算相似度要几十秒。
    numpy 2.5 起要求 Python 3.12，本项目支持 3.11，所以固定在 2.4.4。numpy 和 feedparser 都在函数里才导入，
@@ -14,7 +14,7 @@
 4. **`sources` 只增不减**；已有条目按来源链接的重合找回，大的组先认领，避免两组抢同一个文件。
 5. **归组是按时间顺序的贪心算法**（和组的平均向量比）。结果和报道顺序有关，但稳定、快，够用。
 6. **mypy 对 `feedparser` 单独放开**（`pyproject.toml` 的 `[[tool.mypy.overrides]]`），因为它没有类型信息。
-   代码里不加 `# type: ignore`（CONSTRAINTS Floor）；用到它的只有 `eia/headlines/feeds.py`。
+   代码里不加 `# type: ignore`（docs/CONSTRAINTS.md Floor）；用到它的只有 `eia/headlines/feeds.py`。
 7. 下载用标准库 `urllib`，不用 feedparser 自带的下载：超时 20 秒、上限 5 MB、User-Agent 固定为 `eia-headlines/1`，
    自动走系统代理。
 8. 推荐源 2026-11-21 实测 13 个（10 家）。去掉的：联合早报（404）、人民网和 NHK（几个月没更新）。

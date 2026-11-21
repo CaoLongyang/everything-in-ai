@@ -1,7 +1,7 @@
 # Spec: storage（SQLite 数据库）
 
 Status: 已批准 2026-11-21（第 9 节：做全文搜索；兴趣历史不导出）　版本：V1
-改动的原则：`CAPABILITY-MAP.md` 原则 1「纯 Markdown 是唯一数据源」改为「**Markdown 是内容的唯一来源**；机器用的数据放 SQLite」。
+改动的原则：`docs/CAPABILITY-MAP.md` 原则 1「纯 Markdown 是唯一数据源」改为「**Markdown 是内容的唯一来源**；机器用的数据放 SQLite」。
 作者 2026-11-21 选定：内容用 Markdown，其余用 SQLite；现在做，放在 V1 剩下的功能前面。
 
 ## 1. 为什么
@@ -72,7 +72,7 @@ eia db rebuild   # 删掉重建：重新索引 Markdown、从导出文件恢复�
 只换「存在哪」，命令和行为不变：`headlines/store.py`、`interests/vectors.py`、`interests/feedback.py`、`interests/digest.py`（shown）、`schedule/runs.py`（运行记录）改成读写数据库。
 网站和 `eia chats` / 文件浏览改用索引，列表不再每次扫描 988 个文件。
 
-## 8. 测试编号（批准后登记到 TEST-PLAN.md，F14）
+## 8. 测试编号（批准后登记到 docs/TEST-PLAN.md，F14）
 
 | 编号 | 验收标准 |
 |---|---|

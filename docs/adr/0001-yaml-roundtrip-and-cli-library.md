@@ -4,7 +4,7 @@
 
 ## 背景
 
-SPEC-vault-schema.md 写的是用 ruamel.yaml 的往返模式读写 frontmatter，用 typer 做命令行。
+docs/specs/vault-schema.md 写的是用 ruamel.yaml 的往返模式读写 frontmatter，用 typer 做命令行。
 实现时这两点都改了。
 
 ## 决定
@@ -20,7 +20,7 @@ SPEC-vault-schema.md 写的是用 ruamel.yaml 的往返模式读写 frontmatter�
   但仍会规整缩进和部分引号，做不到逐字节不变。按行替换可以：没改的行完全不碰。
   这对 V0 很重要，因为你会在 Obsidian 里手动改这些文件。
 - 写这段代码的环境装不了新的包，ruamel.yaml 和 typer 都没法在这里跑测试。
-  交付没测过的代码违反 TEST-PLAN.md 第 4 节，所以选了能在这里完整测试的方案。
+  交付没测过的代码违反 docs/TEST-PLAN.md 第 4 节，所以选了能在这里完整测试的方案。
 - typer 本身就是 click 的一层封装，直接用 click 少一个依赖，命令的用法完全一样。
 
 ## 代价

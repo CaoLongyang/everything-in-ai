@@ -113,7 +113,8 @@ class ChatEntry(Entry):
     conversation_id: NonBlankStr
     model: StrictStr | None = None
     message_count: StrictInt | None = None
-    thinking: StrictBool | None = None  # 正文里是否导入了思考过程（SPEC-DELTA-vault-schema-v1）
+    # 正文里是否导入了思考过程（docs/specs/vault-schema.delta-v1.md）
+    thinking: StrictBool | None = None
 
 
 class DigestEntry(Entry):

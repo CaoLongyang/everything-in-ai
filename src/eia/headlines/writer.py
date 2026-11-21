@@ -1,4 +1,4 @@
-"""把达到门槛的组写成 headline 条目（SPEC-headline-radar 第 4 节第 5 步、第 5 节）。
+"""把达到门槛的组写成 headline 条目（docs/specs/headline-radar.md 第 4 节第 5 步、第 5 节）。
 
 已有条目按来源链接的重合找回（不依赖文件名，用户可以改名）。更新时只改 sources、
 independent_count、updated 三个字段和两条标记之间的列表；用户的 tags、自加字段、笔记不动。

@@ -1,4 +1,4 @@
-"""表结构和版本迁移（SPEC-storage 第 3 节）。"""
+"""表结构和版本迁移（docs/specs/storage.md 第 3 节）。"""
 
 from __future__ import annotations
 

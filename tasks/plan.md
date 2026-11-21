@@ -1,6 +1,6 @@
 # V0 实施计划
 
-依据：ROADMAP.md（V0）、SPEC-vault-schema.md、TEST-PLAN.md。
+依据：docs/ROADMAP.md（V0）、docs/specs/vault-schema.md、docs/TEST-PLAN.md。
 
 ## 依赖关系
 
@@ -10,7 +10,7 @@ T1 检查脚本 + 验收报告
      ├─ T3 eia init
      ├─ T4 eia validate
      ├─ T5 eia new
-     └─ T6 SPEC-chat-import.md        ← 需要真实导出文件
+     └─ T6 docs/specs/chat-import.md        ← 需要真实导出文件
          ├─ T7 导入 Claude 对话
          ├─ T8 导入 ChatGPT 对话
          └─ T9 重复导入（保留标签）

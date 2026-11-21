@@ -1,4 +1,4 @@
-"""Windows 任务计划程序（SPEC-scheduler 第 4 节）。
+"""Windows 任务计划程序（docs/specs/scheduler.md 第 4 节）。
 
 用 XML 登记，因为「错过补跑 / 需要联网 / 用电池也跑 / 超时结束」只有 XML 能设。
 任务放在 \\eia\\ 文件夹下，名字带 vault 路径的短哈希，同一台电脑可以给多个 vault 各登记一个。

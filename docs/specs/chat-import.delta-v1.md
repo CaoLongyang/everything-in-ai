@@ -1,9 +1,9 @@
 # Delta Spec: chat-import V1（Claude 部分）
 
 Status: 已批准 2026-11-20（第 7 节三项均按推荐：1A、2A、3 放进 Backlog）　版本：V1
-改动对象：`SPEC-chat-import.md`（已批准，本文件不改它，只在它之上增加内容）
+改动对象：`docs/specs/chat-import.md`（已批准，本文件不改它，只在它之上增加内容）
 依据：2026-11-20 对作者真实 Claude 官方导出的结构检查（只读字段名、类型和计数，不读、不复制对话内容）。
-Gemini 部分见 `SPEC-DELTA-chat-import-gemini.md`。
+Gemini 部分见 `docs/specs/chat-import.delta-gemini.md`。
 
 ## 1. 真实导出的结构（Claude，2026-11）
 
@@ -56,7 +56,7 @@ Gemini 部分见 `SPEC-DELTA-chat-import-gemini.md`。
 - 有分支时（编辑或重新生成留下的旧版本），取 `created_at` 最晚的那片叶子，沿父节点走回根，只导入这一条路径。导出里没有 ChatGPT 那样的 `current_node`，这是最接近「你最后看到的那一版」的规则。
 - 有循环、有多个根、父节点指向不存在的消息：明确报错，整次导入停止，不写任何文件（与 F4-05 相同）。
 
-## 4. `--include-thinking`（ROADMAP V1 已列）
+## 4. `--include-thinking`（docs/ROADMAP.md V1 已列）
 
 - 默认关闭，行为与 V0 一致。
 - 打开后，思考过程放在它所属的 Claude 消息正文**前面**，用 Obsidian 的折叠块，默认收起：
@@ -80,7 +80,7 @@ eia import claude <conversations-NNN.zip> [<更多 zip>...] [--vault <路径>] [
 - 其余行为（结束时的汇总、退出码、先完整解析再写入、重复导入规则）与 `eia import chatgpt` 完全相同，复用 `importer.py`。
 - 文件位置：`chats/claude/YYYY-MM-DD-<标题>-<后缀>.md`；frontmatter 与 ChatGPT 相同，`platform: claude`、`source: claude`。
 
-## 6. 对 TEST-PLAN.md 的修改（批准后生效）
+## 6. 对 docs/TEST-PLAN.md 的修改（批准后生效）
 
 把「F5 导入 Claude 对话（已挪到 V1）」一节换成：
 
@@ -104,6 +104,6 @@ eia import claude <conversations-NNN.zip> [<更多 zip>...] [--vault <路径>] [
    - A（推荐）：只放占位 `[附件：文件名，N 字]`。和图片、文件一致，正文不会被几万字的粘贴内容撑长。
    - B：全文导入，放进默认收起的折叠块。那是你自己贴进去的内容，以后做画像、搜索时可能有用，但会让个别对话变得很长。
 2. **只切换 `--include-thinking`、对话本身没有新消息时**，要不要重写正文？
-   - A（推荐）：要。在文件的 frontmatter 里记一个 `thinking: true/false`，开关和上次不同时就重写标记之间的内容。这会给 `chat` 条目加一个可选字段，`SPEC-vault-schema.md` 要同步写一份 delta。
+   - A（推荐）：要。在文件的 frontmatter 里记一个 `thinking: true/false`，开关和上次不同时就重写标记之间的内容。这会给 `chat` 条目加一个可选字段，`docs/specs/vault-schema.md` 要同步写一份 delta。
    - B：不要。只有对话有新消息时才更新，想要思考过程得删掉文件重新导入。（这会违反「不删除用户文件」的习惯，不推荐。）
 3. `projects`、`memories`、`artifact_data` 是否以后要导入？默认放进 Backlog，V1 不做。

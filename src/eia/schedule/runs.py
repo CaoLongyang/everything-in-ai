@@ -1,4 +1,4 @@
-"""`eia run <job>`：跑一次任务，加锁，写运行记录（SPEC-scheduler 第 3 节）。
+"""`eia run <job>`：跑一次任务，加锁，写运行记录（docs/specs/scheduler.md 第 3 节）。
 
 运行记录是给人看的摘要，不含 key、不含新闻全文。
 """
@@ -49,7 +49,7 @@ def _headlines(root: Path) -> str:
 
 
 def _digest(root: Path) -> str:
-    """雷达跑完接着按兴趣挑（SPEC-interest-digest 第 8 节第 3 条）。没有兴趣清单就跳过。"""
+    """雷达跑完接着按兴趣挑（docs/specs/interest-digest.md 第 8 节第 3 条）。没有兴趣清单就跳过。"""
     from eia.interests.config import load_interests
     from eia.interests.digest import run_digest
 

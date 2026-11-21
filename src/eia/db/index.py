@@ -1,4 +1,4 @@
-"""Markdown 条目的索引和全文搜索（SPEC-storage 第 4 节、F14-02、F14-08）。
+"""Markdown 条目的索引和全文搜索（docs/specs/storage.md 第 4 节、F14-02、F14-08）。
 
 索引从 Markdown 生成，Markdown 才是内容的来源：增量更新只重新读修改时间或大小变了的文件。
 """

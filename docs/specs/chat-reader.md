@@ -1,7 +1,7 @@
 # Spec: chat-reader
 
 Status: 已批准 2026-11-21（第 6 节：笔记算「我」的话，单独标记；粘贴内容的问题挪到 V2）　版本：V1
-依据：`SPEC-chat-import.md` 第 5 节的正文契约（`### 我 · 时间` / `### <平台> · 时间`，两条 `eia:conversation` 标记）。
+依据：`docs/specs/chat-import.md` 第 5 节的正文契约（`### 我 · 时间` / `### <平台> · 时间`，两条 `eia:conversation` 标记）。
 
 ## 1. Objective
 
@@ -68,7 +68,7 @@ def iter_chats(vault: Path, *, platform=None) -> Iterator[ReadChat | Skipped]
 
 和导入用的 `Conversation` 分开：这里的消息来自 vault 文件（你可能改过），时间可能为空，带文件 id 作为证据来源。
 
-## 5. 测试编号（批准后登记到 TEST-PLAN.md，F10）
+## 5. 测试编号（批准后登记到 docs/TEST-PLAN.md，F10）
 
 | 编号 | 验收标准 |
 |---|---|
@@ -85,7 +85,7 @@ def iter_chats(vault: Path, *, platform=None) -> Iterator[ReadChat | Skipped]
 1. **你自己写的笔记算「我」的话**，单独标成 `role: note`，默认输出，`--no-notes` 关掉。
    - 笔记 = 对话标记之外的正文，去掉导入时写的那行提示。没有内容就没有这一条。
    - 笔记没有时间；`--since` / `--until` 按这个对话 frontmatter 里的 `updated` 筛选笔记。
-2. **消息里粘贴的别人的文字（文章、报错、AI 之前的回答）V1 不处理**，程序会当成「我」的话。挪到 V2（ROADMAP「`chat-reader` 区分粘贴内容」）。
+2. **消息里粘贴的别人的文字（文章、报错、AI 之前的回答）V1 不处理**，程序会当成「我」的话。挪到 V2（docs/ROADMAP.md「`chat-reader` 区分粘贴内容」）。
 
 ## 7. 实现细节
 

@@ -1,11 +1,11 @@
 # Capability Map: everything-in-ai
 
-> 模块怎么划分、彼此依赖什么。**每个模块在哪个版本做，以 ROADMAP.md 为准**，本文不重复排期。
+> 模块怎么划分、彼此依赖什么。**每个模块在哪个版本做，以 docs/ROADMAP.md 为准**，本文不重复排期。
 > Phase 0 于 2026-11-15 批准；2026-11-20 按后续决策修订。
 
 ## 不变的原则
 
-1. **Markdown 是内容的唯一来源。** 用户看、用户改的东西都是 Markdown，每个用户在自己电脑上拥有自己的 vault；不做服务器、多租户和账号系统。机器用的数据（索引、向量、抓到的报道、运行记录、评价）放 vault 里的 SQLite 文件 `.eia/eia.db`，随时可以删掉重建；用户写的评价同时导出成文本（2026-11-21 改，见 SPEC-storage.md）。
+1. **Markdown 是内容的唯一来源。** 用户看、用户改的东西都是 Markdown，每个用户在自己电脑上拥有自己的 vault；不做服务器、多租户和账号系统。机器用的数据（索引、向量、抓到的报道、运行记录、评价）放 vault 里的 SQLite 文件 `.eia/eia.db`，随时可以删掉重建；用户写的评价同时导出成文本（2026-11-21 改，见 docs/specs/storage.md）。
 2. **模块之间不直接调用**，只通过两个契约连接：`vault-schema`（数据格式）和 `llm-adapter`（AI 接口）。
 3. **外部工具不 fork**，各配一个转换适配器，把输出转成合规的 vault 条目。
 4. **LLM 不绑定厂商**：用户在 `config.yaml` 里选模型，key 放环境变量，只填一次。外部工具（Horizon、Khoj）自带的 LLM 调用不在 `llm-adapter` 的保证范围内，只通过 `config-sync` 共享模型选择。
@@ -18,7 +18,7 @@
 |---|---|---|
 | `vault-schema` | 目录结构、frontmatter 规范、`eia init` / `validate` / `new` | — |
 | `chat-import` | 各平台的对话导出 → `chat` 条目；重复导入只更新、保留用户的标签和笔记 | vault-schema |
-| `llm-adapter` | 统一的 `complete` / `embed` 接口，底层是 Anthropic、OpenAI 两家官方 SDK（2026-11-20 改，见 SPEC-DELTA-llm-adapter-v1） | — |
+| `llm-adapter` | 统一的 `complete` / `embed` 接口，底层是 Anthropic、OpenAI 两家官方 SDK（2026-11-20 改，见 docs/specs/llm-adapter.delta-v1.md） | — |
 | `chat-reader` | 按说话方读取对话，可以只取用户本人的话 | vault-schema |
 | `config-sync` | `eia sync-config`：由 `config.yaml` 生成外部工具的模型配置 | llm-adapter |
 | `headline-radar` | 大事通道：抓取 → 聚类 → 独立来源计数 | vault-schema、llm-adapter |
@@ -43,4 +43,4 @@
 
 ## 明确不做
 
-见 ROADMAP.md 的"明确不做"一节（微信、凭登录凭据读取抖音、模拟登录调用平台接口）。
+见 docs/ROADMAP.md 的"明确不做"一节（微信、凭登录凭据读取抖音、模拟登录调用平台接口）。

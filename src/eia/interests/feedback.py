@@ -1,4 +1,4 @@
-"""对报道的评价（SPEC-interest-digest 第 9 节、SPEC-storage F14-03）。
+"""对报道的评价（docs/specs/interest-digest.md 第 9 节、docs/specs/storage.md F14-03）。
 
 存在数据库的 feedback 表，**每次写入同时导出**到 `interests/feedback.jsonl`：
 这是用户自己的数据，数据库删了要能从导出文件完整恢复（`eia db rebuild`）。

@@ -1,4 +1,4 @@
-"""从 vault 里已导入的对话文件读回消息，能只取「我」说的话（SPEC-chat-reader.md）。
+"""从 vault 里已导入的对话文件读回消息，能只取「我」说的话（docs/specs/chat-reader.md）。
 
 只读：不改任何文件。正文格式是 render.py 写出的契约，这里是它的反向。
 """

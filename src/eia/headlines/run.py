@@ -1,4 +1,4 @@
-"""eia headlines run / check 的主流程（SPEC-headline-radar 第 4 节）。"""
+"""eia headlines run / check 的主流程（docs/specs/headline-radar.md 第 4 节）。"""
 
 from __future__ import annotations
 

@@ -9,7 +9,7 @@
 | 1 | 命令名用 `eia`（everything-in-ai 的缩写），工具目录用 `.eia/` | 原来的 `ds` 来自旧名字 |
 | 2 | chat 条目的 id 后缀用 12 位，普通条目 6 位 | 6 位随机空间在几千个对话时约有 1% 的撞号概率；chat 的 id 由哈希决定，撞了无法重试 |
 | 3 | Windows 上额外依赖 `tzdata` | Windows 自带的 Python 不认识 `Asia/Singapore` 这类时区名 |
-| 4 | TEST-PLAN.md 增补验收标准 F2-08 至 F2-12、F3-04、F3-05、F7-03、F7-04 | 写测试时发现原表漏掉了损坏文件、时区、确定性 id、按行修改等情况 |
-| 5 | `SPEC-vault-schema.md` 标为已批准 | 依据 作者 2026-11-16 的"我批准了" |
-| 6 | 不使用 ijson 流式解析 | 真实 ChatGPT 导出已经分片，每片最大约 5 MB，逐片读取即可（SPEC-chat-import 第 2 节） |
+| 4 | docs/TEST-PLAN.md 增补验收标准 F2-08 至 F2-12、F3-04、F3-05、F7-03、F7-04 | 写测试时发现原表漏掉了损坏文件、时区、确定性 id、按行修改等情况 |
+| 5 | `docs/specs/vault-schema.md` 标为已批准 | 依据 作者 2026-11-16 的"我批准了" |
+| 6 | 不使用 ijson 流式解析 | 真实 ChatGPT 导出已经分片，每片最大约 5 MB，逐片读取即可（docs/specs/chat-import.md 第 2 节） |
 | 7 | Claude 导入挪到 V1 | 官方导出邮件迟迟未到，作者 2026-11-20 同意 |

@@ -1,4 +1,4 @@
-"""解析 config.yaml 的 headlines 段（SPEC-headline-radar 第 3 节）。"""
+"""解析 config.yaml 的 headlines 段（docs/specs/headline-radar.md 第 3 节）。"""
 
 from __future__ import annotations
 

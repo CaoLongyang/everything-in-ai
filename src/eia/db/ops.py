@@ -1,4 +1,4 @@
-"""`eia db status / rebuild`（SPEC-storage 第 6 节）。"""
+"""`eia db status / rebuild`（docs/specs/storage.md 第 6 节）。"""
 
 from __future__ import annotations
 

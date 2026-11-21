@@ -1,7 +1,7 @@
 # Delta Spec: llm-adapter V1（开工前复核）
 
 Status: 已批准 2026-11-20（第 6 节第 1 条选 A：两家官方 SDK，固定为 `anthropic==2.6.0`、`openai==3.46.0`，均发布满两周）　版本：V1
-改动对象：`SPEC-llm-adapter.md`（已批准 2026-11-16，注明"V1 开工前按当时情况复核"）
+改动对象：`docs/specs/llm-adapter.md`（已批准 2026-11-16，注明"V1 开工前按当时情况复核"）
 复核日期：2026-11-20
 
 原 spec 的目标、接口（`complete` / `complete_json` / `embed`）、错误类型、测试策略、边界都不变。只改下面几处。
@@ -59,7 +59,7 @@ llm:
 - 测试全部模拟返回，不打真实 API、不花钱；`pytest -m live` 手动跑。
 - 延后项（多模型分组、预算上限、缓存、自动切换）不变。
 
-## 5. 对 TEST-PLAN.md 的修改（批准后生效）
+## 5. 对 docs/TEST-PLAN.md 的修改（批准后生效）
 
 新增「F9 llm-adapter」（F8 留给暂缓中的 Gemini 导入）：
 

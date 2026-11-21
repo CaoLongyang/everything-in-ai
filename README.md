@@ -3,7 +3,7 @@
 把你和 AI 的对话、以后还有你关注的信息，沉淀成一个纯 Markdown 的个人知识库。
 数据是一个普通文件夹（vault），用 Obsidian 就能打开，不绑定任何软件。
 
-当前进度见 `tasks/todo.md`，各版本的范围见 `ROADMAP.md`。
+所有文档一览见 `docs/README.md`。当前进度见 `tasks/todo.md`，各版本的范围见 `docs/ROADMAP.md`。
 
 ## 安装（Windows，PowerShell）
 
@@ -59,7 +59,7 @@ eia import claude $HOME\Desktop\everything-in-ai\exports\conversations-000.zip -
 然后用 Obsidian 的"打开本地仓库"打开 `my-vault` 文件夹。
 
 条目类型：`note` 笔记、`topic` 主题、`clip` 剪藏、`chat` 对话、`digest` 简报、`headline` 大事。
-格式规范见 `SPEC-vault-schema.md`。
+格式规范见 `docs/specs/vault-schema.md`。
 
 ## 隐私
 

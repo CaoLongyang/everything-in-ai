@@ -11,7 +11,7 @@
 | T3 | `eia init` | F1-01 至 F1-03 | ✅ |
 | T4 | `eia validate` | F2-01 至 F2-11 | ✅ |
 | T5 | `eia new` | F3-01 至 F3-05 | ✅ |
-| T6 | 写 `SPEC-chat-import.md` | 作者 批准 | ✅ ChatGPT 部分 2026-11-18 批准 |
+| T6 | 写 `docs/specs/chat-import.md` | 作者 批准 | ✅ ChatGPT 部分 2026-11-18 批准 |
 | T7 | 导入 Claude 对话 | — | ➡️ 挪到 V1 |
 | T8 | 导入 ChatGPT 对话 | F4-01 至 F4-10 | ✅ |
 | T9 | 重复导入，保留手动标签 | F6-01 至 F6-06 | ✅ |
@@ -23,7 +23,7 @@
 | # | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
 | V1-1 | 导入 Claude 对话（含 `--include-thinking`） | F5-01 至 F5-09；真实导出试导 | ✅ 2026-11-20 |
-| V1-2 | 导入 Gemini 对话 | 规格草案 `SPEC-DELTA-chat-import-gemini.md` | ⏳ 暂缓：等 Takeout |
+| V1-2 | 导入 Gemini 对话 | 规格草案 `docs/specs/chat-import.delta-gemini.md` | ⏳ 暂缓：等 Takeout |
 | V1-3 | GitHub 仓库：LICENSE、三系统 CI | CI 绿灯 | ✅ 2026-11-20（8 项全部通过；修了一个非中文 Windows 控制台崩溃的 bug） |
 | V1-4 | `llm-adapter` | F9-01 至 F9-07 | ✅ 2026-11-21（方案 A：两家官方 SDK；实现决定见 ADR 0003；2026-11-21 DeepSeek 实测通过） |
 | V1-5 | `chat-reader`：`eia chats dump` / `stats` | F10-01 至 F10-07 | ✅ 2026-11-21（笔记算「我」的话；粘贴内容的区分挪到 V2） |

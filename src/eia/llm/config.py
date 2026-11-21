@@ -1,4 +1,4 @@
-"""解析 config.yaml 的 llm 段（SPEC-DELTA-llm-adapter-v1 第 2 节）。
+"""解析 config.yaml 的 llm 段（docs/specs/llm-adapter.delta-v1.md 第 2 节）。
 
 key 只从环境变量或 vault 根目录的 .env 读，环境变量优先。config.yaml 里只写变量名。
 """

@@ -1,7 +1,7 @@
 # 验收报告
 
-生成时间：2026-11-21 15:33 +0800
-本文件由 check 脚本自动生成，请勿手改。验收标准的原文见 TEST-PLAN.md。
+生成时间：2026-11-21 20:15 +0800
+本文件由 check 脚本自动生成，请勿手改。验收标准的原文见 docs/TEST-PLAN.md。
 
 **共 95 条验收标准：95 条通过，0 条失败，0 条未实现。**
 
@@ -55,7 +55,7 @@
 | F4-09 | `--dry-run` 不写任何文件，但报出会新建、更新多少个 | 2 | 通过 |
 | F4-10 | 每条消息以 `### 我 · ` 或 `### ChatGPT · ` 开头；消息正文里出现同样文字时不会被误认成新消息 | 1 | 通过 |
 
-## F5 导入 Claude 对话（V1，见 SPEC-DELTA-chat-import-v1.md）
+## F5 导入 Claude 对话（V1，见 docs/specs/chat-import.delta-v1.md）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -69,7 +69,7 @@
 | F5-08 | `--include-thinking` 打开时思考过程以默认收起的折叠块出现在对应消息前；里面像消息标题的行不会被误认；只切换开关再导入时正文随之更新 | 5 | 通过 |
 | F5-09 | 空标题的对话标为「未命名对话」；导出里没有模型名时 `model` 为空，`eia validate` 通过 | 1 | 通过 |
 
-## F9 llm-adapter（V1，见 SPEC-DELTA-llm-adapter-v1.md；F8 留给暂缓中的 Gemini 导入）
+## F9 llm-adapter（V1，见 docs/specs/llm-adapter.delta-v1.md；F8 留给暂缓中的 Gemini 导入）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -81,7 +81,7 @@
 | F9-06 | 除 `eia/llm/` 的后端文件外，代码库没有 `import anthropic` / `import openai` | 1 | 通过 |
 | F9-07 | `eia llm test` 成功时报告延迟，失败时说明原因，退出码 1 | 3 | 通过 |
 
-## F10 chat-reader（V1，见 SPEC-chat-reader.md）
+## F10 chat-reader（V1，见 docs/specs/chat-reader.md）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -93,7 +93,7 @@
 | F10-06 | 命令执行前后 vault 里所有文件逐字节不变 | 1 | 通过 |
 | F10-07 | 标记之外的笔记以 `role: note` 输出（不含导入提示行），`--no-notes` 时不出现；没写笔记的对话没有这一条 | 2 | 通过 |
 
-## F11 headline-radar（V1，见 SPEC-headline-radar.md）
+## F11 headline-radar（V1，见 docs/specs/headline-radar.md）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -106,7 +106,7 @@
 | F11-07 | `--dry-run` 不写 vault，也不写 `.eia/` | 2 | 通过 |
 | F11-08 | `cluster: embed` 时用 `llm.embed`；没配置向量模型时说明原因并退出；向量缓存在模型变化后作废 | 5 | 通过 |
 
-## F12 定时运行（V1，见 SPEC-scheduler.md）
+## F12 定时运行（V1，见 docs/specs/scheduler.md）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -117,7 +117,7 @@
 | F12-05 | `list` / `status` / `remove` 正确；vault 不存在的任务被标出 | 2 | 通过 |
 | F12-06 | 非 Windows 系统上 `eia schedule` 说明暂不支持并给出手动做法，退出码 1；`eia run` 照常可用 | 1 | 通过 |
 
-## F13 兴趣草稿与按兴趣过滤（V1，见 SPEC-interest-digest.md）
+## F13 兴趣草稿与按兴趣过滤（V1，见 docs/specs/interest-digest.md）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -131,7 +131,7 @@
 | F13-08 | 标过不相关的报道的相似报道不再出现；标过相关的相似报道分数提高；更像 `exclude` 的报道被排除 | 1 | 通过 |
 | F13-09 | `learn` 不确认不调用 AI；建议写进草稿，确认后才改 `config.yaml` | 3 | 通过 |
 
-## F14 数据库（V1，见 SPEC-storage.md）
+## F14 数据库（V1，见 docs/specs/storage.md）
 
 | 编号 | 验收标准 | 测试数 | 结果 |
 |---|---|---|---|
@@ -165,4 +165,4 @@
 | F7-03 | 修改某个字段时，其他行（含注释、用户自加字段、换行符）逐字节不变 | 7 | 通过 |
 | F7-04 | 新建文件的字段块人能直接读懂；标题长得像 YAML 语法时也不出错 | 9 | 通过 |
 
-手动验收（M-01 等）不在本报告内，见 TEST-PLAN.md。
+手动验收（M-01 等）不在本报告内，见 docs/TEST-PLAN.md。

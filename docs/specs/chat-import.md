@@ -84,7 +84,7 @@ message_count: 14
 （这条线以下是你自己的笔记，重新导入不会动）
 ```
 
-- **说话方是固定格式，供以后的程序区分**：每条消息以 `### 我 · 时间` 或 `### ChatGPT · 时间`（Claude 为 `### Claude · 时间`）开头。这个格式是契约，改动要先写 delta spec。V0 两边都存；以后做画像、兴趣分析时，程序可以只读「我」的部分（见 ROADMAP V1 `chat-reader`）。
+- **说话方是固定格式，供以后的程序区分**：每条消息以 `### 我 · 时间` 或 `### ChatGPT · 时间`（Claude 为 `### Claude · 时间`）开头。这个格式是契约，改动要先写 delta spec。V0 两边都存；以后做画像、兴趣分析时，程序可以只读「我」的部分（见 docs/ROADMAP.md V1 `chat-reader`）。
 - 正文里的时间按 `config.yaml` 的时区显示；frontmatter 里一律是 UTC。
 - 消息里的 Markdown（代码块、表格、列表）原样保留。
 
@@ -107,13 +107,13 @@ message_count: 14
 
 ## 8. Claude 与 Gemini（V1）
 
-两者在 V1 另写 delta spec（`SPEC-DELTA-chat-import-v1.md`）。已知情况：
+两者在 V1 另写 delta spec（`docs/specs/chat-import.delta-v1.md`）。已知情况：
 
 - **Claude**：官方对话导出（Settings → Privacy → Export data）2026-11-20 前未收到，还没有真实样例。
 - **Gemini**：Takeout 三次导出都没有对话（很可能用错了 Google 账号）。2026-11-19 用浏览器插件导出了 182 个对话：每个对话一个 JSON，有说话方和格式块，但**没有任何时间信息**，有 328 处 Gemini 连续发言，另有 251 个对话导出超时。
 
 
-## 9. 对 TEST-PLAN.md 的修改（批准后生效）
+## 9. 对 docs/TEST-PLAN.md 的修改（批准后生效）
 
 - F4-06 改为：分片导出逐个读取，导入 1,000 个对话的合成样例时内存不超过 300 MB。
 - 新增 F4-07：只导入 `current_node` 路径上的消息，旧版本分支不导入。

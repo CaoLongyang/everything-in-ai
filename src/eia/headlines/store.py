@@ -1,6 +1,6 @@
-"""新闻雷达的暂存：抓到的报道和算好的向量，存在 vault 的数据库里（SPEC-storage）。
+"""新闻雷达的暂存：抓到的报道和算好的向量，存在 vault 的数据库里（docs/specs/storage.md）。
 
-不是用户写的内容，可以随时删掉重来。向量缓存按模型名作废（SPEC-llm-adapter「给下游的注意」）。
+不是用户写的内容，可以随时删掉重来。向量缓存按模型名作废（docs/specs/llm-adapter.md「给下游的注意」）。
 """
 
 from __future__ import annotations

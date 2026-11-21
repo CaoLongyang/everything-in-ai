@@ -9,7 +9,7 @@
   - `src/eia/headlines/urls.py`：链接规范化（改写自 `src/orchestrator.py` 的 `_deduplication_url_key` 和跟踪参数列表）
   - `src/eia/interests/select.py`：按组限量的选取算法（改写自 `src/orchestrator.py` 的 `apply_balanced_digest`）
   - `src/eia/interests/prompts.py`：提示词里的安全规则（改写自 `src/ai/prompting/common.py`）
-- 说明：见 `SPEC-interest-digest.md` 第 10 节。
+- 说明：见 `docs/specs/interest-digest.md` 第 10 节。
 
 ```
 MIT License

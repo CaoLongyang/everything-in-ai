@@ -1,4 +1,4 @@
-"""向量的存取：float32 二进制，按模型名作废（SPEC-storage F14-04）。"""
+"""向量的存取：float32 二进制，按模型名作废（docs/specs/storage.md F14-04）。"""
 
 from __future__ import annotations
 

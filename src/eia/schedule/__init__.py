@@ -1,1 +1,4 @@
-"""定时运行：`eia run` 跑一次任务，`eia schedule` 在系统定时工具里登记（SPEC-scheduler.md）。"""
+"""定时运行：`eia run` 跑一次任务，`eia schedule` 在系统定时工具里登记。
+
+规格见 docs/specs/scheduler.md。
+"""

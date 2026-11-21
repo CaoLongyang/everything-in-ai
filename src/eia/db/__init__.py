@@ -1,4 +1,4 @@
-"""vault 的 SQLite 数据库 `.eia/eia.db`（SPEC-storage.md）。
+"""vault 的 SQLite 数据库 `.eia/eia.db`（docs/specs/storage.md）。
 
 内容的唯一来源仍是 Markdown；这里放索引、向量、抓到的报道、运行记录、评价等机器用的数据。
 数据库随时可以删掉，用 `eia db rebuild` 重建（只损失缓存）。

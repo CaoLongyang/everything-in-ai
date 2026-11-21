@@ -138,7 +138,7 @@ class Entry(BaseModel):
 
 ## Out of Scope (Deferred)
 
-见 ROADMAP.md。本模块延后项：`validate --fix`、schema 迁移工具、长对话拆分。
+见 docs/ROADMAP.md。本模块延后项：`validate --fix`、schema 迁移工具、长对话拆分。
 
 ## Decisions（原 Open Questions，按默认值定下）
 
