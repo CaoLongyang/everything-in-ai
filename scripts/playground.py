@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import secrets
 import shlex
 import threading
@@ -21,12 +22,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+import yaml
 from click.testing import CliRunner
 
 from eia import llm
 from eia.cli import main
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
 from eia.schema.io import FrontmatterError, read_document
+from eia.schema.validate import iter_markdown
 from eia.schema.vault import CONFIG_NAME, is_vault
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -231,6 +234,70 @@ def action_headlines_list(params: dict[str, Any]) -> dict[str, Any]:
         )
     entries.sort(key=lambda e: (-(e["count"] or 0), e["updated"]))
     return {"entries": entries}
+
+
+def action_files(params: dict[str, Any]) -> dict[str, Any]:
+    """列出 vault 里的 Markdown 文件（和 eia validate 看的范围一样）。只读 frontmatter。"""
+    vault = Path(_vault(params))
+    if not is_vault(vault):
+        raise ValueError(f"{vault} 不是一个 vault")
+    files = []
+    for path in iter_markdown(vault):
+        rel = path.relative_to(vault).as_posix()
+        entry: dict[str, Any] = {"path": rel, "folder": rel.rpartition("/")[0] or "（根目录）"}
+        files.append(entry | _summary(path))
+    return {"files": files}
+
+
+_SUMMARIES: dict[Path, tuple[float, dict[str, Any]]] = {}
+_HEAD = re.compile(rb"\A(?:\xef\xbb\xbf)?---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.S | re.M)
+_Loader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
+def _summary(path: Path) -> dict[str, Any]:
+    """列表只要标题、类型、时间：只读文件开头的 frontmatter，按修改时间缓存。"""
+    mtime = path.stat().st_mtime
+    cached = _SUMMARIES.get(path)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    with path.open("rb") as handle:
+        head = handle.read(64_000)
+    match = _HEAD.match(head)
+    try:
+        meta = yaml.load(match.group(1).decode("utf-8"), Loader=_Loader) if match else None
+    except (yaml.YAMLError, UnicodeDecodeError):
+        meta = None
+    if isinstance(meta, dict):
+        summary = {
+            "title": str(meta.get("title") or path.stem),
+            "type": meta.get("type"),
+            "updated": str(meta.get("updated") or meta.get("created") or ""),
+        }
+    else:
+        summary = {"title": path.stem, "type": None, "updated": "", "broken": True}
+    _SUMMARIES[path] = (mtime, summary)
+    return summary
+
+
+def action_file(params: dict[str, Any]) -> dict[str, Any]:
+    vault = Path(_vault(params)).resolve()
+    target = (vault / str(params.get("path") or "")).resolve()
+    if not target.is_relative_to(vault) or target.suffix.lower() != ".md" or not target.is_file():
+        raise ValueError("只能打开 vault 里的 .md 文件")
+    try:
+        document = read_document(target)
+        meta: dict[str, Any] = document.meta
+        body, error = document.body, None
+    except FrontmatterError as exc:
+        meta, error = {}, str(exc)
+        body = target.read_bytes().decode("utf-8", errors="replace")
+    return {
+        "path": target.relative_to(vault).as_posix(),
+        "absolute": str(target),
+        "meta": meta,
+        "body": body,
+        "error": error,
+    }
 
 
 ACTIONS = {

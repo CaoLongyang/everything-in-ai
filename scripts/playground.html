@@ -68,6 +68,35 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
 .headline a { color: var(--ink); }
 .answer { white-space: pre-wrap; background: var(--soft); border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
 .empty { color: var(--muted); padding: 8px 0; }
+.files { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+.side { position: sticky; top: 112px; max-height: calc(100vh - 130px); display: flex; flex-direction: column; }
+.side input { width: 100%; flex: none; }
+.filelist { overflow: auto; margin-top: 6px; }
+.filelist button { display: block; width: 100%; text-align: left; border: none; border-radius: 6px; padding: 6px 8px; background: none; white-space: normal; }
+.filelist button:hover { background: var(--chip); }
+.filelist button.on { background: var(--soft); }
+.filelist .t { display: block; font-size: 14px; line-height: 1.35; }
+.filelist .p { display: block; font-size: 12px; color: var(--muted); word-break: break-all; }
+#fileFolders button { padding: 2px 10px; font-size: 13px; border-radius: 999px; }
+#fileFolders button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.note { min-width: 0; }
+.note .path { color: var(--muted); font-size: 13px; word-break: break-all; }
+.props { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 13.5px; }
+.props td { border-top: 1px solid var(--line); padding: 5px 8px; vertical-align: top; word-break: break-word; }
+.props td:first-child { color: var(--muted); width: 150px; white-space: nowrap; }
+.md { word-break: break-word; }
+.md h1, .md h2, .md h3, .md h4 { line-height: 1.35; margin: 1.2em 0 .4em; }
+.md h3 { font-size: 15px; color: var(--accent); border-top: 1px solid var(--line); padding-top: 12px; }
+.md p { margin: .5em 0; white-space: pre-wrap; }
+.md blockquote { margin: .6em 0; padding: 2px 12px; border-left: 3px solid var(--line); color: var(--muted); }
+.md details { margin: .6em 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; background: var(--chip); }
+.md details summary { cursor: pointer; color: var(--muted); }
+.md pre { background: var(--term); color: var(--term-ink); border-radius: 8px; padding: 10px 12px; overflow: auto; font-size: 13px; }
+.md code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; background: var(--chip); padding: 0 4px; border-radius: 4px; }
+.md pre code { background: none; padding: 0; }
+.md .marker { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); border-radius: 6px; padding: 2px 8px; margin: 8px 0; }
+.md a.wiki { color: var(--accent); }
+@media (max-width: 800px) { .files { grid-template-columns: 1fr; } .side { position: static; max-height: 50vh; } }
 @media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
 </style>
 </head>
@@ -83,6 +112,7 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
   </div>
   <nav id="tabs">
     <button data-tab="overview" class="on">概览</button>
+    <button data-tab="files">文件</button>
     <button data-tab="chats">对话</button>
     <button data-tab="import">导入</button>
     <button data-tab="headlines">新闻雷达</button>
@@ -109,6 +139,20 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
       <p class="hint">在填写的路径创建目录结构和带注释的配置模板。已有文件不会被改动。</p>
       <div class="row"><input type="text" id="initPath" placeholder="新 vault 的路径" spellcheck="false"><button data-run="init">创建</button></div>
       <div data-out="init"></div>
+    </div>
+  </section>
+
+  <!-- 文件 -->
+  <section class="tab" id="tab-files">
+    <div class="files">
+      <aside class="card side">
+        <input type="search" id="fileQ" placeholder="搜索标题或路径">
+        <div class="row" id="fileFolders"></div>
+        <div id="fileList" class="filelist"><div class="empty">加载中……</div></div>
+      </aside>
+      <article class="card note" id="note">
+        <div class="empty">从左边选一个文件。这里显示的和 Obsidian 里看到的是同一个文件：上面是属性（frontmatter），下面是正文。只读。</div>
+      </article>
     </div>
   </section>
 
@@ -287,6 +331,9 @@ function useVault() {
   if (v) { store("eia.vault", v); const list = [v, ...recent().filter((x) => x !== v)].slice(0, 8); store("eia.recent", JSON.stringify(list)); fillRecent(); }
   refreshOverview();
   for (const id of ["dumpList", "hlList", "answer"]) $("#" + id).innerHTML = "";
+  allFiles = []; currentFile = ""; folderFilter = "";
+  $("#note").innerHTML = `<div class="empty">从左边选一个文件。</div>`;
+  if (document.querySelector("#tab-files.on")) loadFiles();
   document.querySelectorAll("[data-out]").forEach((el) => (el.innerHTML = ""));
 }
 
@@ -304,6 +351,111 @@ async function loadExports() {
   }));
 }
 
+// ---------- 文件浏览 ----------
+let allFiles = [], folderFilter = "", currentFile = "";
+
+async function loadFiles() {
+  const r = await api("files");
+  if (r.error) { $("#fileList").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; $("#fileFolders").innerHTML = ""; return; }
+  allFiles = r.files;
+  const top = [...new Set(allFiles.map((f) => f.folder.split("/").slice(0, 2).join("/")))].sort();
+  $("#fileFolders").innerHTML = [`<button data-f="" class="${folderFilter ? "" : "on"}">全部 ${allFiles.length}</button>`,
+    ...top.map((d) => `<button data-f="${esc(d)}" class="${folderFilter === d ? "on" : ""}">${esc(d)} ${allFiles.filter((f) => f.folder.startsWith(d)).length}</button>`)].join("");
+  $("#fileFolders").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { folderFilter = b.dataset.f; loadFilesView(); $("#fileFolders").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }));
+  loadFilesView();
+}
+
+function loadFilesView() {
+  const q = $("#fileQ").value.trim().toLowerCase();
+  const shown = allFiles.filter((f) => (!folderFilter || f.folder.startsWith(folderFilter)) && (!q || f.title.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)))
+    .sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  const list = shown.slice(0, 300);
+  $("#fileList").innerHTML = (list.length ? "" : `<div class="empty">没有匹配的文件。</div>`) +
+    list.map((f) => `<button data-p="${esc(f.path)}" class="${f.path === currentFile ? "on" : ""}"><span class="t">${f.broken ? "⚠ " : ""}${esc(f.title)}</span><span class="p">${esc(f.path)}</span></button>`).join("") +
+    (shown.length > list.length ? `<div class="empty">还有 ${shown.length - list.length} 个，请用搜索缩小范围。</div>` : "");
+  $("#fileList").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openFile(b.dataset.p)));
+}
+
+async function openFile(path) {
+  currentFile = path;
+  $("#fileList").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.p === path));
+  const r = await api("file", { path });
+  const note = $("#note");
+  if (r.error && !r.body) { note.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  const props = Object.entries(r.meta).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${propValue(v)}</td></tr>`).join("");
+  note.innerHTML = `<div class="row" style="justify-content:space-between"><div class="path">${esc(r.path)}</div>
+      <a href="obsidian://open?path=${encodeURIComponent(r.absolute)}"><button class="primary">在 Obsidian 中打开</button></a></div>
+    <h2 style="margin:6px 0 0">${esc(r.meta.title || r.path)}</h2>
+    ${r.error ? `<p class="bad">${esc(r.error)}</p>` : ""}
+    ${props ? `<table class="props">${props}</table>` : ""}
+    <div class="md">${renderMarkdown(r.body)}</div>`;
+  note.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function propValue(v) {
+  if (Array.isArray(v)) {
+    if (!v.length) return `<span class="chip">空</span>`;
+    if (v.every((x) => typeof x !== "object")) return v.map((x) => `<span class="chip">${esc(x)}</span>`).join("");
+    return v.map((x) => `<div>${esc(typeof x === "object" ? Object.entries(x).map(([a, b]) => `${a}: ${b}`).join(" · ") : x)}</div>`).join("");
+  }
+  if (v && typeof v === "object") return esc(JSON.stringify(v));
+  return esc(v);
+}
+
+// 够看就行的 Markdown 渲染：先全部转义，再处理常见语法。不执行任何 HTML。
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, a, b) => `<a class="wiki" title="Obsidian 内部链接">${b || a}</a>`);
+}
+
+function renderMarkdown(text) {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
+      const code = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+      i++; out.push(`<pre><code>${esc(code.join("\n"))}</code></pre>`); continue;
+    }
+    if (/^<!--.*-->\s*$/.test(line)) {
+      const m = line.match(/eia:(\w+):(start|end)/);
+      if (m) out.push(`<div class="marker">${m[2] === "start" ? "▼ 以下由 eia 生成，重新导入时会替换" : "▲ eia 生成的部分到此为止，下面是你自己的内容"}</div>`);
+      i++; continue;
+    }
+    const heading = line.match(/^(#{1,4}) (.*)$/);
+    if (heading) { out.push(`<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`); i++; continue; }
+    if (/^>/.test(line)) {
+      const quoted = [];
+      while (i < lines.length && /^>/.test(lines[i])) quoted.push(lines[i++].replace(/^> ?/, ""));
+      const callout = quoted[0].match(/^\[!(\w+)\]([+-]?)\s*(.*)$/);
+      if (callout) {
+        const inner = renderMarkdown(quoted.slice(1).join("\n"));
+        out.push(`<details${callout[2] === "-" ? "" : " open"}><summary>${inline(callout[3] || callout[1])}</summary>${inner}</details>`);
+      } else out.push(`<blockquote>${renderMarkdown(quoted.join("\n"))}</blockquote>`);
+      continue;
+    }
+    if (/^\s*[-*] /.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*] /.test(lines[i])) items.push(`<li>${inline(lines[i++].replace(/^\s*[-*] /, ""))}</li>`);
+      out.push(`<ul>${items.join("")}</ul>`); continue;
+    }
+    if (/^(---|\*\*\*)\s*$/.test(line)) { out.push("<hr>"); i++; continue; }
+    if (!line.trim()) { i++; continue; }
+    const para = [];
+    while (i < lines.length && lines[i].trim() && !/^(#{1,4} |>|```|<!--|\s*[-*] )/.test(lines[i])) para.push(lines[i++]);
+    out.push(`<p>${inline(para.join("\n")).replace(/^\\(?=###|&lt;!--)/gm, "")}</p>`);
+  }
+  return out.join("");
+}
+
+$("#fileQ").addEventListener("input", loadFilesView);
+
 function syncThinking() { $("#thinkWrap").style.display = $("#impPlatform").value === "claude" ? "" : "none"; }
 
 document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", () => run(b.dataset.run, b)));
@@ -314,6 +466,7 @@ $("#tabs").addEventListener("click", (e) => {
   document.querySelectorAll("section.tab").forEach((s) => s.classList.toggle("on", s.id === "tab-" + tab));
   store("eia.tab", tab);
   if (tab === "headlines" && !$("#hlList").innerHTML) run("headlines_list");
+  if (tab === "files" && !allFiles.length) loadFiles();
 });
 $("#useVault").addEventListener("click", useVault);
 $("#vault").addEventListener("keydown", (e) => { if (e.key === "Enter") useVault(); });

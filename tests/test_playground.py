@@ -100,6 +100,36 @@ def test_actions(server: tuple[str, str, Path]) -> None:
     assert "没有这个操作" in str(_bad(base, token))
 
 
+def test_browse_files(server: tuple[str, str, Path]) -> None:
+    base, token, vault = server
+    note = vault / "notes" / "想法.md"
+    note.write_text("---\ntitle: 我的想法\ntype: note\n---\n\n正文 **重点**\n", encoding="utf-8")
+    (vault / "notes" / "坏的.md").write_bytes(b"no frontmatter\n")
+    (vault / "secret.txt").write_text("不该被读到", encoding="utf-8")
+
+    listed = _post(base, {"action": "files", "params": {"vault": str(vault)}}, token)["files"]
+    by_path = {f["path"]: f for f in listed}
+    assert by_path["notes/想法.md"]["title"] == "我的想法"
+    assert by_path["notes/坏的.md"]["broken"] is True
+
+    opened = _post(
+        base, {"action": "file", "params": {"vault": str(vault), "path": "notes/想法.md"}}, token
+    )
+    assert opened["meta"]["title"] == "我的想法" and "**重点**" in opened["body"]
+    broken = _post(
+        base, {"action": "file", "params": {"vault": str(vault), "path": "notes/坏的.md"}}, token
+    )
+    assert broken["body"] == "no frontmatter\n" and "frontmatter" in broken["error"]
+
+    outside = vault.parent / "outside.md"
+    outside.write_text("---\ntitle: x\n---\n", encoding="utf-8")
+    for path in ("../outside.md", str(outside), "secret.txt", "notes/没有.md"):
+        result = _post(
+            base, {"action": "file", "params": {"vault": str(vault), "path": path}}, token
+        )
+        assert result == {"error": "只能打开 vault 里的 .md 文件"}, path
+
+
 def _bad(base: str, token: str) -> str:
     try:
         _post(base, {"action": "rm_rf"}, token)
