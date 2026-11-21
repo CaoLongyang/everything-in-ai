@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eia 试用台</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e3e1da;
+  --accent: #2f5d50; --accent-ink: #ffffff; --soft: #eaf1ee; --warn: #9a5b00; --bad: #a3271f;
+  --good: #2f6b3a; --term: #1e1f1c; --term-ink: #e8e6df; --chip: #f0eee8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161714; --panel: #1f201d; --ink: #ecebe6; --muted: #a09f98; --line: #34352f;
+    --accent: #7fb8a4; --accent-ink: #10201b; --soft: #24302b; --warn: #e0a54a; --bad: #ef7d73;
+    --good: #84c48f; --term: #0f100e; --term-ink: #dcdad2; --chip: #2a2b27;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1080px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.brand { font-weight: 700; letter-spacing: .02em; }
+.brand small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.vault { flex: 1; min-width: 260px; display: flex; gap: 8px; }
+input[type=text], input[type=date], input[type=search], select, textarea {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; min-width: 0; }
+input[type=text], input[type=search] { flex: 1; }
+textarea { width: 100%; resize: vertical; min-height: 84px; }
+button { font: inherit; cursor: pointer; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); white-space: nowrap; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: progress; }
+nav { max-width: 1080px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; overflow-x: auto; }
+nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
+nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
+section.tab { display: none; } section.tab.on { display: block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; margin: 0 0 4px; }
+.card p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.stat .k { color: var(--muted); font-size: 13px; }
+.stat .v { font-size: 22px; font-weight: 650; margin-top: 2px; }
+.stat .s { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-all; }
+.ok { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+.term { background: var(--term); color: var(--term-ink); border-radius: 10px; padding: 12px 14px; margin-top: 12px;
+  font: 13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto; }
+.term .cmd { color: #9fd3bf; } .term .meta { color: #8f8d85; } .term .err { color: #f0a39b; }
+.chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 9px; font-size: 12.5px; color: var(--muted); margin-right: 6px; }
+.msg { border-left: 3px solid var(--line); padding: 6px 0 6px 12px; margin: 10px 0; }
+.msg.user { border-left-color: var(--accent); }
+.msg.note { border-left-color: var(--warn); }
+.msg .who { font-size: 12.5px; color: var(--muted); }
+.msg .text { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+.headline { border-top: 1px solid var(--line); padding: 14px 0; }
+.headline:first-child { border-top: none; }
+.headline h3 { margin: 0 0 6px; font-size: 15.5px; }
+.badge { display: inline-block; min-width: 34px; text-align: center; background: var(--soft); color: var(--accent);
+  border-radius: 6px; padding: 0 6px; font-weight: 700; margin-right: 8px; }
+.headline ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+.headline a { color: var(--ink); }
+.answer { white-space: pre-wrap; background: var(--soft); border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
+.empty { color: var(--muted); padding: 8px 0; }
+@media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">eia 试用台<small>只在你的电脑上运行</small></div>
+    <div class="vault">
+      <input type="text" id="vault" list="recent" placeholder="vault 路径，例如 C:\Users\...\eia-llm-test" spellcheck="false">
+      <datalist id="recent"></datalist>
+      <button class="primary" id="useVault">打开</button>
+    </div>
+  </div>
+  <nav id="tabs">
+    <button data-tab="overview" class="on">概览</button>
+    <button data-tab="chats">对话</button>
+    <button data-tab="import">导入</button>
+    <button data-tab="headlines">新闻雷达</button>
+    <button data-tab="ai">AI 服务</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 概览 -->
+  <section class="tab on" id="tab-overview">
+    <div class="card">
+      <h2>这个 vault</h2>
+      <p class="hint">知识库就是一个文件夹。这里显示它的配置和内容数量。</p>
+      <div class="grid" id="overview"></div>
+    </div>
+    <div class="card">
+      <h2>格式检查 <span class="chip">eia validate</span></h2>
+      <p class="hint">逐个检查 Markdown 文件的字段是否合规。只读，不改文件。</p>
+      <div class="row"><button class="primary" data-run="validate">开始检查</button></div>
+      <div data-out="validate"></div>
+    </div>
+    <div class="card">
+      <h2>新建一个空 vault <span class="chip">eia init</span></h2>
+      <p class="hint">在填写的路径创建目录结构和带注释的配置模板。已有文件不会被改动。</p>
+      <div class="row"><input type="text" id="initPath" placeholder="新 vault 的路径" spellcheck="false"><button data-run="init">创建</button></div>
+      <div data-out="init"></div>
+    </div>
+  </section>
+
+  <!-- 对话 -->
+  <section class="tab" id="tab-chats">
+    <div class="card">
+      <h2>统计 <span class="chip">eia chats stats</span></h2>
+      <p class="hint">每个平台有多少对话、你说了多少话。</p>
+      <div class="row"><button class="primary" data-run="chats_stats">统计</button></div>
+      <div data-out="chats_stats"></div>
+    </div>
+    <div class="card">
+      <h2>按说话方读对话 <span class="chip">eia chats dump</span></h2>
+      <p class="hint">勾上“只看我说的”，AI 的回答和思考过程一句都不会出现。笔记是你在对话文件里自己写的内容。</p>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="onlyMe" checked> 只看我说的</label>
+        <label class="check"><input type="checkbox" id="noNotes"> 不要笔记</label>
+        <select id="platform"><option value="">全部平台</option><option>chatgpt</option><option>claude</option></select>
+        <input type="date" id="since" title="从这天起"> <span class="chip">到</span> <input type="date" id="until" title="到这天为止">
+      </div>
+      <div class="row">
+        <input type="search" id="q" placeholder="在结果里搜索（标题或内容）">
+        <button class="primary" data-run="chats_dump">读取</button>
+      </div>
+      <div data-out="chats_dump"></div>
+      <div id="dumpList"></div>
+    </div>
+  </section>
+
+  <!-- 导入 -->
+  <section class="tab" id="tab-import">
+    <div class="card">
+      <h2>导入对话 <span class="chip">eia import</span></h2>
+      <p class="hint">读官方导出的 zip，不用解压。先用“预览”看会新建多少，再真的导入。重复导入只更新，不会重复，你加的标签和笔记会保留。</p>
+      <div class="row">
+        <select id="impPlatform"><option value="chatgpt">ChatGPT</option><option value="claude">Claude</option></select>
+        <input type="text" id="impPath" placeholder="导出 zip 的路径" spellcheck="false">
+      </div>
+      <div class="row" id="exportChips"></div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="impDry" checked> 预览（不写文件）</label>
+        <label class="check" id="thinkWrap"><input type="checkbox" id="impThinking"> 导入思考过程（仅 Claude）</label>
+        <button class="primary" data-run="import">开始</button>
+      </div>
+      <div data-out="import"></div>
+    </div>
+  </section>
+
+  <!-- 新闻雷达 -->
+  <section class="tab" id="tab-headlines">
+    <div class="card">
+      <h2>运行雷达 <span class="chip">eia headlines run</span></h2>
+      <p class="hint">抓取配置里的新闻源 → 用向量模型把讲同一件事的报道归组 → 至少几家独立媒体都在报的写成条目。需要 Ollama 开着。</p>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="hlDry"> 预览（不写文件）</label>
+        <button class="primary" data-run="headlines_run">运行</button>
+        <button data-run="headlines_check">检查新闻源</button>
+      </div>
+      <div data-out="headlines_run"></div>
+      <div data-out="headlines_check"></div>
+    </div>
+    <div class="card">
+      <h2>已有的大事</h2>
+      <p class="hint">按报道的媒体数排序。数字是独立媒体数，同一家媒体的中英文源只算一家。</p>
+      <div class="row"><button data-run="headlines_list">刷新</button></div>
+      <div id="hlList"></div>
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section class="tab" id="tab-ai">
+    <div class="card">
+      <h2>当前配置 <span class="chip">eia llm show</span> <span class="chip">eia llm test</span></h2>
+      <p class="hint">key 只显示有没有设置，永远不会显示内容。“连通测试”会发一个极短的请求。</p>
+      <div class="row"><button data-run="llm_show">查看配置</button><button class="primary" data-run="llm_test">连通测试</button></div>
+      <div data-out="llm_show"></div>
+      <div data-out="llm_test"></div>
+    </div>
+    <div class="card">
+      <h2>随便问一句</h2>
+      <p class="hint">直接调用 <code>llm.complete</code>，就是以后各模块用 AI 的方式。会花一点点钱。</p>
+      <textarea id="prompt" placeholder="例如：用一句话解释什么是 RSS">用一句话解释什么是 RSS</textarea>
+      <div class="row"><button class="primary" data-run="llm_ask">发送</button></div>
+      <div id="answer"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const TOKEN = "__TOKEN__";
+const DEFAULT_VAULT = __DEFAULT_VAULT__;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function store(key, value) { try { if (value === undefined) return localStorage.getItem(key); localStorage.setItem(key, value); } catch { return null; } }
+function recent() { try { return JSON.parse(store("eia.recent") || "[]"); } catch { return []; } }
+
+async function api(action, params = {}) {
+  const res = await fetch("/api", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Playground-Token": TOKEN },
+    body: JSON.stringify({ action, params: { vault: $("#vault").value.trim(), ...params } }),
+  });
+  return res.json();
+}
+
+function terminal(target, r) {
+  const box = document.querySelector(`[data-out="${target}"]`);
+  if (!box) return;
+  if (r.error) { box.innerHTML = `<div class="term"><span class="err">${esc(r.error)}</span></div>`; return; }
+  const status = r.exit_code === 0 ? "成功" : `退出码 ${r.exit_code}`;
+  box.innerHTML = `<div class="term"><span class="cmd">$ ${esc(r.command)}</span>\n${esc(r.stdout)}${r.stderr ? `<span class="err">${esc(r.stderr)}</span>` : ""}<span class="meta">\n── ${status} · ${r.seconds} 秒</span></div>`;
+}
+
+const params = {
+  init: () => ({ vault: $("#initPath").value.trim() }),
+  import: () => ({ platform: $("#impPlatform").value, path: $("#impPath").value.trim(), dry_run: $("#impDry").checked, include_thinking: $("#impThinking").checked }),
+  chats_dump: () => ({ only_me: $("#onlyMe").checked, no_notes: $("#noNotes").checked, platform: $("#platform").value, since: $("#since").value, until: $("#until").value, q: $("#q").value, limit: 200 }),
+  headlines_run: () => ({ dry_run: $("#hlDry").checked }),
+  llm_ask: () => ({ prompt: $("#prompt").value }),
+};
+
+const after = {
+  chats_dump(r) {
+    const list = $("#dumpList");
+    if (r.error || !r.records) { list.innerHTML = ""; return; }
+    if (!r.records.length) { list.innerHTML = `<div class="empty">没有符合条件的消息。</div>`; return; }
+    const who = { user: "我", assistant: "AI", note: "我的笔记" };
+    list.innerHTML = `<p class="hint">共 ${r.total} 条${r.total > r.records.length ? `，显示前 ${r.records.length} 条` : ""}</p>` +
+      r.records.map((m) => `<div class="msg ${m.role}"><div class="who">${who[m.role] || m.role} · ${esc(m.time ? m.time.slice(0, 16).replace("T", " ") : "无时间")} · <span class="chip">${esc(m.platform)}</span>${esc(m.title)}</div><div class="text">${esc(m.text)}</div></div>`).join("");
+  },
+  headlines_run() { run("headlines_list"); refreshOverview(); },
+  import(r) { if (!$("#impDry").checked && r.exit_code === 0) refreshOverview(); },
+  init(r) { if (r.exit_code === 0) { $("#vault").value = $("#initPath").value.trim(); useVault(); } },
+  headlines_list(r) {
+    const box = $("#hlList");
+    if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+    if (!r.entries.length) { box.innerHTML = `<div class="empty">还没有条目。先点上面的“运行”。</div>`; return; }
+    box.innerHTML = r.entries.map((e) => `<div class="headline"><h3><span class="badge">${e.count}</span>${esc(e.title)}</h3>
+      <div><span class="chip">${esc(e.created.slice(0, 16))}</span>${e.tags.map((t) => `<span class="chip">#${esc(t)}</span>`).join("")}<span class="chip">${esc(e.file)}</span></div>
+      <ul>${e.sources.map((s) => `<li><b>${esc(s.publisher)}</b> · <a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a></li>`).join("")}</ul></div>`).join("");
+  },
+  llm_ask(r) {
+    $("#answer").innerHTML = r.error ? `<div class="answer bad">${esc(r.error)}</div>` : `<div class="answer">${esc(r.answer)}</div><p class="hint">${r.seconds} 秒</p>`;
+  },
+};
+
+async function run(action, button) {
+  if (button) button.disabled = true;
+  const out = document.querySelector(`[data-out="${action}"]`);
+  if (out) out.innerHTML = `<div class="term"><span class="meta">运行中……</span></div>`;
+  try {
+    const r = await api(action, params[action] ? params[action]() : {});
+    if (r.command || r.error) terminal(action, r);
+    if (after[action]) after[action](r);
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="term"><span class="err">连不上试用台：${esc(err)}。终端里的 playground.py 还开着吗？</span></div>`;
+  } finally { if (button) button.disabled = false; }
+}
+
+function stat(k, v, s = "", cls = "") { return `<div class="stat"><div class="k">${k}</div><div class="v ${cls}">${v}</div><div class="s">${s}</div></div>`; }
+
+async function refreshOverview() {
+  const box = $("#overview");
+  if (!$("#vault").value.trim()) { box.innerHTML = `<div class="empty">先在顶部填写 vault 路径，点“打开”。</div>`; return; }
+  const r = await api("info");
+  if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  if (!r.is_vault) { box.innerHTML = stat("状态", "不是 vault", "这个文件夹里没有 config.yaml。可以用下面的“新建”创建一个。", "bad"); return; }
+  const llm = r.llm ? stat("AI 服务", esc(r.llm.text), (r.llm.key ? "key 已设置" : "key 未设置") + " · 向量：" + esc(r.llm.embed || "未配置"), r.llm.key ? "" : "warn") : stat("AI 服务", "未配置", esc(r.llm_error), "warn");
+  const hl = r.headlines ? stat("新闻雷达", `${r.headlines.feeds} 个源`, `${r.headlines.publishers} 家媒体 · 门槛 ${r.headlines.min_sources} 家 · ${r.headlines.cluster}`) : stat("新闻雷达", "未配置", esc(r.headlines_error), "warn");
+  box.innerHTML = stat("对话文件", r.counts.chats, "chats/ 目录") + stat("大事条目", r.counts.headlines, "inbox/headlines/") + llm + hl;
+}
+
+function useVault() {
+  const v = $("#vault").value.trim();
+  if (v) { store("eia.vault", v); const list = [v, ...recent().filter((x) => x !== v)].slice(0, 8); store("eia.recent", JSON.stringify(list)); fillRecent(); }
+  refreshOverview();
+  for (const id of ["dumpList", "hlList", "answer"]) $("#" + id).innerHTML = "";
+  document.querySelectorAll("[data-out]").forEach((el) => (el.innerHTML = ""));
+}
+
+function fillRecent() { $("#recent").innerHTML = recent().map((v) => `<option value="${esc(v)}">`).join(""); }
+
+async function loadExports() {
+  const r = await api("exports");
+  const box = $("#exportChips");
+  if (!r.files || !r.files.length) { box.innerHTML = ""; return; }
+  box.innerHTML = `<span class="hint">项目 exports\\ 里的文件：</span>` + r.files.map((f) => `<button data-path="${esc(f.path)}">${esc(f.name)} <span class="chip">${f.mb} MB</span></button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    $("#impPath").value = b.dataset.path;
+    if (/^conversations-\d+\.zip$/.test(b.textContent.trim().split(" ")[0])) $("#impPlatform").value = "claude";
+    syncThinking();
+  }));
+}
+
+function syncThinking() { $("#thinkWrap").style.display = $("#impPlatform").value === "claude" ? "" : "none"; }
+
+document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", () => run(b.dataset.run, b)));
+$("#tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest("button")?.dataset.tab;
+  if (!tab) return;
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+  document.querySelectorAll("section.tab").forEach((s) => s.classList.toggle("on", s.id === "tab-" + tab));
+  store("eia.tab", tab);
+  if (tab === "headlines" && !$("#hlList").innerHTML) run("headlines_list");
+});
+$("#useVault").addEventListener("click", useVault);
+$("#vault").addEventListener("keydown", (e) => { if (e.key === "Enter") useVault(); });
+$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") run("chats_dump"); });
+$("#impPlatform").addEventListener("change", syncThinking);
+
+$("#vault").value = store("eia.vault") || DEFAULT_VAULT || recent()[0] || "";
+$("#vault").addEventListener("change", () => store("eia.vault", $("#vault").value.trim()));
+fillRecent(); syncThinking(); loadExports(); refreshOverview();
+const savedTab = store("eia.tab");
+if (savedTab) document.querySelector(`#tabs button[data-tab="${savedTab}"]`)?.click();
+</script>
+</body>
+</html>
