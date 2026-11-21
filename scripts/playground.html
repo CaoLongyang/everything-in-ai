@@ -96,6 +96,17 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
 .md pre code { background: none; padding: 0; }
 .md .marker { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); border-radius: 6px; padding: 2px 8px; margin: 8px 0; }
 .md a.wiki { color: var(--accent); }
+.chat-head { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.bubbles { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.bubble { max-width: 82%; border-radius: 14px; padding: 10px 14px; border: 1px solid var(--line); }
+.bubble.user { align-self: flex-end; background: var(--soft); border-color: transparent; border-bottom-right-radius: 4px; }
+.bubble.assistant { align-self: flex-start; background: var(--panel); border-bottom-left-radius: 4px; }
+.bubble .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.bubble .md p:first-child { margin-top: 0; } .bubble .md p:last-child { margin-bottom: 0; }
+.bubble details { margin: 0 0 8px; }
+.notes-box { margin-top: 18px; border: 1px dashed var(--warn); border-radius: 10px; padding: 10px 14px; }
+.notes-box .who { color: var(--warn); font-size: 12px; }
+@media (max-width: 800px) { .bubble { max-width: 100%; } }
 @media (max-width: 800px) { .files { grid-template-columns: 1fr; } .side { position: static; max-height: 50vh; } }
 @media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
 </style>
@@ -112,8 +123,8 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
   </div>
   <nav id="tabs">
     <button data-tab="overview" class="on">概览</button>
+    <button data-tab="chats">聊天记录</button>
     <button data-tab="files">文件</button>
-    <button data-tab="chats">对话</button>
     <button data-tab="import">导入</button>
     <button data-tab="headlines">新闻雷达</button>
     <button data-tab="ai">AI 服务</button>
@@ -158,6 +169,16 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
 
   <!-- 对话 -->
   <section class="tab" id="tab-chats">
+    <div class="files">
+      <aside class="card side">
+        <input type="search" id="convQ" placeholder="搜索对话标题">
+        <div class="row" id="convPlatforms"></div>
+        <div id="convList" class="filelist"><div class="empty">加载中……</div></div>
+      </aside>
+      <article class="card note" id="conv">
+        <div class="empty">从左边选一个对话，这里会像聊天软件一样显示你和 AI 的每一条消息。</div>
+      </article>
+    </div>
     <div class="card">
       <h2>统计 <span class="chip">eia chats stats</span></h2>
       <p class="hint">每个平台有多少对话、你说了多少话。</p>
@@ -165,7 +186,7 @@ label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--
       <div data-out="chats_stats"></div>
     </div>
     <div class="card">
-      <h2>按说话方读对话 <span class="chip">eia chats dump</span></h2>
+      <h2>在所有对话里搜我说过的话 <span class="chip">eia chats dump</span></h2>
       <p class="hint">勾上“只看我说的”，AI 的回答和思考过程一句都不会出现。笔记是你在对话文件里自己写的内容。</p>
       <div class="row">
         <label class="check"><input type="checkbox" id="onlyMe" checked> 只看我说的</label>
@@ -334,6 +355,9 @@ function useVault() {
   allFiles = []; currentFile = ""; folderFilter = "";
   $("#note").innerHTML = `<div class="empty">从左边选一个文件。</div>`;
   if (document.querySelector("#tab-files.on")) loadFiles();
+  allConvs = []; currentConv = ""; convPlatform = ""; lastConv = null;
+  $("#conv").innerHTML = `<div class="empty">从左边选一个对话。</div>`;
+  if (document.querySelector("#tab-chats.on")) loadConvs();
   document.querySelectorAll("[data-out]").forEach((el) => (el.innerHTML = ""));
 }
 
@@ -456,6 +480,61 @@ function renderMarkdown(text) {
 
 $("#fileQ").addEventListener("input", loadFilesView);
 
+// ---------- 聊天记录 ----------
+let allConvs = [], convPlatform = "", currentConv = "", onlyMeView = false, lastConv = null;
+const AI_NAME = { chatgpt: "ChatGPT", claude: "Claude", gemini: "Gemini" };
+
+async function loadConvs() {
+  const r = await api("conversations");
+  if (r.error) { $("#convList").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; $("#convPlatforms").innerHTML = ""; return; }
+  allConvs = r.conversations;
+  const platforms = [...new Set(allConvs.map((c) => c.platform))].sort();
+  $("#convPlatforms").innerHTML = [`<button data-p="" class="on">全部 ${allConvs.length}</button>`,
+    ...platforms.map((p) => `<button data-p="${esc(p)}">${esc(AI_NAME[p] || p)} ${allConvs.filter((c) => c.platform === p).length}</button>`)].join("");
+  $("#convPlatforms").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    convPlatform = b.dataset.p; $("#convPlatforms").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); convView();
+  }));
+  if (!allConvs.length) { $("#convList").innerHTML = `<div class="empty">这个 vault 里还没有对话。去“导入”标签页导入一份导出文件。</div>`; return; }
+  convView();
+}
+
+function convView() {
+  const q = $("#convQ").value.trim().toLowerCase();
+  const shown = allConvs.filter((c) => (!convPlatform || c.platform === convPlatform) && (!q || c.title.toLowerCase().includes(q)));
+  const list = shown.slice(0, 300);
+  $("#convList").innerHTML = (list.length ? "" : `<div class="empty">没有匹配的对话。</div>`) +
+    list.map((c) => `<button data-p="${esc(c.path)}" class="${c.path === currentConv ? "on" : ""}"><span class="t">${esc(c.title)}</span><span class="p">${esc(AI_NAME[c.platform] || c.platform)} · ${esc(c.updated.slice(0, 10))}${c.messages ? ` · ${c.messages} 条` : ""}</span></button>`).join("") +
+    (shown.length > list.length ? `<div class="empty">还有 ${shown.length - list.length} 个，请用搜索缩小范围。</div>` : "");
+  $("#convList").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openConv(b.dataset.p)));
+}
+
+async function openConv(path) {
+  currentConv = path;
+  $("#convList").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.p === path));
+  $("#conv").innerHTML = `<div class="empty">加载中……</div>`;
+  const r = await api("conversation", { path });
+  if (r.error) { $("#conv").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  lastConv = r; drawConv(); $("#conv").scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function drawConv() {
+  const r = lastConv; if (!r) return;
+  const ai = AI_NAME[r.platform] || r.platform;
+  const msgs = r.messages.filter((m) => !onlyMeView || m.role === "user");
+  const mine = r.messages.filter((m) => m.role === "user").length;
+  $("#conv").innerHTML = `<div class="chat-head"><div><h2 style="margin:0">${esc(r.title)}</h2>
+      <div class="path">${esc(ai)} · 我 ${mine} 条 · ${esc(ai)} ${r.messages.length - mine} 条 ${r.tags.map((t) => `<span class="chip">#${esc(t)}</span>`).join("")}</div></div>
+      <div class="row"><label class="check"><input type="checkbox" id="onlyMeView" ${onlyMeView ? "checked" : ""}> 只看我说的</label>
+      <a href="obsidian://open?path=${encodeURIComponent(r.absolute)}"><button>在 Obsidian 中打开</button></a></div></div>
+    <div class="bubbles">${msgs.map((m) => `<div class="bubble ${m.role}"><div class="who">${m.role === "user" ? "我" : esc(ai)} · ${esc(m.time || "时间未知")}</div>
+      ${m.thinking && !onlyMeView ? `<details><summary>思考过程</summary><div class="md">${renderMarkdown(m.thinking)}</div></details>` : ""}
+      <div class="md">${renderMarkdown(m.text)}</div></div>`).join("") || `<div class="empty">没有消息。</div>`}</div>
+    ${r.notes ? `<div class="notes-box"><div class="who">我的笔记（写在对话文件里，重新导入不会动）</div><div class="md">${renderMarkdown(r.notes)}</div></div>` : ""}`;
+  $("#onlyMeView").addEventListener("change", (e) => { onlyMeView = e.target.checked; drawConv(); });
+}
+
+$("#convQ").addEventListener("input", convView);
+
 function syncThinking() { $("#thinkWrap").style.display = $("#impPlatform").value === "claude" ? "" : "none"; }
 
 document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", () => run(b.dataset.run, b)));
@@ -467,13 +546,16 @@ $("#tabs").addEventListener("click", (e) => {
   store("eia.tab", tab);
   if (tab === "headlines" && !$("#hlList").innerHTML) run("headlines_list");
   if (tab === "files" && !allFiles.length) loadFiles();
+  if (tab === "chats" && !allConvs.length) loadConvs();
 });
 $("#useVault").addEventListener("click", useVault);
 $("#vault").addEventListener("keydown", (e) => { if (e.key === "Enter") useVault(); });
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") run("chats_dump"); });
 $("#impPlatform").addEventListener("change", syncThinking);
 
-$("#vault").value = store("eia.vault") || DEFAULT_VAULT || recent()[0] || "";
+// 启动时用 --vault 指定了就用它；没指定才用上次打开的
+$("#vault").value = DEFAULT_VAULT || store("eia.vault") || recent()[0] || "";
+if (DEFAULT_VAULT) { const list = [DEFAULT_VAULT, ...recent().filter((x) => x !== DEFAULT_VAULT)].slice(0, 8); store("eia.recent", JSON.stringify(list)); }
 $("#vault").addEventListener("change", () => store("eia.vault", $("#vault").value.trim()));
 fillRecent(); syncThinking(); loadExports(); refreshOverview();
 const savedTab = store("eia.tab");

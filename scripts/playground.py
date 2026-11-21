@@ -26,11 +26,12 @@ import yaml
 from click.testing import CliRunner
 
 from eia import llm
+from eia.chat.reader import ChatReadError, read_chat
 from eia.cli import main
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
 from eia.schema.io import FrontmatterError, read_document
 from eia.schema.validate import iter_markdown
-from eia.schema.vault import CONFIG_NAME, is_vault
+from eia.schema.vault import CONFIG_NAME, VaultError, is_vault, load_config
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = Path(__file__).with_name("playground.html")
@@ -272,6 +273,8 @@ def _summary(path: Path) -> dict[str, Any]:
             "title": str(meta.get("title") or path.stem),
             "type": meta.get("type"),
             "updated": str(meta.get("updated") or meta.get("created") or ""),
+            "platform": meta.get("platform"),
+            "messages": meta.get("message_count"),
         }
     else:
         summary = {"title": path.stem, "type": None, "updated": "", "broken": True}
@@ -297,6 +300,42 @@ def action_file(params: dict[str, Any]) -> dict[str, Any]:
         "meta": meta,
         "body": body,
         "error": error,
+    }
+
+
+def action_conversations(params: dict[str, Any]) -> dict[str, Any]:
+    """vault 里所有对话，最近更新的在前。"""
+    files = [f for f in action_files(params)["files"] if f.get("type") == "chat"]
+    files.sort(key=lambda f: f["updated"], reverse=True)
+    return {"conversations": files}
+
+
+def action_conversation(params: dict[str, Any]) -> dict[str, Any]:
+    """用 eia 的 chat-reader 读一个对话：和 eia chats dump 读到的完全一样。"""
+    vault = Path(_vault(params)).resolve()
+    target = (vault / str(params.get("path") or "")).resolve()
+    if not target.is_relative_to(vault) or target.suffix.lower() != ".md" or not target.is_file():
+        raise ValueError("只能打开 vault 里的 .md 文件")
+    try:
+        chat = read_chat(target, load_config(vault).timezone)
+    except ChatReadError as exc:
+        return {"error": f"这个对话读不了：{exc}"}
+    return {
+        "path": target.relative_to(vault).as_posix(),
+        "absolute": str(target),
+        "title": chat.title,
+        "platform": chat.platform,
+        "tags": list(chat.tags),
+        "notes": chat.notes,
+        "messages": [
+            {
+                "role": m.role,
+                "time": m.time.strftime("%Y-%m-%d %H:%M") if m.time else None,
+                "text": m.text,
+                "thinking": m.thinking,
+            }
+            for m in chat.messages
+        ],
     }
 
 
@@ -354,8 +393,10 @@ def make_handler(token: str, port: int, default_vault: str) -> type[BaseHTTPRequ
                 self._json(HTTPStatus.OK, action(request.get("params") or {}))
             except KeyError:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "没有这个操作"})
-            except (ValueError, OSError) as exc:
+            except (ValueError, OSError, VaultError) as exc:
                 self._json(HTTPStatus.OK, {"error": str(exc)})
+            except Exception as exc:  # 试用工具：任何意外都告诉页面，而不是断开连接
+                self._json(HTTPStatus.OK, {"error": f"出错了：{type(exc).__name__}：{exc}"})
 
         def log_message(self, format: str, *args: Any) -> None:
             """不打印每个请求（里面可能有路径），只在出错时由上面返回给页面。"""

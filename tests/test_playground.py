@@ -130,6 +130,51 @@ def test_browse_files(server: tuple[str, str, Path]) -> None:
         assert result == {"error": "只能打开 vault 里的 .md 文件"}, path
 
 
+def test_chat_viewer(server: tuple[str, str, Path]) -> None:
+    import datetime as dt
+
+    from eia.chat.importer import import_conversations
+    from eia.chat.model import Conversation, Message
+
+    base, token, vault = server
+    t = dt.datetime(2026, 3, 1, 8, 0, tzinfo=dt.UTC)
+    messages = (
+        Message("user", t, "你好"),
+        Message("assistant", t + dt.timedelta(minutes=1), "你好！", thinking="打个招呼"),
+    )
+    conversation = Conversation("claude", "c1", "打招呼", t, t, None, messages, thinking=True)
+    import_conversations(vault, [conversation])
+
+    listed = _post(base, {"action": "conversations", "params": {"vault": str(vault)}}, token)
+    [item] = listed["conversations"]
+    assert item["title"] == "打招呼" and item["platform"] == "claude" and item["messages"] == 2
+
+    opened = _post(
+        base,
+        {"action": "conversation", "params": {"vault": str(vault), "path": item["path"]}},
+        token,
+    )
+    assert [(m["role"], m["text"], m["thinking"]) for m in opened["messages"]] == [
+        ("user", "你好", ""),
+        ("assistant", "你好！", "打个招呼"),
+    ]
+    assert opened["messages"][0]["time"] is not None
+
+    (vault / "chats" / "claude" / "坏.md").write_text(
+        "---\ntype: chat\n---\n无标记\n", encoding="utf-8"
+    )
+    broken = _post(
+        base,
+        {"action": "conversation", "params": {"vault": str(vault), "path": "chats/claude/坏.md"}},
+        token,
+    )
+    assert "这个对话读不了" in broken["error"]
+    escape = _post(
+        base, {"action": "conversation", "params": {"vault": str(vault), "path": "../x.md"}}, token
+    )
+    assert escape == {"error": "只能打开 vault 里的 .md 文件"}
+
+
 def _bad(base: str, token: str) -> str:
     try:
         _post(base, {"action": "rm_rf"}, token)
