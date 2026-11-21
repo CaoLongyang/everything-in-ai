@@ -248,6 +248,21 @@ input[type=password] { flex: 1; }
       <div data-out="headlines_check"></div>
     </div>
     <div class="card">
+      <h2>每天自动运行 <span class="chip">eia schedule</span></h2>
+      <p class="hint">登记到 Windows 任务计划程序。电脑那时关着，开机后补跑；不会弹出窗口；不需要管理员权限。每次运行的结果都记在下面。</p>
+      <div class="row">
+        <label class="check">每天<input type="text" id="schedAt" value="08:00" style="flex:0 0 140px" title="多个时间用逗号分开，例如 08:00,18:00"></label>
+        <button class="primary" data-run="schedule_install">登记 / 更新</button>
+        <button data-run="schedule_remove">删除</button>
+        <button data-run="schedule_run_now">现在跑一次（写运行记录）</button>
+        <button data-run="schedule_status">刷新状态</button>
+      </div>
+      <div data-out="schedule_install"></div>
+      <div data-out="schedule_remove"></div>
+      <div data-out="schedule_run_now"></div>
+      <div data-out="schedule_status"></div>
+    </div>
+    <div class="card">
       <h2>已有的大事</h2>
       <p class="hint">按报道的媒体数排序。数字是独立媒体数，同一家媒体的中英文源只算一家。</p>
       <div class="row"><button data-run="headlines_list">刷新</button></div>
@@ -380,6 +395,7 @@ const params = {
   import: () => ({ platform: $("#impPlatform").value, path: $("#impPath").value.trim(), dry_run: $("#impDry").checked, include_thinking: $("#impThinking").checked }),
   chats_dump: () => ({ only_me: $("#onlyMe").checked, no_notes: $("#noNotes").checked, platform: $("#platform").value, since: $("#since").value, until: $("#until").value, q: $("#q").value, limit: 200 }),
   headlines_run: () => ({ dry_run: $("#hlDry").checked }),
+  schedule_install: () => ({ at: $("#schedAt").value }),
   llm_ask: () => ({ prompt: $("#prompt").value }),
 };
 
@@ -393,6 +409,9 @@ const after = {
       r.records.map((m) => `<div class="msg ${m.role}"><div class="who">${who[m.role] || m.role} · ${esc(m.time ? m.time.slice(0, 16).replace("T", " ") : "无时间")} · <span class="chip">${esc(m.platform)}</span>${esc(m.title)}</div><div class="text">${esc(m.text)}</div></div>`).join("");
   },
   headlines_run() { run("headlines_list"); refreshOverview(); },
+  schedule_install() { run("schedule_status"); },
+  schedule_remove() { run("schedule_status"); },
+  schedule_run_now() { run("schedule_status"); run("headlines_list"); },
   import(r) { if (!$("#impDry").checked && r.exit_code === 0) refreshOverview(); },
   init(r) { if (r.exit_code === 0) { $("#vault").value = $("#initPath").value.trim(); useVault(); } },
   headlines_list(r) {
@@ -755,7 +774,7 @@ $("#tabs").addEventListener("click", (e) => {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
   document.querySelectorAll("section.tab").forEach((s) => s.classList.toggle("on", s.id === "tab-" + tab));
   store("eia.tab", tab);
-  if (tab === "headlines" && !$("#hlList").innerHTML) run("headlines_list");
+  if (tab === "headlines" && !$("#hlList").innerHTML) { run("headlines_list"); run("schedule_status"); }
   if (tab === "files" && !allFiles.length) loadFiles();
   if (tab === "chats" && !allConvs.length) loadConvs();
   if (tab === "settings") loadSettings();

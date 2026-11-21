@@ -71,6 +71,10 @@ ruff format .                      # 自动格式化
 - numpy、feedparser 只在函数里导入（可选依赖 `[news]`），`import eia.cli` 不能拉进它们，有测试守着。
 - 测试用 `tests/headlines/conftest.py` 的虚构 RSS 和按关键词给向量的假模型；网络通过替换 `urllib.request.urlopen` 或传入 `fetcher` 隔离。
 
+**schedule/**（`SPEC-scheduler.md`，实现决定见 ADR 0005）
+- `runs.py`：`eia run <job>`，加锁（`.eia/locks/`）、写运行记录（`.eia/runs/<job>.jsonl`，最近 200 条）。新任务加到 `JOBS`。
+- `windows.py`：用 XML 调 `schtasks` 登记到 `\eia\`，`pythonw -m eia run ...` 不弹窗。测试里 `schtasks` 用假的 runner，绝不真的登记。
+
 ## 改规格的方式
 
 已批准的 spec 不直接改，写 `SPEC-DELTA-<name>.md`；实现中做出的偏离 spec 的决定记到 `docs/adr/`。

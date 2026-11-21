@@ -1,4 +1,4 @@
-"""命令行入口：eia init / validate / new / import / chats / headlines / llm。"""
+"""命令行入口：eia init / validate / new / import / chats / headlines / run / schedule / llm。"""
 
 from __future__ import annotations
 
@@ -20,10 +20,13 @@ from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
 from eia.chat.render import SPEAKERS, USER_LABEL
 from eia.headlines import run as headlines
 from eia.headlines.config import HeadlinesConfigError
+from eia.schedule import windows as schedule_windows
+from eia.schedule.runs import JOBS, read_runs, run_job
+from eia.schedule.windows import ScheduleError, WindowsScheduler
 from eia.schema.create import new_entry
 from eia.schema.model import EntryType, Platform
 from eia.schema.validate import ERROR, validate_vault
-from eia.schema.vault import VaultError, init_vault, load_config
+from eia.schema.vault import VaultError, init_vault, is_vault, load_config
 
 _DIR = click.Path(file_okay=False, path_type=Path)
 
@@ -330,6 +333,100 @@ def headlines_check(vault: Path) -> None:
         click.echo(f"正常  {where}  {len(status.items)} 条，最新一条 {age:.0f} 小时前{stale}")
     if failed:
         sys.exit(1)
+
+
+@main.command(name="run")
+@click.argument("job", type=click.Choice(sorted(JOBS)))
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def run_command(job: str, vault: Path) -> None:
+    """跑一次 JOB 并写运行记录。定时任务调用的就是这个命令。"""
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+    record = run_job(vault, job)
+    detail = f"：{record.error}" if record.error else ""
+    click.echo(
+        f"{'成功' if record.ok else '失败'}  {job}  {record.seconds} 秒  {record.summary}{detail}"
+    )
+    if not record.ok:
+        sys.exit(1)
+
+
+@main.group(name="schedule")
+def schedule_group() -> None:
+    """在系统的定时工具里登记 eia run（V1 只支持 Windows 任务计划程序）。"""
+
+
+def _windows(job: str, vault: Path) -> WindowsScheduler:
+    if not schedule_windows.supported():
+        click.echo(schedule_windows.manual_hint(job, vault), err=True)
+        sys.exit(1)
+    return WindowsScheduler()
+
+
+@schedule_group.command(name="install")
+@click.argument("job", type=click.Choice(sorted(JOBS)))
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--at", "times", multiple=True, help="每天几点跑，如 08:00；可以写多次。默认 08:00。")
+def schedule_install(job: str, vault: Path, times: tuple[str, ...]) -> None:
+    """登记每天定时运行。已登记的会被更新。错过的时间开机后补跑。"""
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+    windows = _windows(job, vault)
+    try:
+        name = windows.install(job, vault, times)
+    except ScheduleError as exc:
+        raise click.ClickException(str(exc)) from exc
+    at = "、".join(f"{h:02d}:{m:02d}" for h, m in schedule_windows.parse_times(times))
+    click.echo(f"已登记  {name}  每天 {at}（错过了开机后补跑；需要联网；不弹窗口）")
+    click.echo(f'可以先手动跑一次试试：eia run {job} --vault "{vault.resolve()}"')
+
+
+@schedule_group.command(name="remove")
+@click.argument("job", type=click.Choice(sorted(JOBS)))
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def schedule_remove(job: str, vault: Path) -> None:
+    """删除这个 vault 的定时任务。运行记录保留。"""
+    try:
+        name = _windows(job, vault).remove(job, vault)
+    except ScheduleError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"已删除  {name}")
+
+
+@schedule_group.command(name="list")
+def schedule_list() -> None:
+    """列出 eia 在这台电脑上登记的所有定时任务。"""
+    try:
+        tasks = _windows("headlines", Path(".")).tasks()
+    except ScheduleError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if not tasks:
+        click.echo("还没有登记任何定时任务。用 eia schedule install headlines --vault <路径> 登记")
+    for task in tasks:
+        warn = "" if task.vault_exists else "  ⚠ vault 已经不存在，可以用 eia schedule remove 删掉"
+        click.echo(f"{task.job}  {task.vault}  下次 {task.next_run}  上次 {task.last_run}{warn}")
+
+
+@schedule_group.command(name="status")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def schedule_status(vault: Path) -> None:
+    """这个 vault 的每个任务：是否已登记、下次运行时间、最近 5 次结果。"""
+    for job in sorted(JOBS):
+        task = None
+        if schedule_windows.supported():
+            try:
+                task = WindowsScheduler().find(job, vault)
+            except ScheduleError as exc:
+                click.echo(f"{job}：查不到定时任务（{exc}）")
+        state = f"已登记，下次 {task.next_run}" if task else "没有登记定时运行"
+        click.echo(f"[{job}] {state}")
+        records = read_runs(vault, job)[-5:]
+        if not records:
+            click.echo("  还没有运行记录")
+        for record in reversed(records):
+            mark = "成功" if record.ok else "失败"
+            detail = f"：{record.error}" if record.error else ""
+            click.echo(f"  {record.started}  {mark}  {record.seconds} 秒  {record.summary}{detail}")
 
 
 @main.group(name="llm")

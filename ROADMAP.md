@@ -69,4 +69,5 @@
 - 选择性公开发布 / 接入个人书卷网站
 - 移动端推送（Telegram / 邮件）
 - 自有 UI / 每日简报网页
+- 调度：GitHub Actions 定时模板（vault 要推到 GitHub、云上用不了本机 Ollama，2026-11-21 从 V1 挪来）；运行失败时的系统通知；macOS / Linux 的 `eia schedule`
 - `chat-import`：Claude 导出中的 `projects`、`memories`、`artifact_data`（2026-11-20 定为以后再做）

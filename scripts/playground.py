@@ -205,6 +205,26 @@ def action_headlines_run(params: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def action_schedule_status(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("schedule", "status", "--vault", _vault(params))
+
+
+def action_schedule_install(params: dict[str, Any]) -> dict[str, Any]:
+    times = [t for t in str(params.get("at") or "08:00").replace("，", ",").split(",") if t.strip()]
+    args = ["schedule", "install", "headlines", "--vault", _vault(params)]
+    for value in times:
+        args += ["--at", value.strip()]
+    return run_cli(*args)
+
+
+def action_schedule_remove(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("schedule", "remove", "headlines", "--vault", _vault(params))
+
+
+def action_schedule_run_now(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("run", "headlines", "--vault", _vault(params))
+
+
 def action_headlines_list(params: dict[str, Any]) -> dict[str, Any]:
     folder = Path(_vault(params)) / "inbox" / "headlines"
     entries = []
