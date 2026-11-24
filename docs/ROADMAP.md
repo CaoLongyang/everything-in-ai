@@ -32,7 +32,6 @@
 | 调度 | `eia run <job>` + 本机定时（Windows 任务计划 / cron / launchd）；GitHub Actions 模板，runner 唯一负责 commit/push，同一 vault 只启用一种调度 |
 | `chat-import` | 增加 Claude（官方导出，原 V0 项）和 Gemini（浏览器插件导出的 JSON，样例已有；Takeout 需换到第二个 Google 账号再试）；`--include-thinking` 选项，把模型思考过程以折叠块导入。**进度：Claude ✅ 2026-11-20；Gemini 暂缓（插件导出没有时间，等 Takeout）** |
 | `chat-reader` | 按说话方读取对话：可以只取「我」说的话，供 `llm-adapter` 之后的分析、画像、兴趣模块使用，避免把 AI 的观点当成用户的想法 |
-| `vault-site` | `eia site` 启动本机 Quartz，显式绑定 `127.0.0.1`，启动前检查 Node.js |
 | 可分发 | macOS / Linux / Windows 三系统 CI；面向其他用户的安装文档 |
 
 ## V2 — 分析与闭环
@@ -66,6 +65,7 @@
 - `llm-adapter`：多模型分组（profiles）、每日预算上限、结果缓存、多 provider 自动切换
 - `vault-schema`：`validate --fix`、schema 迁移工具、长对话拆分
 - Logseq 兼容
+- `vault-site`：`eia site` 启动本机 Quartz，显式绑定 `127.0.0.1`，启动前检查 Node.js（2026-11-24 从 V1 挪来：作者已用 Obsidian 浏览，功能重复；远程访问、公开发布要用到时再做）
 - 私密网站远程访问（带登录保护）
 - 选择性公开发布 / 接入个人书卷网站
 - 移动端推送（Telegram / 邮件）

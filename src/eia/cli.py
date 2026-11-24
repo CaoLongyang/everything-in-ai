@@ -1,4 +1,4 @@
-"""命令行入口：eia init / validate / new / import / chats / headlines / run / schedule / llm。"""
+"""命令行入口：eia 的所有子命令（init / validate / import / headlines / clip / run 等）。"""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
 from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
 from eia.chat.render import SPEAKERS, USER_LABEL
+from eia.clip import template as clip_template
 from eia.db import DatabaseError, database
 from eia.db import ops as db_ops
 from eia.db.index import search as db_search
@@ -602,6 +603,38 @@ def search_command(vault: Path, query: str, entry_type: str | None, limit: int) 
         click.echo("没有找到")
     for hit in hits:
         click.echo(f"{hit.path}  {hit.title}\n    {hit.snippet}")
+
+
+@main.group(name="clip")
+def clip_group() -> None:
+    """网页剪藏：给 Obsidian Web Clipper 用的模板。"""
+
+
+@clip_group.command(name="template")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    help=f"模板保存到哪里，默认 vault 里的 {clip_template.DEFAULT_FILE}。",
+)
+def clip_template_command(vault: Path, out: Path | None) -> None:
+    """按 vault 的时区生成插件模板；在插件里导入一次，剪下的网页就直接合规。"""
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+    try:
+        result = clip_template.generate(vault)
+    except (clip_template.ClipError, VaultError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    path = out or vault / clip_template.DEFAULT_FILE
+    clip_template.write_template(result, path)
+    sign = "+" if result.offset_hours >= 0 else "-"
+    click.echo(f"已生成  {path}（时区 {result.zone}，UTC{sign}{abs(result.offset_hours)}）")
+    click.echo("导入：插件设置 → 模板 → 导入，选这个文件；再在插件设置里把 vault 选成这个 vault。")
+    click.echo(f"剪下的网页会存到 {result.template['path']}/。")
+    if result.has_dst:
+        click.echo(
+            "提醒  这个时区有夏令时，模板里的时差是写死的；换季后重新运行这个命令并再导入一次。"
+        )
 
 
 @main.command(name="run")

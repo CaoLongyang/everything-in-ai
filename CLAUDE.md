@@ -89,6 +89,11 @@ ruff format .                      # 自动格式化
 - `index.py`：`sync` 增量索引 Markdown（比较修改时间和大小）；`search` 全文搜索（3 字以上 FTS5 trigram，更短的 LIKE）。
 - `legacy.py`：旧版本散文件的一次性导入（导入后移到 `.eia/old/`）。不要再新增 `.eia/` 下的散文件，加表。
 
+**clip/**（`docs/specs/web-clip.md`）
+- `template.py`：`eia clip template` 按 vault 时区生成 Obsidian Web Clipper 的模板 JSON。插件没有随机数、不能转 UTC，
+  所以 id 后缀用 Unix 秒数换字母，UTC 时间靠 `date_modify`（只返回日期）+ 两轮字面替换拼出来；只支持整小时时差。
+- 测试用 `tests/clip/clipper_sim.py` 按插件源码的规则渲染模板，不运行真插件；改模板写法要先看规格第 3.1 节的插件行为。
+
 ## 改规格的方式
 
 已批准的 spec 不直接改，在旁边写 `docs/specs/<name>.delta-<主题>.md`；实现中做出的偏离 spec 的决定记到 `docs/adr/`。

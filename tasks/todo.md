@@ -32,6 +32,7 @@
 | V1-8 | 兴趣草稿 + 按兴趣过滤 + 评价（取代 feed-digest / config-sync） | F13-01 至 F13-09 | ✅ 代码完成 2026-11-21；`min_score` 校准挪到 V2（2026-11-24 作者决定：草稿多为作业和琐事，等 `profile` 和兴趣分层产出更好的兴趣再校准；数据见 ADR 0006 第 9 条） |
 | V1-9 | SQLite 数据库 + 全文搜索（`eia db` / `eia search`） | F14-01 至 F14-08 | ✅ 2026-11-21（作者两个 vault 已迁移；实现决定见 ADR 0007） |
 | V1-10 | 新闻源扩展：Google News 搜索（含按兴趣自动搜）、Hacker News、中文热榜、推荐源目录 | F15-01 至 F15-09 | ✅ 2026-11-21（Reddit 挪到 Backlog；实现决定见 ADR 0008） |
+| V1-11 | `web-clip`：Obsidian Web Clipper 模板，剪藏落进 `inbox/clips/` 并通过 validate | F16-01 至 F16-05；M-W1 | 🔄 代码完成 2026-11-24（方案 A，默认 `clip` 标签）；等作者在浏览器里实测 M-W1 |
 
 ## 已确认
 
