@@ -71,6 +71,7 @@
 - 移动端推送（Telegram / 邮件）
 - 自有 UI / 每日简报网页
 - 调度：GitHub Actions 定时模板（vault 要推到 GitHub、云上用不了本机 Ollama，2026-11-21 从 V1 挪来）；运行失败时的系统通知；macOS / Linux 的 `eia schedule`
+- `web-clip`（2026-11-24 作者提出）：「摘一句」模板，用选中句子的开头当文件名，同一篇文章摘多句时好区分；手机 App（微信、小红书等）经系统「分享」存进 Obsidian 的文字和链接，由 eia 补齐成合规的 `clip` 条目（web-clip 规格第 3 节方案 B 的做法）
 - `chat-import`：Claude 导出中的 `projects`、`memories`、`artifact_data`（2026-11-20 定为以后再做）
 - 新闻源（2026-11-21，见 `docs/specs/headline-radar.delta-sources.md` 第 8 节）：Reddit 官方接口（用户自己申请免费密钥）；
   GitHub 动态和版本发布；抓网页全文、AI 给热榜写摘要（V2）。X / Facebook / Threads / Quora / TikTok / 小红书不做（要登录或付费，抓取违反平台条款）
