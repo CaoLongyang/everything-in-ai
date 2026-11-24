@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import subprocess
 import sys
 from collections.abc import Callable
@@ -41,6 +42,11 @@ from .conftest import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def pin_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    """命令行入口不传 now，会用真实时间；固定成 NOW，否则样例报道过几天就出了时间窗口。"""
+    monkeypatch.setattr(radar, "run", functools.partial(radar.run, now=NOW))
 
 
 def _client(root: Path, backend: Any) -> Client:
@@ -383,6 +389,7 @@ def test_F11_06_generated_files_pass_validate(make_vault: Callable[..., Path]) -
 def test_F11_07_dry_run_writes_nothing(
     make_vault: Callable[..., Path], monkeypatch: pytest.MonkeyPatch, fake_llm: FakeEmbedBackend
 ) -> None:
+    pin_now(monkeypatch)
     root = make_vault(llm=EMBED_LLM)
     monkeypatch.setattr(
         "eia.headlines.feeds.urllib.request.urlopen", fake_urlopen(standard_feeds())
@@ -398,6 +405,7 @@ def test_F11_07_dry_run_writes_nothing(
 def test_F11_07_real_run_reports_and_caches(
     make_vault: Callable[..., Path], monkeypatch: pytest.MonkeyPatch, fake_llm: FakeEmbedBackend
 ) -> None:
+    pin_now(monkeypatch)
     root = make_vault(llm=EMBED_LLM)
     monkeypatch.setattr(
         "eia.headlines.feeds.urllib.request.urlopen", fake_urlopen(standard_feeds())

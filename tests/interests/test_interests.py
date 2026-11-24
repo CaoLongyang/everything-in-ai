@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import functools
 from collections.abc import Callable
 from pathlib import Path
 
@@ -446,6 +447,8 @@ def test_F13_04_scheduled_job_runs_digest_after_radar(
     from ..schedule.test_schedule import _radar_result
 
     monkeypatch.setattr("eia.headlines.run.run", lambda root: _radar_result(13, 13))
+    # 定时任务不传 now，固定成 NOW，否则样例报道过几天就出了时间窗口
+    monkeypatch.setattr(digest_mod, "run_digest", functools.partial(digest_mod.run_digest, now=NOW))
     assert "今日兴趣" not in runs.run_job(vault, "headlines").summary  # 没有兴趣清单就跳过
     set_interests(vault, [{"name": "汽车生活", "description": "汽车"}])
     _stock(vault)
