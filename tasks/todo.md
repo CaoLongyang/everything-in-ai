@@ -23,7 +23,7 @@
 | # | 任务 | 验收标准 | 状态 |
 |---|---|---|---|
 | V1-1 | 导入 Claude 对话（含 `--include-thinking`） | F5-01 至 F5-09；真实导出试导 | ✅ 2026-11-20 |
-| V1-2 | 导入 Gemini 对话 | 规格草案 `docs/specs/chat-import.delta-gemini.md` | ⏳ 暂缓：等 Takeout |
+| V1-2 | 导入 Gemini 对话 | 规格草案 `docs/specs/chat-import.delta-gemini.md` | 📝 2026-11-25 新版插件导出带真实时间（439 个对话全部导出成功），草案按新格式重写，等作者批准 |
 | V1-3 | GitHub 仓库：LICENSE、三系统 CI | CI 绿灯 | ✅ 2026-11-20（8 项全部通过；修了一个非中文 Windows 控制台崩溃的 bug） |
 | V1-4 | `llm-adapter` | F9-01 至 F9-07 | ✅ 2026-11-21（方案 A：两家官方 SDK；实现决定见 ADR 0003；2026-11-21 DeepSeek 实测通过） |
 | V1-5 | `chat-reader`：`eia chats dump` / `stats` | F10-01 至 F10-07 | ✅ 2026-11-21（笔记算「我」的话；粘贴内容的区分挪到 V2） |
