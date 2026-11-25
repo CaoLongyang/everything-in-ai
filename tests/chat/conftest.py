@@ -1,4 +1,4 @@
-"""合成的 ChatGPT 和 Claude 导出：结构照真实导出（2026-11），内容全部是虚构的。"""
+"""合成的 ChatGPT、Claude 和 Gemini 导出：结构照真实导出（2026-11），内容全部是虚构的。"""
 
 from __future__ import annotations
 
@@ -221,6 +221,77 @@ def make_claude_export(tmp_path: Path) -> Callable[..., Path]:
             else:
                 body = raw if raw is not None else json.dumps(conversations or [])
                 archive.writestr("conversations.json", body)
+        return path
+
+    return _make
+
+
+# ---------- Gemini 浏览器插件导出（结构照 2026-11-25 的新版导出，内容全部虚构） ----------
+
+
+def gemini_conversation(
+    cid: str,
+    turns: list[tuple[str, str]],
+    *,
+    title: str = "虚构的 Gemini 对话",
+    t: float = T0,
+    updated: float | None = None,
+) -> dict[str, Any]:
+    """turns 是 (role, content)；同一轮（我 + 紧接着的 Gemini）共用一个时间，和真实导出一样。"""
+    messages: list[dict[str, Any]] = []
+    stamp = t
+    for index, (role, content) in enumerate(turns):
+        if role == "user" and index > 0:
+            stamp += 120
+        elif role == "assistant" and index > 0 and turns[index - 1][0] == "assistant":
+            stamp += 30  # Gemini 连续发言，各自有时间
+        messages.append({"role": role, "time": iso(stamp)[:23] + "Z", "content": content})
+    last = stamp if updated is None else updated
+    return {
+        "conversationId": f"c_{cid}",
+        "title": title,
+        "url": f"https://gemini.google.com/u/1/app/{cid}",
+        "createdAt": iso(t)[:23] + "Z",
+        "updatedAt": iso(last)[:23] + "Z",
+        "exportedAt": iso(T0 + 10**7)[:23] + "Z",
+        "turnCount": sum(1 for role, _ in turns if role == "user"),
+        "messageCount": len(messages),
+        "messages": messages,
+    }
+
+
+def gemini_report(**changes: Any) -> dict[str, Any]:
+    report: dict[str, Any] = {
+        "generatedAt": iso(T0 + 10**7)[:23] + "Z",
+        "listTotal": 3,
+        "exported": 3,
+        "stoppedManually": False,
+        "failures": [],
+        "missing": [],
+        "possiblyIncomplete": [],
+    }
+    report.update(changes)
+    return report
+
+
+@pytest.fixture
+def make_gemini_export(tmp_path: Path) -> Callable[..., Path]:
+    def _make(
+        conversations: list[dict[str, Any]] | None = None,
+        *,
+        name: str = "gemini_chats_2026-11-25.zip",
+        report: dict[str, Any] | None = None,
+        members: dict[str, str] | None = None,
+    ) -> Path:
+        path = tmp_path / name
+        with zipfile.ZipFile(path, "w") as archive:
+            if members is not None:
+                for member, content in members.items():
+                    archive.writestr(member, content)
+                return path
+            for index, raw in enumerate(conversations or []):
+                archive.writestr(f"{index + 1:04d}_{raw['title']}.json", json.dumps(raw))
+            archive.writestr("_report.json", json.dumps(report or gemini_report()))
         return path
 
     return _make

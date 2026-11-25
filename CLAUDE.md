@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目是什么
 
 `eia`（everything-in-ai）：把 AI 对话导入成纯 Markdown 的个人知识库（vault），用 Obsidian 浏览。
-V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`、`llm`（AI 服务接入）、`chats`（按说话方读回对话）、`headlines`（新闻雷达），进度见 `tasks/todo.md`，范围见 `docs/ROADMAP.md`。
+V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`、`import gemini`、`llm`（AI 服务接入）、`chats`（按说话方读回对话）、`headlines`（新闻雷达），进度见 `tasks/todo.md`，范围见 `docs/ROADMAP.md`。
 所有文档、命令输出、报错信息都是中文，新代码保持一致。
 
 ## 命令
@@ -55,7 +55,7 @@ ruff format .                      # 自动格式化
 - `chatgpt.py`：读官方导出 zip（不解压，逐个分片读取），只取 `current_node` 路径上的消息；格式不认识抛 `ExportFormatError`，不产生半成品。
 - `claude.py`：读 Claude 导出的 `conversations-NNN.zip`（可多个）。只取 `content[]` 里的 `text` 块（顶层 `text` 字段带英文占位，不用）；工具调用 / 结果不导入；文件和附件只留占位；沿 `parent_message_uuid` 走到最新叶子；`updated` 取对话与所有消息里最晚的时间。规格见 `docs/specs/chat-import.delta-v1.md`。
 - `model.py`：平台无关的 `Conversation` / `Message`。新平台应写一个产出这两个类型的解析器，复用 importer。`Message.thinking` / `Conversation.thinking` 支撑 `--include-thinking`：`thinking=None` 的平台不写 frontmatter 的 `thinking` 字段；开关与文件里记录的不同，即使没有新消息也会重写正文。
-- Gemini 导入暂缓（插件导出没有任何时间信息），草案见 `docs/specs/chat-import.delta-gemini.md`，不要在作者批准前实现。
+- `gemini.py`（`docs/specs/chat-import.delta-gemini.md`）：读浏览器插件导出的 zip，根目录每个对话一个 JSON + 一个汇总报告。只认带 `time` 的新版；旧版（`blocks[]`、没有时间）单独报错。同一轮的我和 Gemini 共用一个时间。`Conversation.url` 写进 frontmatter（只补缺的）。CLI 用 `refuse_fewer=True`：消息比文件里少时跳过，防插件没加载完冲掉内容；其他平台不开（ChatGPT 换分支时消息变少是正常的）。
 - `render.py`：正文契约（docs/specs/chat-import.md 第 5 节）。程序只拥有 `<!-- eia:conversation:start ... -->` 与 `<!-- eia:conversation:end -->` 之间的内容；消息标题为 `### 我 · 时间` / `### ChatGPT · 时间`；正文里像标题或标记的行会被转义。
 - `reader.py`（`docs/specs/chat-reader.md`）：`render.py` 的反向，只读。`iter_chats` / `read_chat` 把 vault 文件读回 `ReadChat`（消息 + 标记之外的用户笔记），还原转义，时间到分钟、可能为空。`eia chats dump --only-me` 给后续分析模块用；改正文格式时两边一起改，F10-01 往返测试会兜住。
 - `importer.py`：按 (platform, conversation_id) 在 vault 中索引已有文件（不依赖文件名，用户可改名）。新对话 → `create_new`；`updated` 更新了 → 只替换标记块 + 更新 frontmatter 的少数字段，保留用户的 tags、自加字段和标记下方的笔记；标记损坏、重复文件、YAML 坏掉 → 报"跳过"，不碰文件。

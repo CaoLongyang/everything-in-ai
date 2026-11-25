@@ -5,7 +5,7 @@
 
 能做的事：
 
-- **导入 AI 对话**：ChatGPT、Claude 的官方导出 → 一个对话一个 Markdown 文件；重复导入只更新，不重复，你加的标签和笔记都保留。
+- **导入 AI 对话**：ChatGPT、Claude 的官方导出和 Gemini（浏览器插件导出） → 一个对话一个 Markdown 文件；重复导入只更新，不重复，你加的标签和笔记都保留。
 - **新闻雷达**：每天抓一批新闻源，多家独立媒体都在报的事才写进来，大事不漏、不被刷屏。
 - **兴趣简报**：从你自己说过的话里归纳兴趣，按兴趣挑新闻，你的评价会让它越来越准。
 - **网页剪藏**：Obsidian Web Clipper 的模板，剪下的网页直接进知识库。
@@ -82,7 +82,13 @@ eia import chatgpt ~/Downloads/xxxx.zip
 # Claude：设置 → 隐私 → 导出数据；邮件里有好几个链接，只需要 conversations-000.zip
 eia import claude ~/Downloads/conversations-000.zip
 eia import claude ~/Downloads/conversations-000.zip --include-thinking   # 连思考过程一起导入（折叠显示）
+
+# Gemini：没有官方导出，用浏览器插件导出的 gemini_chats_YYYY-MM-DD.zip（要带时间的新版）
+eia import gemini ~/Downloads/gemini_chats_2026-11-25.zip
 ```
+
+Gemini 的插件导出可能某次没加载完：如果这次导出的消息比 vault 里已有的少，那个对话会被跳过、不覆盖；
+插件报告有对话没导出成功时，结束时会提示，补导出后再导入一次即可。
 
 重复导入是安全的：只更新有新消息的对话，你加的标签、自己加的字段、写在 `eia:conversation:end` 标记下面的笔记都会保留。
 想保持最新，就隔一段时间重新导出、重新导入一次。

@@ -15,7 +15,7 @@ import click
 import yaml
 
 from eia import llm
-from eia.chat import chatgpt, claude
+from eia.chat import chatgpt, claude, gemini
 from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
 from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
@@ -164,6 +164,28 @@ def import_claude(
     except (ExportFormatError, VaultError) as exc:
         raise click.ClickException(f"{exc}。没有写入任何文件") from exc
     _report(len(conversations), result, dry_run)
+
+
+@import_group.command(name="gemini")
+@click.argument("export", type=_FILE)
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--dry-run", is_flag=True, help="只报告会做什么，不写任何文件。")
+@click.option(
+    "--include-thinking", is_flag=True, help="Gemini 的导出里没有思考过程，这个选项没有效果。"
+)
+def import_gemini(export: Path, vault: Path, dry_run: bool, include_thinking: bool) -> None:
+    """导入浏览器插件导出的 gemini_chats_YYYY-MM-DD.zip（不用解压）。"""
+    if include_thinking:
+        click.echo("提示  Gemini 的导出里没有思考过程，--include-thinking 没有效果")
+    try:
+        conversations, notes = gemini.read_export(export)
+        # 插件可能某次没加载完：消息比文件里少时不覆盖
+        result = import_conversations(vault, conversations, dry_run=dry_run, refuse_fewer=True)
+    except (ExportFormatError, VaultError) as exc:
+        raise click.ClickException(f"{exc}。没有写入任何文件") from exc
+    _report(len(conversations), result, dry_run)
+    for note in notes:
+        click.echo(f"提示  {note}")
 
 
 @main.group(name="chats")

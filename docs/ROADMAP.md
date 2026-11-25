@@ -30,7 +30,7 @@
 | `interest-digest` | 从对话生成兴趣草稿、按兴趣过滤资讯、反馈后 AI 提炼兴趣（2026-11-21 取代原 `feed-digest` / `config-sync`：不接 Horizon，借鉴其架构，见 docs/specs/interest-digest.md） |
 | `web-clip` | 剪藏插件模板对齐 schema |
 | 调度 | `eia run <job>` + 本机定时（Windows 任务计划 / cron / launchd）；GitHub Actions 模板，runner 唯一负责 commit/push，同一 vault 只启用一种调度 |
-| `chat-import` | 增加 Claude（官方导出，原 V0 项）和 Gemini（浏览器插件导出的 JSON，样例已有；Takeout 需换到第二个 Google 账号再试）；`--include-thinking` 选项，把模型思考过程以折叠块导入。**进度：Claude ✅ 2026-11-20；Gemini 草案已按 2026-11-25 新版插件导出（带时间）重写，等批准** |
+| `chat-import` | 增加 Claude（官方导出，原 V0 项）和 Gemini（浏览器插件导出的 JSON，样例已有；Takeout 需换到第二个 Google 账号再试）；`--include-thinking` 选项，把模型思考过程以折叠块导入。**进度：Claude ✅ 2026-11-20；Gemini ✅ 2026-11-25（新版插件导出，带时间）** |
 | `chat-reader` | 按说话方读取对话：可以只取「我」说的话，供 `llm-adapter` 之后的分析、画像、兴趣模块使用，避免把 AI 的观点当成用户的想法 |
 | 可分发 | macOS / Linux / Windows 三系统 CI；面向其他用户的安装文档。**进度：CI ✅ 2026-11-20；安装和使用文档 ✅ 2026-11-25（README）** |
 

@@ -1,6 +1,6 @@
 # Delta Spec: chat-import V1（Gemini 部分）
 
-Status: **草案，等作者批准**（2026-11-25 按新版插件导出重写；第 7 节两条作者已口头同意推荐做法）　版本：V1
+Status: 已批准 2026-11-25（第 7 节三项均按推荐）　版本：V1
 改动对象：`docs/specs/chat-import.md`（已批准）；与 `docs/specs/chat-import.delta-v1.md`（Claude）并列
 依据：2026-11-25 对作者用浏览器插件导出的 `gemini_chats_2026-11-25.zip` 做的结构检查（只读字段名、类型、格式和计数，不读、不复制对话内容）。
 

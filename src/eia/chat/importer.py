@@ -68,6 +68,7 @@ def _new_meta(conversation: Conversation) -> dict[str, Any]:
         "status": Status.inbox.value,
         "tags": [],
         "source": conversation.platform,
+        **({} if conversation.url is None else {"url": conversation.url}),
         "platform": conversation.platform,
         "conversation_id": conversation.conversation_id,
         "model": conversation.model,
@@ -88,14 +89,18 @@ def _same_thinking(meta: dict[str, Any], conversation: Conversation) -> bool:
     return (meta.get("thinking") is True) == conversation.thinking
 
 
-def _updated_text(raw: str, conversation: Conversation, tz: dt.tzinfo | None) -> str:
-    changes = {
+def _updated_text(
+    raw: str, meta: dict[str, Any], conversation: Conversation, tz: dt.tzinfo | None
+) -> str:
+    changes: dict[str, Any] = {
         "title": conversation.title,
         "updated": conversation.updated,
         "model": conversation.model,
         "message_count": len(conversation.messages),
         **_thinking_field(conversation),
     }
+    if conversation.url is not None and not meta.get("url"):
+        changes["url"] = conversation.url  # 只补缺的，用户改过的链接不动
     text = update_frontmatter(raw, changes)
     body = parse_text(text, Path()).body
     head = text[: len(text) - len(body)]
@@ -103,8 +108,13 @@ def _updated_text(raw: str, conversation: Conversation, tz: dt.tzinfo | None) ->
 
 
 def import_conversations(
-    root: Path, conversations: Sequence[Conversation], *, dry_run: bool = False
+    root: Path,
+    conversations: Sequence[Conversation],
+    *,
+    dry_run: bool = False,
+    refuse_fewer: bool = False,
 ) -> ImportResult:
+    """refuse_fewer：这次的消息比文件里少时不更新（导出可能不完整的平台用，如 Gemini 插件）。"""
     config = load_config(root)
     result = ImportResult()
     platforms = {conversation.platform for conversation in conversations}
@@ -156,8 +166,17 @@ def import_conversations(
         ):
             result.unchanged += 1
             continue
+        known_count = document.meta.get("message_count")
+        if (
+            refuse_fewer
+            and isinstance(known_count, int)
+            and len(conversation.messages) < known_count
+        ):
+            reason = "这次导出的消息比文件里少，可能导出不完整，文件未改动"
+            result.skipped.append((rel, reason))
+            continue
         try:
-            text = _updated_text(document.raw, conversation, config.timezone)
+            text = _updated_text(document.raw, document.meta, conversation, config.timezone)
         except (MarkerError, FrontmatterError) as exc:
             result.skipped.append((rel, f"{exc}，文件未改动"))
             continue

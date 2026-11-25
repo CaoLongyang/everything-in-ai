@@ -32,3 +32,5 @@ class Conversation:
     messages: tuple[Message, ...]
     # 这次导入是否包含思考过程；None 表示该平台不支持这个选项，不写进 frontmatter
     thinking: bool | None = None
+    # 回到原对话的链接；导出里没有时为 None，不写进 frontmatter
+    url: str | None = None
