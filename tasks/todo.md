@@ -33,6 +33,7 @@
 | V1-9 | SQLite 数据库 + 全文搜索（`eia db` / `eia search`） | F14-01 至 F14-08 | ✅ 2026-11-21（作者两个 vault 已迁移；实现决定见 ADR 0007） |
 | V1-10 | 新闻源扩展：Google News 搜索（含按兴趣自动搜）、Hacker News、中文热榜、推荐源目录 | F15-01 至 F15-09 | ✅ 2026-11-21（Reddit 挪到 Backlog；实现决定见 ADR 0008） |
 | V1-11 | `web-clip`：Obsidian Web Clipper 模板，剪藏落进 `inbox/clips/` 并通过 validate | F16-01 至 F16-05；M-W1 | 🔄 代码完成 2026-11-24（方案 A，默认 `clip` 标签）；等作者在浏览器里实测 M-W1 |
+| V1-12 | 面向其他用户的安装和使用文档（ROADMAP「可分发」后半） | README 覆盖三系统安装、V1 全部命令、数据外发说明 | ✅ 2026-11-25（macOS / Linux 定时用 cron 手动配置，`eia schedule` 仍只支持 Windows） |
 
 ## 已确认
 
