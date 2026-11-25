@@ -23,6 +23,8 @@
 
 ## V1 — 信息输入：大事不漏，兴趣有过滤
 
+状态：✅ 2026-11-25 完成。Gemini 导入、剪藏验收、安装文档在最后一天收尾；`min_score` 校准、GitHub Actions 调度模板等挪到 V2 / Backlog（见下表和 Backlog）。
+
 | 功能 | 范围 |
 |---|---|
 | `llm-adapter` | 单模型配置、`complete` / `complete_json` / `embed`、`eia llm test`（见 docs/specs/llm-adapter.md） |

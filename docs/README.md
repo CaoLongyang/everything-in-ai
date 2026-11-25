@@ -33,7 +33,7 @@
 | scheduler | `scheduler.md` | 每天定时自动运行 | ✅ |
 | interest-digest | `interest-digest.md` | 从对话生成兴趣、按兴趣挑新闻、评价 | ✅；`min_score` 校准在 V2 |
 | storage | `storage.md` | SQLite 数据库和全文搜索 | ✅ |
-| web-clip | `web-clip.md` | 浏览器剪藏插件的模板，剪下的网页直接合规 | 🔄 代码完成，等手动验收 M-W1 |
+| web-clip | `web-clip.md` | 浏览器剪藏插件的模板，剪下的网页直接合规 | ✅ |
 
 ## docs/adr/：实现中做的决定
 

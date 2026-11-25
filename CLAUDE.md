@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目是什么
 
 `eia`（everything-in-ai）：把 AI 对话导入成纯 Markdown 的个人知识库（vault），用 Obsidian 浏览。
-V0 已完成（init / validate / new / import chatgpt）；V1 进行中，已完成 `import claude`、`import gemini`、`llm`（AI 服务接入）、`chats`（按说话方读回对话）、`headlines`（新闻雷达），进度见 `tasks/todo.md`，范围见 `docs/ROADMAP.md`。
+V0 已完成（init / validate / new / import chatgpt）；V1 已于 2026-11-25 完成，包括 `import claude`、`import gemini`、`llm`（AI 服务接入）、`chats`（按说话方读回对话）、`headlines`（新闻雷达）、`interests` / `digest`（兴趣简报）、`run` / `schedule`（定时运行）、`db` / `search`（数据库和全文搜索）、`clip`（剪藏模板）；下一步是 V2，进度见 `tasks/todo.md`，范围见 `docs/ROADMAP.md`。
 所有文档、命令输出、报错信息都是中文，新代码保持一致。
 
 ## 命令
