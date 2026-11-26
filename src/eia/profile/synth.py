@@ -17,7 +17,7 @@ from eia.llm import Client
 from eia.profile.extract import Observation
 from eia.profile.prompts import CATEGORIES, PART_AI, PART_CAREER, PART_CORE, PART_HISTORY
 
-SYNTH_CHARS = 60_000  # 一次汇总最多发这么多字的观察；超过的先丢最早的
+SYNTH_CHARS = 120_000  # 一次汇总最多发这么多字的观察（约 8 万 token）；超过时按月均匀挑
 QUOTE_CHARS = 60
 MAX_LABELS = 5
 INTEREST = "interest"
@@ -268,17 +268,41 @@ def _fill(
 def _fit(
     observations: list[Observation], titles: dict[str, str]
 ) -> tuple[list[tuple[Observation, str]], int]:
-    """编号并写成一行一条；总字数超过 SYNTH_CHARS 时保留最近的。"""
-    newest_first = sorted(observations, key=lambda o: max(o.days, default=""), reverse=True)
-    kept: list[Observation] = []
-    size = 0
-    for obs in newest_first:
-        length = len(_line("O0000", obs, titles))
-        if kept and size + length > SYNTH_CHARS:
-            break
-        kept.append(obs)
-        size += length
-    kept.sort(key=lambda o: (max(o.days, default=""), o.chat_id))
+    """编号并写成一行一条。
+
+    总字数超过 SYNTH_CHARS 时按月轮流挑：每轮从每个月各挑一条（月内先挑最新的），
+    直到装满，这样每个时期都有份，不会只剩最近几个月（docs/specs/profile.delta-sampling.md）。
+    你主动补充的（访谈回答、「我的补充」）一律先放进去。
+    """
+    sizes = [len(_line("O0000", obs, titles)) for obs in observations]
+    if sum(sizes) <= SYNTH_CHARS:
+        picked = list(range(len(observations)))
+    else:
+        picked, size = [], 0
+        mine = [i for i, o in enumerate(observations) if any(q.kind == "self" for q in o.quotes)]
+        mine_set = set(mine)
+        for i in mine:
+            if size + sizes[i] <= SYNTH_CHARS:
+                picked.append(i)
+                size += sizes[i]
+        months: dict[str, list[int]] = {}
+        for i, obs in enumerate(observations):
+            if i not in mine_set:
+                months.setdefault(max(obs.days, default="")[:7] or "未知", []).append(i)
+        queues = [
+            sorted(items, key=lambda i: max(observations[i].days, default=""), reverse=True)
+            for _, items in sorted(months.items())
+        ]
+        while any(queues):
+            for queue in queues:
+                if queue:
+                    i = queue.pop(0)
+                    if size + sizes[i] <= SYNTH_CHARS:
+                        picked.append(i)
+                        size += sizes[i]
+    kept = sorted(
+        (observations[i] for i in picked), key=lambda o: (max(o.days, default=""), o.chat_id)
+    )
     numbered = [(obs, _line(f"O{i}", obs, titles)) for i, obs in enumerate(kept, start=1)]
     return numbered, len(observations) - len(kept)
 

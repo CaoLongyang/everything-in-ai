@@ -175,7 +175,7 @@ def render_body(
         out.append(f"- **{chapter.title}**" + (f"：{names}" if names else ""))
     out += ["- **07 给 AI 的说明**：系统提示词、分析与对话准则", ""]
     if profile.omitted:
-        out += [f"> 观察太多，最早的 {profile.omitted} 条没有参与汇总。", ""]
+        out += [f"> 观察太多，按时间均匀挑了一部分，有 {profile.omitted} 条没有参与汇总。", ""]
     for chapter in profile.chapters:
         out += ["---", "", f"## {chapter.title}", ""]
         if not chapter.subsections:
