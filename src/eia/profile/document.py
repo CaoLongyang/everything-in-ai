@@ -21,6 +21,7 @@ from eia.schema.validate import iter_markdown
 from eia.schema.vault import dir_for
 
 QUOTE_CHARS = 100
+ALIAS_CHARS = 30  # 链接显示的对话标题；Gemini 常拿第一句话当标题，很长
 EVIDENCE_SHOWN = 5
 REJECT_BOX = "不像我"
 REJECTED_HEADING = "## 你说过不像你的"
@@ -166,6 +167,7 @@ def _evidence(obs: Observation, links: dict[str, ChatLink]) -> str:
     quote = quote if len(quote) <= QUOTE_CHARS else quote[:QUOTE_CHARS] + "…"
     link = links.get(obs.chat_id)
     alias = _one_line(link.title).replace("|", "｜") if link else ""
+    alias = alias if len(alias) <= ALIAS_CHARS else alias[:ALIAS_CHARS] + "…"
     where = f"[[{link.stem}|{alias}]]" if link else "（对话文件找不到了）"
     pasted = "；同时贴回了 AI 的一段话" if any(q.kind == "ai" for q in obs.quotes) else ""
     return f"「{quote}」—— {where}{pasted}"

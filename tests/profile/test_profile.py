@@ -12,9 +12,10 @@ from click.testing import CliRunner, Result
 
 from eia.cli import main
 from eia.db import database
+from eia.profile import document as document_mod
 from eia.profile import extract as extract_mod
 from eia.profile import run as run_mod
-from eia.profile.document import read_rejected
+from eia.profile.document import ChatLink, read_rejected
 from eia.profile.material import AI_SNIPPET_CHARS
 from eia.schema.io import read_document
 from eia.schema.validate import validate_vault
@@ -187,6 +188,11 @@ def test_F18_05_profile_file_is_valid_and_linked(vault: Path) -> None:
     assert report.errors == [], report.errors
     stem = chat_file(vault, "claude").stem
     assert f"[[{stem}|信仰与理性]]" in result.path.read_text(encoding="utf-8")
+    long = ChatLink("长" * 40, "x")
+    assert f"[[x|{'长' * 30}…]]" in document_mod._evidence(
+        result.sections[0].conclusions[0].evidence[0],
+        {result.sections[0].conclusions[0].evidence[0].chat_id: long},
+    )
     for heading in ("## 认知与学习", "## 价值观与信仰", "## 身份与经历", "## 你可能没意识到的你"):
         assert heading in result.path.read_text(encoding="utf-8")
 
