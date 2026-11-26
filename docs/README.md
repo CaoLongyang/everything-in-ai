@@ -34,7 +34,7 @@
 | interest-digest | `interest-digest.md` | 从对话生成兴趣、按兴趣挑新闻、评价 | ✅；`min_score` 校准在 V2 |
 | storage | `storage.md` | SQLite 数据库和全文搜索 | ✅ |
 | web-clip | `web-clip.md` | 浏览器剪藏插件的模板，剪下的网页直接合规 | ✅ |
-| profile | `profile.md` | 个人画像：AI 读你说过的话，写「数字化的你」 | 🔄 V2 |
+| profile | `profile.md`、`profile.delta-format.md`（细分章节）、`profile.delta-layout.md`（排版） | 个人画像：AI 读你说过的话，写「数字化的你」 | 🔄 V2 |
 
 ## docs/adr/：实现中做的决定
 

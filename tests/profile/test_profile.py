@@ -176,7 +176,9 @@ def test_F18_04_evidence_is_checked_and_counted(vault: Path) -> None:
     assert "- 没有证据的结论" in questions and "- 一个问题" in questions
     [tension] = sub(result, "tensions").points
     assert (tension.chats, tension.days) == (3, 3)
-    assert "怕麻烦人 ↔ 怕失望：一句话（把握：高｜3 个对话、3 天）" in text
+    line = next(x for x in text.splitlines() if x.startswith("- [ ] 怕麻烦人 ↔ 怕失望：一句话[^"))
+    number = line.rsplit("[^", 1)[1].rstrip("]")
+    assert f"\n[^{number}]: 把握高 · 3 个对话、3 天：「" in text
 
 
 # ---------- F18-05 画像文件 ----------
@@ -229,8 +231,8 @@ def test_F18_06_unchanged_conversations_are_not_resent(vault: Path, model: FakeM
 def test_F18_07_rejections_reach_the_next_run(vault: Path, model: FakeModel) -> None:
     path = _run(vault).path
     text = path.read_text(encoding="utf-8")
-    line = next(x for x in text.splitlines() if x.startswith("- [ ] 不像我｜"))
-    conclusion = line.removeprefix("- [ ] 不像我｜").split("（把握：")[0]
+    line = next(x for x in text.splitlines() if x.startswith("- [ ] ") and "[^" in x)
+    conclusion = line.removeprefix("- [ ] ").split("[^")[0]
     path.write_text(
         text.replace(line, line.replace("- [ ]", "- [x]") + " 原因：我不是这样的"), encoding="utf-8"
     )
