@@ -28,7 +28,7 @@
 | vault-schema | `vault-schema.md`、`vault-schema.delta-v1.md` | 文件格式、目录布局、`init` / `validate` / `new` | ✅ |
 | chat-import | `chat-import.md`、`chat-import.delta-v1.md`（Claude）、`chat-import.delta-gemini.md`（Gemini） | 导入 ChatGPT / Claude / Gemini 对话 | ✅ |
 | llm-adapter | `llm-adapter.md`、`llm-adapter.delta-v1.md` | 接入 AI 服务（DeepSeek、Claude、本机 Ollama） | ✅ |
-| chat-reader | `chat-reader.md` | 把对话读回来给其他模块分析 | ✅ |
+| chat-reader | `chat-reader.md`、`chat-reader.delta-paste.md`（V2：标出文字来源） | 把对话读回来给其他模块分析 | ✅ |
 | headline-radar | `headline-radar.md`、`headline-radar.delta-sources.md`（新闻源扩展） | 新闻雷达：多家媒体都报道的大事 | ✅ |
 | scheduler | `scheduler.md` | 每天定时自动运行 | ✅ |
 | interest-digest | `interest-digest.md` | 从对话生成兴趣、按兴趣挑新闻、评价 | ✅；`min_score` 校准在 V2 |

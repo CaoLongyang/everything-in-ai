@@ -58,6 +58,7 @@ ruff format .                      # 自动格式化
 - `gemini.py`（`docs/specs/chat-import.delta-gemini.md`）：读浏览器插件导出的 zip，根目录每个对话一个 JSON + 一个汇总报告。只认带 `time` 的新版；旧版（`blocks[]`、没有时间）单独报错。同一轮的我和 Gemini 共用一个时间。`Conversation.url` 写进 frontmatter（只补缺的）。CLI 用 `refuse_fewer=True`：消息比文件里少时跳过，防插件没加载完冲掉内容；其他平台不开（ChatGPT 换分支时消息变少是正常的）。
 - `render.py`：正文契约（docs/specs/chat-import.md 第 5 节）。程序只拥有 `<!-- eia:conversation:start ... -->` 与 `<!-- eia:conversation:end -->` 之间的内容；消息标题为 `### 我 · 时间` / `### ChatGPT · 时间`；正文里像标题或标记的行会被转义。
 - `reader.py`（`docs/specs/chat-reader.md`）：`render.py` 的反向，只读。`iter_chats` / `read_chat` 把 vault 文件读回 `ReadChat`（消息 + 标记之外的用户笔记），还原转义，时间到分钟、可能为空。`eia chats dump --only-me` 给后续分析模块用；改正文格式时两边一起改，F10-01 往返测试会兜住。
+- `source.py`（`docs/specs/chat-reader.delta-paste.md`）：把「我」的消息切段、标来源（`own` / `ai` / `code` / `error` / `attachment`），只认有证据的规则，不判断态度、不删内容。`label_chat` 与 `chat.messages` 一一对应。分析模块判断「我认为什么」只能引用 `own`；兴趣草稿用 `fair_share` 让每条消息分量一样。
 - `importer.py`：按 (platform, conversation_id) 在 vault 中索引已有文件（不依赖文件名，用户可改名）。新对话 → `create_new`；`updated` 更新了 → 只替换标记块 + 更新 frontmatter 的少数字段，保留用户的 tags、自加字段和标记下方的笔记；标记损坏、重复文件、YAML 坏掉 → 报"跳过"，不碰文件。
 
 **llm/**（规格 `docs/specs/llm-adapter.md` + `docs/specs/llm-adapter.delta-v1.md`，实现决定见 ADR 0003）

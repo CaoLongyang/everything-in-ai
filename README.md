@@ -98,6 +98,7 @@ Gemini 的插件导出可能某次没加载完：如果这次导出的消息比 
 ```bash
 eia chats stats                        # 每个平台多少对话、你说了多少话
 eia chats dump --only-me --since 2026-01-01   # 只看你自己说的话
+eia chats dump --own-only     # 再去掉你贴进去的 AI 回答、代码、报错、附件
 ```
 
 ## 3. 接入 AI 服务（可选）

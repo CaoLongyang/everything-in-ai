@@ -6,7 +6,7 @@
 
 | # | 任务 | 依赖 | 验收标准 | 状态 |
 |---|---|---|---|---|
-| V2-1 | ① `chat-reader` 区分粘贴内容（标出文字来源） | — | F17（规格批准后登记） | 🔄 规格草稿 `docs/specs/chat-reader.delta-paste.md`，等批准 |
+| V2-1 | ① `chat-reader` 区分粘贴内容（标出文字来源） | — | F17-01 至 F17-06 | ✅ 2026-11-26（只标来源、不判断态度；兴趣草稿每条消息分量一样；规格 `docs/specs/chat-reader.delta-paste.md`） |
 | V2-2 | ② `profile` 个人画像 | V2-1 | — | ⬜ |
 | V2-3 | ③ 兴趣分层 + 气泡选择界面；`min_score` 校准 | V2-2 | — | ⬜ |
 | V2-4 | ④ 闭环：评价和知识库内容反向调节兴趣过滤 | V2-3 | — | ⬜ |
@@ -63,6 +63,10 @@
 | V1-10 | 新闻源扩展：Google News 搜索（含按兴趣自动搜）、Hacker News、中文热榜、推荐源目录 | F15-01 至 F15-09 | ✅ 2026-11-21（Reddit 挪到 Backlog；实现决定见 ADR 0008） |
 | V1-11 | `web-clip`：Obsidian Web Clipper 模板，剪藏落进 `inbox/clips/` 并通过 validate | F16-01 至 F16-05；M-W1 | ✅ 2026-11-25（方案 A，默认 `clip` 标签；M-W1 实测 3 篇：B 站视频、英文 Reddit 帖子、英文维基百科，时间一致、validate 0 错误；「没有作者的页面」没测到，维基百科也带了作者） |
 | V1-12 | 面向其他用户的安装和使用文档（ROADMAP「可分发」后半） | README 覆盖三系统安装、V1 全部命令、数据外发说明 | ✅ 2026-11-25（macOS / Linux 定时用 cron 手动配置，`eia schedule` 仍只支持 Windows） |
+
+## V2 验证记录
+
+- 2026-11-26 Windows：`check.py` ALL PASSED（472 个测试，123 条验收通过，覆盖率 98%，`chat/source.py` 100%）。test-vault 只读试跑 `eia chats stats` / `dump --own-only`：约 7 秒；运行前后文件哈希不变。按来源字数：ChatGPT 来自 AI 1.2 万、报错 1.5 万；Gemini 来自 AI 60.9 万（占「我」的字数 30%）、报错 3.6 万；Claude 附件占位 409 字，与规格第 8 节的统计一致。
 
 ## 已确认
 

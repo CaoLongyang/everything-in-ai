@@ -1,6 +1,6 @@
 # Delta Spec: chat-reader V2（标出消息里文字的来源）
 
-Status: 草案 2026-11-26，等批准　版本：V2
+Status: 已批准 2026-11-26　版本：V2
 改动对象：`docs/specs/chat-reader.md`（已批准）；`docs/specs/interest-digest.md` 第 1 步（已批准）
 依据：`docs/ROADMAP.md` V2「`chat-reader` 区分粘贴内容」；`chat-reader.md` 第 6 节第 2 条；2026-11-26 与作者的讨论和对作者 vault 的只读统计（第 8 节）。
 
@@ -31,7 +31,7 @@ V2 把「我」的每条消息切成段，**每段标上来源：这些字是谁
 | R1 | `ai` | 这一段在**同一对话里、这条消息之前**的 AI 回答中原样出现。比较时忽略空白和 Markdown 符号（`*` `_` `` ` `` `#` `>` `|` `-`）。比较前去掉符号后少于 20 个字的段不算，防止「好的」「谢谢」这种短句碰巧一样 |
 | R2 | `code` | 代码块 |
 | R3 | `error` | 连续 ≥ 2 行符合常见报错格式：Python `Traceback (most recent call last):` / `  File "...", line N`、Java/JS `    at xxx(...)`、`Exception in thread`、Rust `error[E0308]:`、`XxxError:` / `XxxException:` 开头 |
-| R4 | `attachment` | 导入时写的附件占位 `[附件：...]` |
+| R4 | `attachment` | 整段都是导入时写的占位：`[附件：...]`、`[文件：...]`、`[文件]`、`[图片：...]`（Claude 把这几种写在同一段里；2026-11-26 实现时补上后三种） |
 | — | `own` | 以上都不是 |
 
 - 20 字只用来排除巧合，跟用户是谁无关，不需要校准。
@@ -46,21 +46,22 @@ Source = Literal["own", "ai", "code", "error", "attachment"]
 @dataclass(frozen=True)
 class Part:
     source: Source
-    text: str
+    text: str            # 带着这段后面的空行，所有段直接连起来就是原消息
 
-def split_message(text: str, earlier_ai: Sequence[str]) -> tuple[Part, ...]
-def label_chat(chat: ReadChat) -> tuple[tuple[Part, ...], ...]   # 和 chat.user_messages() 一一对应
+def split_message(text: str, earlier_ai: str) -> tuple[Part, ...]   # 相邻、来源相同的段合并
+def label_chat(chat: ReadChat) -> tuple[tuple[Part, ...] | None, ...]  # 和 chat.messages 一一对应，AI 的消息是 None
+def text_of(parts, *, sources) -> str                              # 只拼出指定来源的段
 ```
 
 ## 5. 命令的变化
 
 ```
-eia chats dump ... [--own-only]     # 「我」的消息只输出 own 段；全是别的来源的消息不输出
+eia chats dump ... [--own-only]     # 只看我的话，且「我」的消息只输出 own 段；全是别的来源的消息不输出
 eia chats stats ...                 # 每个平台多一行：各来源的字数
 ```
 
 - `--only-me` 照旧输出整条消息，不去掉任何内容。
-- `--format jsonl`：「我」的消息多一个 `parts` 字段：`[{"source": "ai", "text": "..."}, ...]`；`text` 仍是整条原文，旧的读法不受影响。
+- `--format jsonl`：「我」的消息多一个 `parts` 字段：`[{"source": "ai", "text": "..."}, ...]`（每段去掉首尾空白）；`text` 仍是整条原文，旧的读法不受影响。加了 `--own-only` 时 `text` 只有 own 段，没有 `parts`。
 - `--format text`：非 `own` 的段前面加一行 `〔来自 AI〕` / `〔代码〕` / `〔报错〕` / `〔附件〕`，方便自己检查。
 
 ## 6. 对使用方的要求

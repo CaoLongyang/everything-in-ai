@@ -108,6 +108,7 @@ def collect_docs(root: Path) -> tuple[list[ChatDoc], int]:
         parts = [m.text.strip() for m in mine]
         if item.notes:
             parts.append(item.notes)
+        parts = fair_share(parts, EMBED_CHARS - len(item.title) - 1)
         if not parts:
             continue
         times = [m.time for m in mine if m.time is not None]
@@ -121,6 +122,25 @@ def collect_docs(root: Path) -> tuple[list[ChatDoc], int]:
             )
         )
     return docs, skipped
+
+
+def fair_share(texts: list[str], budget: int) -> list[str]:
+    """每条消息分量一样（docs/specs/chat-reader.delta-paste.md 第 6 节）。
+
+    总字数超过 budget 时，给每条定同一个上限：短的全留，长的截到上限，
+    一条几万字的粘贴不会把其他消息挤出去。
+    """
+    budget -= len(texts)  # 拼接用的换行
+    if sum(len(t) for t in texts) <= budget:
+        return texts
+    cap, remaining = 0, budget
+    for index, length in enumerate(sorted(len(t) for t in texts)):
+        share = remaining // (len(texts) - index)
+        if length > share:
+            cap = share
+            break
+        remaining -= length
+    return [text[:cap] for text in texts]
 
 
 def _embed_text(doc: ChatDoc) -> str:

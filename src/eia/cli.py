@@ -8,7 +8,7 @@ import json
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import click
@@ -20,6 +20,7 @@ from eia.chat.importer import ImportResult, import_conversations
 from eia.chat.model import ExportFormatError
 from eia.chat.reader import ReadChat, ReadMessage, Skipped, iter_chats
 from eia.chat.render import SPEAKERS, USER_LABEL
+from eia.chat.source import SOURCE_LABELS, SOURCES, Part, label_chat, text_of
 from eia.clip import template as clip_template
 from eia.db import DatabaseError, database
 from eia.db import ops as db_ops
@@ -200,6 +201,11 @@ _DATE = click.DateTime(formats=["%Y-%m-%d"])
 @click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
 @click.option("--only-me", is_flag=True, help="只输出我说的话（和我的笔记）。")
 @click.option("--no-notes", is_flag=True, help="不输出我在对话文件里写的笔记。")
+@click.option(
+    "--own-only",
+    is_flag=True,
+    help="只输出我自己写的段：去掉贴回的 AI 回答、代码、报错、附件（同时只看我的话）。",
+)
 @click.option("--platform", type=click.Choice([p.value for p in Platform]), help="只看一个平台。")
 @click.option("--since", type=_DATE, help="从这天起（含），按消息时间，格式 2026-01-31。")
 @click.option("--until", type=_DATE, help="到这天为止（含）。")
@@ -210,34 +216,44 @@ def chats_dump(
     vault: Path,
     only_me: bool,
     no_notes: bool,
+    own_only: bool,
     platform: str | None,
     since: dt.datetime | None,
     until: dt.datetime | None,
     fmt: str,
 ) -> None:
-    """按说话方输出对话。jsonl 每行一条消息，给其他程序用；跳过的文件写到 stderr。"""
+    """按说话方输出对话。jsonl 每行一条消息，给其他程序用；跳过的文件写到 stderr。
+
+    「我」的消息带每段文字的来源（docs/specs/chat-reader.delta-paste.md）。
+    """
     tz = _vault_timezone(vault)
+    only_me = only_me or own_only
     window = (since.date() if since else None, until.date() if until else None)
     for item in iter_chats(vault, tz, platform=platform):
         if isinstance(item, Skipped):
             click.echo(f"跳过  {item.path.relative_to(vault).as_posix()}  {item.reason}", err=True)
             continue
-        picked = [
-            m
-            for m in item.messages
-            if (not only_me or m.role == "user") and _in_window(m.time, window, tz)
-        ]
+        picked: list[tuple[ReadMessage, tuple[Part, ...] | None]] = []
+        for message, parts in zip(item.messages, label_chat(item), strict=True):
+            if (only_me and message.role != "user") or not _in_window(message.time, window, tz):
+                continue
+            if own_only and parts is not None:
+                own = text_of(parts, sources=("own",))
+                if own:
+                    picked.append((replace(message, text=own), None))
+                continue
+            picked.append((message, parts))
         if not no_notes and item.notes and _in_window(item.updated, window, tz):
-            picked.append(ReadMessage("note", None, item.notes))
+            picked.append((ReadMessage("note", None, item.notes), None))
         if not picked:
             continue
         if fmt == "jsonl":
-            for message in picked:
-                click.echo(json.dumps(_record(item, message), ensure_ascii=False))
+            for message, parts in picked:
+                click.echo(json.dumps(_record(item, message, parts), ensure_ascii=False))
         else:
             click.echo(f"== {item.title}（{item.platform} · {item.id}）\n")
-            for message in picked:
-                click.echo(f"### {_label(item, message, tz)}\n\n{message.text}\n")
+            for message, parts in picked:
+                click.echo(f"### {_label(item, message, tz)}\n\n{_shown(message, parts)}\n")
 
 
 @chats_group.command(name="stats")
@@ -246,21 +262,29 @@ def chats_stats(vault: Path) -> None:
     """每个平台：对话数、我的消息数和字数、写了笔记的对话数。"""
     tz = _vault_timezone(vault)
     totals: dict[str, list[int]] = {}
+    by_source: dict[str, dict[str, int]] = {}
     skipped = 0
     for item in iter_chats(vault, tz):
         if isinstance(item, Skipped):
             skipped += 1
             continue
-        row = totals.setdefault(item.platform or "（未知平台）", [0, 0, 0, 0])
+        name = item.platform or "（未知平台）"
+        row = totals.setdefault(name, [0, 0, 0, 0])
         mine = item.user_messages()
         row[0] += 1
         row[1] += len(mine)
         row[2] += sum(len(m.text) for m in mine)
         row[3] += 1 if item.notes else 0
+        counted = by_source.setdefault(name, dict.fromkeys(SOURCES, 0))
+        for parts in label_chat(item):
+            for part in parts or ():
+                counted[part.source] += len(part.text.strip())
     for name, (chats, messages, chars, notes) in sorted(totals.items()):
         click.echo(
             f"{name}：{chats} 个对话，我的消息 {messages} 条、{chars} 字，{notes} 个对话写了笔记"
         )
+        counted = by_source[name]
+        click.echo("  按来源：" + "，".join(f"{SOURCE_LABELS[s]} {counted[s]} 字" for s in SOURCES))
     if not totals:
         click.echo("没有找到对话")
     if skipped:
@@ -296,7 +320,22 @@ def _label(chat: ReadChat, message: ReadMessage, tz: dt.tzinfo | None) -> str:
     return f"{who} · {when}"
 
 
-def _record(chat: ReadChat, message: ReadMessage) -> dict[str, object]:
+def _shown(message: ReadMessage, parts: tuple[Part, ...] | None) -> str:
+    """text 格式：不是我写的段前面加一行来源标签。"""
+    if parts is None or all(part.source == "own" for part in parts):
+        return message.text
+    shown = []
+    for part in parts:
+        text = part.text.strip()
+        if text:
+            label = "" if part.source == "own" else f"〔{SOURCE_LABELS[part.source]}〕\n"
+            shown.append(label + text)
+    return "\n\n".join(shown)
+
+
+def _record(
+    chat: ReadChat, message: ReadMessage, parts: tuple[Part, ...] | None = None
+) -> dict[str, object]:
     record: dict[str, object] = {
         "id": chat.id,
         "platform": chat.platform,
@@ -307,6 +346,12 @@ def _record(chat: ReadChat, message: ReadMessage) -> dict[str, object]:
     }
     if message.thinking:
         record["thinking"] = message.thinking
+    if parts is not None:
+        record["parts"] = [
+            {"source": part.source, "text": part.text.strip()}
+            for part in parts
+            if part.text.strip()
+        ]
     return record
 
 
