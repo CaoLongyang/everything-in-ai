@@ -26,7 +26,7 @@
 | 模块 | 文件 | 做什么 | 状态 |
 |---|---|---|---|
 | vault-schema | `vault-schema.md`、`vault-schema.delta-v1.md`、`vault-schema.delta-profile.md`（V2：画像条目） | 文件格式、目录布局、`init` / `validate` / `new` | ✅ |
-| chat-import | `chat-import.md`、`chat-import.delta-v1.md`（Claude）、`chat-import.delta-gemini.md`（Gemini） | 导入 ChatGPT / Claude / Gemini 对话 | ✅ |
+| chat-import | `chat-import.md`、`chat-import.delta-v1.md`（Claude）、`chat-import.delta-gemini.md`（Gemini）、`chat-import.delta-title.md`（标题只留一行） | 导入 ChatGPT / Claude / Gemini 对话 | ✅ |
 | llm-adapter | `llm-adapter.md`、`llm-adapter.delta-v1.md` | 接入 AI 服务（DeepSeek、Claude、本机 Ollama） | ✅ |
 | chat-reader | `chat-reader.md`、`chat-reader.delta-paste.md`（V2：标出文字来源） | 把对话读回来给其他模块分析 | ✅ |
 | headline-radar | `headline-radar.md`、`headline-radar.delta-sources.md`（新闻源扩展） | 新闻雷达：多家媒体都报道的大事 | ✅ |

@@ -14,6 +14,7 @@ import json
 import re
 import secrets
 import shlex
+import sys
 import threading
 import time
 import webbrowser
@@ -966,9 +967,31 @@ def make_handler(token: str, port: int, default_vault: str) -> type[BaseHTTPRequ
     return Handler
 
 
+class LocalServer(ThreadingHTTPServer):
+    # Windows 上 SO_REUSEADDR 会让两个程序同时占用同一个端口，端口被占用也发现不了
+    allow_reuse_address = sys.platform != "win32"
+
+
+def bind(token: str, port: int, vault: str) -> ThreadingHTTPServer:
+    """端口被占用或被 Windows 保留（WinError 10013）时，往后换几个，最后让系统随便给一个。"""
+    for candidate in [*range(port, port + 10), 0]:
+        try:
+            server = LocalServer(("127.0.0.1", candidate), make_handler(token, 0, vault))
+        except OSError:
+            continue
+        actual = server.server_address[1]
+        # Host 检查要用真实端口
+        server.RequestHandlerClass = make_handler(token, actual, vault)
+        if candidate != port:
+            print(f"端口 {port} 用不了（被占用或被系统保留），换成了 {actual}")
+        return server
+    raise OSError("找不到能用的端口")
+
+
 def serve(vault: str, port: int, open_browser: bool) -> None:
     token = secrets.token_urlsafe(24)
-    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(token, port, vault))
+    server = bind(token, port, vault)
+    port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/"
     print(f"试用页面：{url}   （Ctrl+C 停止）")
     if open_browser:

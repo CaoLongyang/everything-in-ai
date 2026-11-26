@@ -443,3 +443,27 @@ def test_F8_08_include_thinking_has_no_effect_but_says_so(vault: Path, make_gemi
     assert result.exit_code == 0, result.output
     assert "--include-thinking 没有效果" in result.output
     assert all("thinking" not in read_document(p).meta for p in chat_files(vault))
+
+
+def test_F8_09_long_multiline_titles_are_cut_to_one_line(vault: Path) -> None:
+    from eia.chat.importer import TITLE_CHARS, clean_title
+    from eia.chat.model import Conversation, Message
+
+    t0 = dt.datetime(2026, 5, 13, 2, 0, tzinfo=dt.UTC)
+    code = "帮我写注释\nimport java.io.File;\n" + "x = 1;\n" * 500
+    first = Conversation(
+        "gemini", "g-title", code, t0, t0, None, (Message("user", t0, "帮我写注释"),)
+    )
+    import_conversations(vault, [first])
+    [path] = chat_files(vault)
+    assert read_document(path).meta["title"] == "帮我写注释"
+    assert "\n" not in path.name and "import" not in path.name
+
+    later = t0 + dt.timedelta(days=1)
+    again = Conversation(
+        "gemini", "g-title", "  长" * 100, t0, later, None, (Message("user", later, "再问一句"),)
+    )
+    import_conversations(vault, [again])  # 重新导入时也一样处理
+    title = read_document(path).meta["title"]
+    assert len(title) <= TITLE_CHARS + 1 and title.endswith("…") and "\n" not in title
+    assert clean_title("  \n  标题  \n第二行") == "标题" and clean_title("") == ""

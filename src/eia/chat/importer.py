@@ -57,12 +57,25 @@ def index_chats(root: Path, platform: str) -> dict[str, list[Path]]:
     return found
 
 
+TITLE_CHARS = 80
+
+
+def clean_title(title: str) -> str:
+    """标题只留第一行，太长的截短（docs/specs/chat-import.delta-title.md）。
+
+    Gemini 插件会把整条第一句话（可能带几千字的代码）当标题导出。
+    """
+    first = next((line.strip() for line in title.splitlines() if line.strip()), "")
+    first = " ".join(first.split())
+    return first if len(first) <= TITLE_CHARS else first[:TITLE_CHARS].rstrip() + "…"
+
+
 def _new_meta(conversation: Conversation) -> dict[str, Any]:
     return {
         "schema": SCHEMA_VERSION,
         "id": chat_id(conversation.platform, conversation.conversation_id, conversation.created),
         "type": EntryType.chat.value,
-        "title": conversation.title,
+        "title": clean_title(conversation.title) or conversation.title,
         "created": conversation.created,
         "updated": conversation.updated,
         "status": Status.inbox.value,
@@ -93,7 +106,7 @@ def _updated_text(
     raw: str, meta: dict[str, Any], conversation: Conversation, tz: dt.tzinfo | None
 ) -> str:
     changes: dict[str, Any] = {
-        "title": conversation.title,
+        "title": clean_title(conversation.title) or conversation.title,
         "updated": conversation.updated,
         "model": conversation.model,
         "message_count": len(conversation.messages),
@@ -135,9 +148,7 @@ def import_conversations(
         if not paths:
             folder = root / dir_for(EntryType.chat.value, conversation.platform)
             meta = _new_meta(conversation)
-            name = entry_filename(
-                conversation.title, meta["id"], conversation.created, config.timezone
-            )
+            name = entry_filename(meta["title"], meta["id"], conversation.created, config.timezone)
             target = folder / name
             if not dry_run:
                 folder.mkdir(parents=True, exist_ok=True)

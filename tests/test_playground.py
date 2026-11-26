@@ -455,3 +455,18 @@ def test_tools(server: tuple[str, str, Path]) -> None:
     assert rebuilt["exit_code"] == 0 and rebuilt["command"].endswith("--yes")
     clip = _post(base, {"action": "clip_template", "params": {"vault": str(vault)}}, token)
     assert clip["exit_code"] == 0 and (vault / "eia-clipper.json").is_file()
+
+
+def test_busy_port_falls_back_to_another() -> None:
+    from http.server import ThreadingHTTPServer as Server
+
+    taken = Server(("127.0.0.1", 0), playground.make_handler("tok", 0, ""))
+    busy = taken.server_address[1]
+    try:
+        server = playground.bind("tok", busy, "")
+        try:
+            assert server.server_address[1] != busy
+        finally:
+            server.server_close()
+    finally:
+        taken.server_close()
