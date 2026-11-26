@@ -1,7 +1,8 @@
-"""第 3 步：按大类把观察汇总成结论（docs/specs/profile.md 第 3、4 节）。
+"""第 3 步：把观察汇总成画像（docs/specs/profile.delta-format.md 第 1、3 节）。
 
-只发观察和原话，不发整段对话。AI 引用不存在的观察编号就丢掉；一条证据都没有的结论改成未解问题。
-每条结论来自几个对话、几天，由程序按证据数，不听 AI 的。
+分 4 次请求：核心档案和心理、学业职业和兴趣、决策和时间线，最后根据前面的结论写「给 AI 的说明」。
+只发观察和原话，不发整段对话。AI 引用不存在的观察编号就丢掉；一条证据都没有的要点改成未解问题。
+对话数、天数、日期由程序按证据算，不听 AI 的。
 """
 
 from __future__ import annotations
@@ -14,26 +15,74 @@ from pydantic import BaseModel
 
 from eia.llm import Client
 from eia.profile.extract import Observation
-from eia.profile.prompts import CATEGORIES, HIDDEN_SYSTEM, SYNTH_SYSTEM
+from eia.profile.prompts import CATEGORIES, PART_AI, PART_CAREER, PART_CORE, PART_HISTORY
 
 SYNTH_CHARS = 60_000  # 一次汇总最多发这么多字的观察；超过的先丢最早的
-QUOTE_CHARS = 120
-HIDDEN = "hidden"
+QUOTE_CHARS = 60
+MAX_LABELS = 5
+INTEREST = "interest"
 
 Confidence = Literal["高", "中", "低"]
 _KIND_NAMES = {"stated": "说过", "inferred": "推断", "excerpt": "原话"}
 
+# 章 → 固定的小节（key, 标题）。03 兴趣的小节由 AI 定；04、05 只有一个不显示标题的小节
+CHAPTERS: tuple[tuple[str, str, tuple[tuple[str, str], ...]], ...] = (
+    (
+        "core",
+        "00 核心档案",
+        (("about", "关于我"), ("values", "价值观"), ("communication", "沟通偏好")),
+    ),
+    (
+        "psychology",
+        "01 心理",
+        (
+            ("motivation", "动机模式"),
+            ("behavior", "行为模式"),
+            ("social", "社交关系"),
+            ("tensions", "你身上的张力"),
+            ("hidden", "你可能没意识到的你"),
+        ),
+    ),
+    (
+        "career",
+        "02 学业与职业",
+        (("education", "教育"), ("goals", "职业目标"), ("skills", "技能与项目")),
+    ),
+    ("interests", "03 兴趣", ()),
+    ("decisions", "04 决策记录", (("decisions", ""),)),
+    ("timeline", "05 时间线", (("timeline", ""),)),
+)
+_PARTS = (
+    (PART_CORE, ("core", "psychology")),
+    (PART_CAREER, ("career", "interests")),
+    (PART_HISTORY, ("decisions", "timeline")),
+)
+DATED = ("decisions", "timeline")  # 这两章的要点按日期排，前面写日期
 
-class _Concluded(BaseModel):
-    kind: Literal["stated", "inferred"]
+
+class _Point(BaseModel):
     text: str
     confidence: Confidence
     evidence: list[str]
 
 
-class _Section(BaseModel):
-    conclusions: list[_Concluded]
+class _Sub(BaseModel):
+    key: str
+    title: str = ""
+    label: str = ""
+    summary: str = ""
+    points: list[_Point] = []
+
+
+class _Part(BaseModel):
+    labels: list[str] = []
+    subsections: list[_Sub]
     open_questions: list[str] = []
+
+
+class _Instructions(BaseModel):
+    system_prompt: str
+    guidelines: list[str] = []
 
 
 @dataclass(frozen=True)
@@ -45,8 +94,7 @@ class Rejected:
 
 
 @dataclass(frozen=True)
-class Conclusion:
-    kind: Literal["stated", "inferred"]
+class Point:
     text: str
     confidence: Confidence
     evidence: tuple[Observation, ...]
@@ -57,15 +105,45 @@ class Conclusion:
 
     @property
     def days(self) -> int:
-        return len(set().union(*(o.days for o in self.evidence)))
+        return len(self._days)
+
+    @property
+    def first_day(self) -> str | None:
+        return min(self._days, default=None)
+
+    @property
+    def _days(self) -> set[str]:
+        return set().union(*(o.days for o in self.evidence))
 
 
 @dataclass
-class Section:
-    key: str  # cognition / interests / values / identity / hidden
-    conclusions: list[Conclusion] = field(default_factory=list)
+class Subsection:
+    key: str
+    title: str
+    label: str = ""
+    summary: str = ""
+    points: list[Point] = field(default_factory=list)
+
+
+@dataclass
+class Chapter:
+    key: str
+    title: str
+    subsections: list[Subsection]
+
+
+@dataclass
+class Profile:
+    labels: list[str]
+    chapters: list[Chapter]
     open_questions: list[str] = field(default_factory=list)
+    system_prompt: str = ""
+    guidelines: list[str] = field(default_factory=list)
     omitted: int = 0  # 超过 SYNTH_CHARS 没发出去的观察
+
+    @property
+    def points(self) -> int:
+        return sum(len(s.points) for c in self.chapters for s in c.subsections)
 
 
 def synthesize(
@@ -74,90 +152,117 @@ def synthesize(
     rejected: Sequence[Rejected],
     *,
     titles: dict[str, str],
-) -> list[Section]:
-    """每个大类一次请求，再加一次「你可能没意识到的你」。"""
-    sections: list[Section] = []
-    for key, name in CATEGORIES.items():
-        mine = [o for o in observations if o.category == key]
-        if not mine:
-            sections.append(Section(key))
-            continue
-        system = SYNTH_SYSTEM.replace("{category}", name)
-        sections.append(_ask(client, key, system, mine, rejected, titles))
-    if observations:
-        sections.append(_ask(client, HIDDEN, HIDDEN_SYSTEM, list(observations), rejected, titles))
-    else:
-        sections.append(Section(HIDDEN))
-    return sections
-
-
-def _ask(
-    client: Client,
-    key: str,
-    system: str,
-    observations: list[Observation],
-    rejected: Sequence[Rejected],
-    titles: dict[str, str],
-) -> Section:
-    numbered, omitted = _fit(observations, titles, with_category=key == HIDDEN)
+) -> Profile:
+    numbered, omitted = _fit(list(observations), titles)
+    by_id = {f"O{i}": obs for i, (obs, _) in enumerate(numbered, start=1)}
     lines = [line for _, line in numbered]
     if rejected:
         lines.append("\nTA说过不像TA的结论（不要再这样写）：")
         lines.extend(f"- {r.text}" + (f"（原因：{r.why}）" if r.why else "") for r in rejected)
-    reply = client.complete_json("\n".join(lines), _Section, system=system)
-    by_id = dict(numbered_ids(numbered))
-    section = Section(key, omitted=omitted)
-    for concluded in reply.conclusions:
-        text = concluded.text.strip()
+    prompt = "\n".join(lines)
+    profile = Profile(labels=[], chapters=_empty_chapters(), omitted=omitted)
+    chapters = {c.key: c for c in profile.chapters}
+    for system, keys in _PARTS:
+        reply = (
+            client.complete_json(prompt, _Part, system=system)
+            if numbered
+            else _Part(subsections=[])
+        )
+        if not profile.labels:
+            profile.labels = _labels(reply.labels)
+        profile.open_questions.extend(q.strip() for q in reply.open_questions if q.strip())
+        for sub in reply.subsections:
+            _fill(sub, [chapters[k] for k in keys], by_id, profile.open_questions)
+    for key in DATED:
+        for dated in chapters[key].subsections:
+            dated.points.sort(key=lambda p: p.first_day or "")
+    if profile.points:
+        instructions = client.complete_json(summary_text(profile), _Instructions, system=PART_AI)
+        profile.system_prompt = instructions.system_prompt.strip()
+        profile.guidelines = [g.strip() for g in instructions.guidelines if g.strip()]
+    return profile
+
+
+def summary_text(profile: Profile) -> str:
+    """第 4 次请求发的内容：前面各章的结论，不带观察和原话。"""
+    lines = ["核心标签：" + " · ".join(profile.labels)]
+    for chapter in profile.chapters:
+        lines.append(f"\n## {chapter.title}")
+        for sub in chapter.subsections:
+            if not sub.points:
+                continue
+            head = " ".join(part for part in (sub.title, sub.label and f"【{sub.label}】") if part)
+            if head or sub.summary:
+                lines.append(f"### {head} {sub.summary}".rstrip())
+            lines.extend(f"- {p.text}" for p in sub.points)
+    return "\n".join(lines)
+
+
+def _empty_chapters() -> list[Chapter]:
+    return [
+        Chapter(key, title, [Subsection(k, t) for k, t in subs]) for key, title, subs in CHAPTERS
+    ]
+
+
+def _labels(raw: list[str]) -> list[str]:
+    return list(dict.fromkeys(label.strip() for label in raw if label.strip()))[:MAX_LABELS]
+
+
+def _fill(
+    sub: _Sub, chapters: list[Chapter], by_id: dict[str, Observation], questions: list[str]
+) -> None:
+    key = sub.key.strip()
+    target: Subsection | None = None
+    if key == INTEREST:
+        interests = next((c for c in chapters if c.key == "interests"), None)
+        if interests is None or not sub.title.strip():
+            return  # 没有标题的兴趣不知道放哪
+        target = Subsection(INTEREST, sub.title.strip())
+        interests.subsections.append(target)
+    else:
+        target = next((s for c in chapters for s in c.subsections if s.key == key), None)
+    if target is None:
+        return  # 不是这次请求该写的小节
+    target.label = target.label or sub.label.strip()
+    target.summary = target.summary or sub.summary.strip()
+    for point in sub.points:
+        text = point.text.strip()
         if not text:
             continue
         evidence = tuple(
-            dict.fromkeys(by_id[e.strip()] for e in concluded.evidence if e.strip() in by_id)
+            dict.fromkeys(by_id[e.strip()] for e in point.evidence if e.strip() in by_id)
         )
-        if not evidence:
-            section.open_questions.append(text)
-            continue
-        kind: Literal["stated", "inferred"] = "inferred" if key == HIDDEN else concluded.kind
-        section.conclusions.append(Conclusion(kind, text, concluded.confidence, evidence))
-    section.open_questions.extend(q.strip() for q in reply.open_questions if q.strip())
-    return section
-
-
-def numbered_ids(numbered: list[tuple[Observation, str]]) -> list[tuple[str, Observation]]:
-    return [(f"O{index}", obs) for index, (obs, _) in enumerate(numbered, start=1)]
+        if evidence:
+            target.points.append(Point(text, point.confidence, evidence))
+        else:
+            questions.append(text)
 
 
 def _fit(
-    observations: list[Observation], titles: dict[str, str], *, with_category: bool
+    observations: list[Observation], titles: dict[str, str]
 ) -> tuple[list[tuple[Observation, str]], int]:
     """编号并写成一行一条；总字数超过 SYNTH_CHARS 时保留最近的。"""
     newest_first = sorted(observations, key=lambda o: max(o.days, default=""), reverse=True)
     kept: list[Observation] = []
     size = 0
     for obs in newest_first:
-        length = len(_line("O0000", obs, titles, with_category))
+        length = len(_line("O0000", obs, titles))
         if kept and size + length > SYNTH_CHARS:
             break
         kept.append(obs)
         size += length
     kept.sort(key=lambda o: (max(o.days, default=""), o.chat_id))
-    numbered = [
-        (obs, _line(f"O{index}", obs, titles, with_category))
-        for index, obs in enumerate(kept, start=1)
-    ]
+    numbered = [(obs, _line(f"O{i}", obs, titles)) for i, obs in enumerate(kept, start=1)]
     return numbered, len(observations) - len(kept)
 
 
-def _line(label: str, obs: Observation, titles: dict[str, str], with_category: bool) -> str:
-    quotes = "".join(
-        f"「{q.text[:QUOTE_CHARS]}」"
-        if q.kind != "ai"
-        else f"（贴回的 AI 回答）「{q.text[:QUOTE_CHARS]}」"
-        for q in obs.quotes
-    )
-    category = f"{CATEGORIES[obs.category]}｜" if with_category else ""
+def _line(label: str, obs: Observation, titles: dict[str, str]) -> str:
+    quote = next((q for q in obs.quotes if q.kind != "ai"), obs.quotes[0] if obs.quotes else None)
+    said = f"「{' '.join(quote.text.split())[:QUOTE_CHARS]}」" if quote else ""
     days = "、".join(sorted(obs.days)) or "日期未知"
     text = f"{obs.text}｜" if obs.text else ""
-    title = titles.get(obs.chat_id, "")
     kind = _KIND_NAMES[obs.kind]
-    return f"[{label}] {category}（{kind}）{text}原话：{quotes}｜对话：{title}｜{days}"
+    title = titles.get(obs.chat_id, "")
+    return (
+        f"[{label}] {CATEGORIES[obs.category]}｜（{kind}）{text}原话：{said}｜对话：{title}｜{days}"
+    )

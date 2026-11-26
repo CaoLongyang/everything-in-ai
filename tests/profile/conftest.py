@@ -18,7 +18,7 @@ from eia.llm import Client
 from eia.llm._base import Reply
 from eia.llm.config import load_llm_config
 from eia.llm.errors import LLMCallError
-from eia.profile.prompts import EXTRACT_SYSTEM
+from eia.profile.prompts import EXTRACT_SYSTEM, PART_AI, PART_CAREER, PART_CORE, PART_HISTORY
 from eia.schema.vault import CONFIG_NAME, init_vault
 
 TODAY = dt.date(2026, 11, 26)
@@ -114,7 +114,12 @@ class FakeModel:
 
     @property
     def synth_prompts(self) -> list[str]:
-        return [p for s, p in self.calls if s != EXTRACT_SYSTEM]
+        """汇总的前 3 次请求（发观察的那几次）。"""
+        return [p for s, p in self.calls if s in PART_REPLIES]
+
+    @property
+    def ai_prompts(self) -> list[str]:
+        return [p for s, p in self.calls if s == PART_AI]
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         raise AssertionError("画像不用向量")
@@ -125,29 +130,19 @@ class FakeModel:
             return Reply(json.dumps(self._extract(prompt), ensure_ascii=False))
         if self.fail_synth:
             raise LLMCallError("假装网络断了")
-        ids = re.findall(r"^\[(O\d+)\]", prompt, flags=re.MULTILINE)
-        return Reply(
-            json.dumps(
-                {
-                    "conclusions": [
-                        {
-                            "kind": "stated",
-                            "text": f"结论{len(self.calls)}",
-                            "confidence": "高",
-                            "evidence": ids,
-                        },
-                        {
-                            "kind": "inferred",
-                            "text": "没有证据的结论",
-                            "confidence": "低",
-                            "evidence": ["O999"],
-                        },
-                    ],
-                    "open_questions": ["一个问题"],
-                },
-                ensure_ascii=False,
+        if system == PART_AI:
+            return Reply(
+                json.dumps(
+                    {
+                        "system_prompt": "我是一个虚构的学生。",
+                        "guidelines": ["先讲为什么", "说中文"],
+                    },
+                    ensure_ascii=False,
+                )
             )
-        )
+        ids = re.findall(r"^\[(O\d+)\]", prompt, flags=re.MULTILINE)
+        reply = PART_REPLIES[system](ids, len(self.calls))
+        return Reply(json.dumps(reply, ensure_ascii=False))
 
     def _extract(self, prompt: str) -> dict[str, Any]:
         observations: list[dict[str, Any]] = []
@@ -197,6 +192,75 @@ class FakeModel:
             }
         )
         return {"observations": observations}
+
+
+def _point(text: str, ids: list[str]) -> dict[str, Any]:
+    return {"text": text, "confidence": "高", "evidence": ids}
+
+
+def _core(ids: list[str], n: int) -> dict[str, Any]:
+    return {
+        "labels": ["追问到底", "信仰压力测试", "追问到底", "a", "b", "c", "d"],
+        "subsections": [
+            {
+                "key": "about",
+                "label": "留学生",
+                "summary": "基本情况",
+                "points": [_point(f"关于{n}", ids[:1])],
+            },
+            {
+                "key": "values",
+                "label": "信仰压力测试",
+                "points": [_point("没有证据的结论", ["O999"])],
+            },
+            {
+                "key": "tensions",
+                "label": "两面",
+                "points": [_point("怕麻烦人 ↔ 怕失望：一句话", ids)],
+            },
+            {"key": "education", "points": [_point("不该写在这一次", ids)]},
+            {"key": "nonsense", "points": [_point("不认识的小节", ids)]},
+        ],
+        "open_questions": ["一个问题"],
+    }
+
+
+def _career(ids: list[str], n: int) -> dict[str, Any]:
+    return {
+        "subsections": [
+            {
+                "key": "education",
+                "label": "先懂再动手",
+                "points": [_point("你在学数据结构", ids[:1])],
+            },
+            {
+                "key": "interest",
+                "title": "信仰",
+                "label": "改革宗",
+                "points": [_point("你读神学", ids[-1:])],
+            },
+            {"key": "interest", "title": "", "points": [_point("没有标题的兴趣", ids)]},
+        ]
+    }
+
+
+def _history(ids: list[str], n: int) -> dict[str, Any]:
+    return {
+        "subsections": [
+            {
+                "key": "decisions",
+                "points": [_point("后来的决定", ids[-1:]), _point("先前的决定", ids[:1])],
+            },
+            {"key": "timeline", "points": [_point("一件事", ids)]},
+        ]
+    }
+
+
+PART_REPLIES: dict[str | None, Callable[[list[str], int], dict[str, Any]]] = {
+    PART_CORE: _core,
+    PART_CAREER: _career,
+    PART_HISTORY: _history,
+}
 
 
 @pytest.fixture

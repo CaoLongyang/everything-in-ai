@@ -36,7 +36,6 @@ from eia.interests import feedback as feedback_mod
 from eia.interests import learn as learn_mod
 from eia.interests.config import InterestsError
 from eia.profile import run as profile_mod
-from eia.profile.prompts import CATEGORIES as PROFILE_CATEGORIES
 from eia.schedule import windows as schedule_windows
 from eia.schedule.runs import JOBS, read_runs, run_job
 from eia.schedule.windows import ScheduleError, WindowsScheduler
@@ -570,9 +569,11 @@ def profile_run(
         )
     except (profile_mod.ProfileError, llm.LLMError, VaultError, DatabaseError) as exc:
         raise click.ClickException(str(exc)) from exc
-    names = {**PROFILE_CATEGORIES, "hidden": "你可能没意识到的你"}
-    counts = "，".join(f"{names[k]} {n} 条" for k, n in result.counts.items())
-    click.echo(f"已写画像  {result.path.relative_to(vault).as_posix()}：{counts}")
+    counts = "，".join(f"{title} {n} 条" for title, n in result.counts.items())
+    labels = " · ".join(result.profile.labels)
+    click.echo(f"已写画像  {result.path.relative_to(vault).as_posix()}")
+    click.echo(f"你：{labels}")
+    click.echo(f"要点：{counts}")
     click.echo(f"共 {result.observations} 条观察；原话对不上、被丢掉的 {result.dropped} 条")
     if result.rejected:
         click.echo(f"避开了你说过不像你的 {result.rejected} 条结论")

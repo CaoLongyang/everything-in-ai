@@ -15,7 +15,7 @@ from eia.profile import extract as extract_mod
 from eia.profile.document import ChatLink, latest_profile, read_rejected, write_profile
 from eia.profile.extract import Observation
 from eia.profile.material import ChatMaterial, collect
-from eia.profile.synth import Section, synthesize
+from eia.profile.synth import Profile, synthesize
 from eia.schema.vault import load_config
 
 DEFAULT_MONTHS = 3
@@ -51,12 +51,12 @@ class Plan:
 @dataclass
 class Result:
     path: Path
-    sections: list[Section]
+    profile: Profile
     observations: int
     dropped: int
     extract_requests: int
     rejected: int
-    counts: dict[str, int] = field(default_factory=dict)
+    counts: dict[str, int] = field(default_factory=dict)  # 每章的要点数
 
 
 def default_since(until: dt.date, months: int = DEFAULT_MONTHS) -> dt.date:
@@ -115,11 +115,11 @@ def run_profile(
     previous = latest_profile(root)
     rejected = read_rejected(previous)
     titles = {m.chat.id: m.chat.title for m in plan.materials}
-    sections = synthesize(client, observations, rejected, titles=titles)
+    profile = synthesize(client, observations, rejected, titles=titles)
     links = {m.chat.id: ChatLink(m.chat.title, m.chat.path.stem) for m in plan.materials}
     path = write_profile(
         root,
-        sections,
+        profile,
         rejected,
         links=links,
         period=(plan.since, plan.until),
@@ -130,10 +130,10 @@ def run_profile(
     )
     return Result(
         path=path,
-        sections=sections,
+        profile=profile,
         observations=len(observations),
         dropped=extracted.dropped,
         extract_requests=extracted.requests,
         rejected=len(rejected),
-        counts={s.key: len(s.conclusions) for s in sections},
+        counts={c.title: sum(len(s.points) for s in c.subsections) for c in profile.chapters},
     )

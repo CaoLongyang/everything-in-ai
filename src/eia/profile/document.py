@@ -12,8 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from eia.profile.extract import Observation
-from eia.profile.prompts import CATEGORIES
-from eia.profile.synth import HIDDEN, Conclusion, Rejected, Section
+from eia.profile.synth import DATED, Point, Profile, Rejected
 from eia.schema.ids import new_id
 from eia.schema.io import FrontmatterError, create_new, read_document, render_document
 from eia.schema.model import SCHEMA_VERSION, EntryType, Status
@@ -22,12 +21,12 @@ from eia.schema.vault import dir_for
 
 QUOTE_CHARS = 100
 ALIAS_CHARS = 30  # 链接显示的对话标题；Gemini 常拿第一句话当标题，很长
-EVIDENCE_SHOWN = 5
+EVIDENCE_SHOWN = 8
+EMPTY = "（材料里没有）"
 REJECT_BOX = "不像我"
 REJECTED_HEADING = "## 你说过不像你的"
 _CHECKED = re.compile(r"^- \[[xX]\] " + REJECT_BOX + r"｜(?P<text>.+?)（把握：[^）]*）(?P<why>.*)$")
 _CARRIED = re.compile(r"^- (?P<text>.+?)(?:——原因：(?P<why>.*))?$")
-_SECTION_NAMES = {**CATEGORIES, HIDDEN: "你可能没意识到的你"}
 
 
 @dataclass(frozen=True)
@@ -76,7 +75,7 @@ def read_rejected(path: Path | None) -> list[Rejected]:
 
 def write_profile(
     root: Path,
-    sections: Sequence[Section],
+    profile: Profile,
     rejected: Sequence[Rejected],
     *,
     links: dict[str, ChatLink],
@@ -108,7 +107,7 @@ def write_profile(
             "chats": chats,
             "model": model,
         }
-        body = render_body(sections, rejected, links=links, span=span, chats=chats)
+        body = render_body(profile, rejected, links=links, span=span, chats=chats)
         try:
             create_new(path, render_document(meta, body))
         except FileExistsError:
@@ -118,7 +117,7 @@ def write_profile(
 
 
 def render_body(
-    sections: Sequence[Section],
+    profile: Profile,
     rejected: Sequence[Rejected],
     *,
     links: dict[str, ChatLink],
@@ -126,24 +125,42 @@ def render_body(
     chats: int,
 ) -> str:
     out = [
-        f"> 根据 {chats} 个对话（{span}）生成。「推断」是 AI 的判断，不是你说过的话。",
+        "> 这份画像包含你的个人信息（学号、住址等），分享或同步到网上之前先看一遍。",
+        f"> 根据 {chats} 个对话（{span}）生成。写「你似乎……」的是 AI 的推断，不是你说过的话。",
         "> 觉得哪条不像你，把 `[ ]` 改成 `[x]`，可以在后面写原因。下次生成时会避开。",
         "",
+        "# 你：" + (" · ".join(profile.labels) or "（还没有标签）"),
+        "",
     ]
-    for section in sections:
-        out += [f"## {_SECTION_NAMES[section.key]}", ""]
-        for kind, heading in (("stated", "你说过的"), ("inferred", "推断")):
-            items = [c for c in section.conclusions if c.kind == kind]
-            if section.key == HIDDEN and kind == "stated":
+    if profile.omitted:
+        out += [f"> 观察太多，最早的 {profile.omitted} 条没有参与汇总。", ""]
+    for chapter in profile.chapters:
+        out += [f"## {chapter.title}", ""]
+        if not chapter.subsections:
+            out += [EMPTY, ""]
+        for sub in chapter.subsections:
+            if sub.title:
+                label = f"　`{_one_line(sub.label)}`" if sub.label and sub.points else ""
+                out += [f"### {_one_line(sub.title)}{label}", ""]
+            if not sub.points:
+                out += [EMPTY, ""]
                 continue
-            out += [f"### {heading}", ""]
-            out += [line for c in items for line in _conclusion(c, links)] or ["（没有）"]
+            if sub.summary:
+                out += [_one_line(sub.summary), ""]
+            for point in sub.points:
+                out += _point(point, links, dated=chapter.key in DATED)
             out.append("")
-        out += ["### 未解问题", ""]
-        out += [f"- {q}" for q in section.open_questions] or ["（没有）"]
-        out.append("")
-        if section.omitted:
-            out += [f"> 观察太多，最早的 {section.omitted} 条没有参与这一类的汇总。", ""]
+    out += ["## 06 给 AI 的说明", "", "### 系统提示词", ""]
+    if profile.system_prompt:
+        out += ["> 可以直接复制给 ChatGPT、Claude 等 AI，让它一开始就了解你。", ""]
+        out += ["````text", profile.system_prompt.replace("````", "```"), "````", ""]
+    else:
+        out += [EMPTY, ""]
+    out += ["### 分析与对话准则", ""]
+    out += [f"- {_one_line(g)}" for g in profile.guidelines] or [EMPTY]
+    out += ["", "## 未解问题", ""]
+    out += [f"- {_one_line(q)}" for q in dict.fromkeys(profile.open_questions)] or ["（没有）"]
+    out.append("")
     if rejected:
         out += [REJECTED_HEADING, "", "> 下次生成时也会避开这些。想撤回，删掉那一行就行。", ""]
         out += [f"- {r.text}" + (f"——原因：{r.why}" if r.why else "") for r in rejected]
@@ -151,13 +168,16 @@ def render_body(
     return "\n".join(out)
 
 
-def _conclusion(c: Conclusion, links: dict[str, ChatLink]) -> list[str]:
-    count = f"{c.chats} 个对话" + (f"、{c.days} 天" if c.days else "")
-    lines = [f"- [ ] {REJECT_BOX}｜{_one_line(c.text)}（把握：{c.confidence}｜{count}）"]
-    for obs in c.evidence[:EVIDENCE_SHOWN]:
-        lines.append(f"  - {_evidence(obs, links)}")
-    if len(c.evidence) > EVIDENCE_SHOWN:
-        lines.append(f"  - ……还有 {len(c.evidence) - EVIDENCE_SHOWN} 条")
+def _point(point: Point, links: dict[str, ChatLink], *, dated: bool) -> list[str]:
+    count = f"{point.chats} 个对话" + (f"、{point.days} 天" if point.days else "")
+    when = f"{point.first_day or '日期未知'}｜" if dated else ""
+    text = _one_line(point.text)
+    lines = [f"- [ ] {REJECT_BOX}｜{when}{text}（把握：{point.confidence}｜{count}）"]
+    lines.append(f"  > [!note]- 证据（{len(point.evidence)} 条）")
+    for obs in point.evidence[:EVIDENCE_SHOWN]:
+        lines.append(f"  > - {_evidence(obs, links)}")
+    if len(point.evidence) > EVIDENCE_SHOWN:
+        lines.append(f"  > - ……还有 {len(point.evidence) - EVIDENCE_SHOWN} 条")
     return lines
 
 

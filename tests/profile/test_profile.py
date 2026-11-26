@@ -17,6 +17,7 @@ from eia.profile import extract as extract_mod
 from eia.profile import run as run_mod
 from eia.profile.document import ChatLink, read_rejected
 from eia.profile.material import AI_SNIPPET_CHARS
+from eia.profile.synth import Subsection
 from eia.schema.io import read_document
 from eia.schema.validate import validate_vault
 
@@ -163,16 +164,19 @@ def test_F18_03_quotes_survive_spacing_changes(vault: Path) -> None:
 # ---------- F18-04 证据由程序核对和计数 ----------
 
 
+def sub(result: run_mod.Result, key: str) -> Subsection:
+    return next(s for c in result.profile.chapters for s in c.subsections if s.key == key)
+
+
 def test_F18_04_evidence_is_checked_and_counted(vault: Path) -> None:
     result = _run(vault)
     text = result.path.read_text(encoding="utf-8")
-    assert "没有证据的结论" not in text.split("### 未解问题")[0]  # 只引用了不存在的 O999
-    assert "- 没有证据的结论" in text and "- 一个问题" in text
-    hidden = next(s for s in result.sections if s.key == "hidden")
-    [concluded] = hidden.conclusions
-    assert concluded.kind == "inferred"  # 「你可能没意识到的你」只有推断
-    assert (concluded.chats, concluded.days) == (3, 3)
-    assert "（把握：高｜3 个对话、3 天）" in text
+    body, questions = text.split("## 未解问题")
+    assert "没有证据的结论" not in body  # 只引用了不存在的 O999
+    assert "- 没有证据的结论" in questions and "- 一个问题" in questions
+    [tension] = sub(result, "tensions").points
+    assert (tension.chats, tension.days) == (3, 3)
+    assert "怕麻烦人 ↔ 怕失望：一句话（把握：高｜3 个对话、3 天）" in text
 
 
 # ---------- F18-05 画像文件 ----------
@@ -188,13 +192,10 @@ def test_F18_05_profile_file_is_valid_and_linked(vault: Path) -> None:
     assert report.errors == [], report.errors
     stem = chat_file(vault, "claude").stem
     assert f"[[{stem}|信仰与理性]]" in result.path.read_text(encoding="utf-8")
+    evidence = sub(result, "tensions").points[0].evidence[0]
     long = ChatLink("长" * 40, "x")
-    assert f"[[x|{'长' * 30}…]]" in document_mod._evidence(
-        result.sections[0].conclusions[0].evidence[0],
-        {result.sections[0].conclusions[0].evidence[0].chat_id: long},
-    )
-    for heading in ("## 认知与学习", "## 价值观与信仰", "## 身份与经历", "## 你可能没意识到的你"):
-        assert heading in result.path.read_text(encoding="utf-8")
+    assert f"[[x|{'长' * 30}…]]" in document_mod._evidence(evidence, {evidence.chat_id: long})
+    assert "包含你的个人信息" in result.path.read_text(encoding="utf-8")
 
 
 def test_F18_05_existing_profiles_are_not_overwritten(vault: Path) -> None:
