@@ -366,7 +366,7 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
   <!-- 我 -->
   <section class="tab" id="tab-me">
     <div class="page-head"><h1>我</h1><p id="meSub">AI 读了你的对话之后，对你的理解</p><div class="meta" id="meMeta"></div></div>
-    <div class="tip-box" id="meTip"><div><b>第一次看？这样读：</b>方框里是一句话概括 → 点开一章看要点 → 点 [1] 这样的小数字看你的原话 → 觉得不像你，在 Obsidian 里勾上那条前面的方框。</div><button class="x" id="meTipClose" title="知道了">×</button></div>
+    <div class="tip-box" id="meTip"><div><b>第一次看？这样读：</b>方框里是一句话概括 → 点开一章看要点 → 点 [1] 这样的小数字看你的原话 → 觉得不像你，在 Obsidian 里勾上那条前面的方框；当时没错、只是现在变了的，勾上后原因写「过时：……」。</div><button class="x" id="meTipClose" title="知道了">×</button></div>
     <div class="cols">
       <div>
         <div class="labels" id="meLabels"></div>
@@ -389,6 +389,18 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       </div>
       <div data-out="profile_plan"></div>
       <div data-out="profile_run"></div>
+          </div>
+        </div>
+        <div class="block">
+          <div class="sec-head"><h3>补上聊天里没有的</h3></div>
+          <div>
+      <p class="hint">画像只看你跟 AI 的聊天，你的经历、信仰是怎么开始的、为什么做某个选择，往往是空的。让 AI 根据画像里空着的地方出几个问题，你在 Obsidian 里回答；已经变了的事（比如「已经找到室友了」）写进 profile 文件夹里的「我的补充」。下次生成画像时都会用上。</p>
+      <div class="row">
+        <button data-run="profile_ask_plan">看看要发多少</button>
+        <button class="primary" data-run="profile_ask" id="pfAskBtn" disabled>出访谈问题</button>
+      </div>
+      <div data-out="profile_ask_plan"></div>
+      <div data-out="profile_ask"></div>
     
           </div>
         </div>
@@ -753,6 +765,8 @@ const after = {
   },
   headlines_run() { run("headlines_list"); refreshHome(); },
   profile_plan(r) { $("#pfRunBtn").disabled = !(r.exit_code === 0 && /第 2 步要把/.test(r.stdout)); },
+  profile_ask_plan(r) { $("#pfAskBtn").disabled = !(r.exit_code === 0 && /出访谈问题/.test(r.stdout)); },
+  profile_ask(r) { $("#pfAskBtn").disabled = true; },
   profile_run(r) {
     $("#pfRunBtn").disabled = true;
     if (r.exit_code === 0) { const m = r.stdout.match(/已写画像\s+(\S.*?\.md)/); loadProfiles(m ? m[1] : ""); refreshHome(); }

@@ -18,7 +18,14 @@ from eia.llm import Client
 from eia.llm._base import Reply
 from eia.llm.config import load_llm_config
 from eia.llm.errors import LLMCallError
-from eia.profile.prompts import EXTRACT_SYSTEM, PART_AI, PART_CAREER, PART_CORE, PART_HISTORY
+from eia.profile.prompts import (
+    ASK_SYSTEM,
+    EXTRACT_SYSTEM,
+    PART_AI,
+    PART_CAREER,
+    PART_CORE,
+    PART_HISTORY,
+)
 from eia.schema.vault import CONFIG_NAME, init_vault
 
 TODAY = dt.date(2026, 11, 26)
@@ -120,6 +127,10 @@ class FakeModel:
         return [p for s, p in self.calls if s in PART_REPLIES]
 
     @property
+    def ask_prompts(self) -> list[str]:
+        return [p for s, p in self.calls if s == ASK_SYSTEM]
+
+    @property
     def ai_prompts(self) -> list[str]:
         return [p for s, p in self.calls if s == PART_AI]
 
@@ -136,6 +147,16 @@ class FakeModel:
             return Reply(json.dumps(self._extract(prompt), ensure_ascii=False))
         if self.fail_synth:
             raise LLMCallError("假装网络断了")
+        if system == ASK_SYSTEM:
+            questions = [
+                {
+                    "question": "你是怎么开始信基督教的？",
+                    "why": "画像里信仰写得多，但不知道怎么开始的",
+                },
+                {"question": "   ", "why": "空问题应该被丢掉"},
+                {"question": "为什么选择来马来西亚读书？"},
+            ]
+            return Reply(json.dumps({"questions": questions}, ensure_ascii=False))
         if system == PART_AI:
             return Reply(
                 json.dumps(
@@ -200,8 +221,8 @@ class FakeModel:
         return {"observations": observations}
 
 
-def _point(text: str, ids: list[str]) -> dict[str, Any]:
-    return {"text": text, "confidence": "高", "evidence": ids}
+def _point(text: str, ids: list[str], **extra: str) -> dict[str, Any]:
+    return {"text": text, "confidence": "高", "evidence": ids, **extra}
 
 
 def _core(ids: list[str], n: int) -> dict[str, Any]:
@@ -212,7 +233,7 @@ def _core(ids: list[str], n: int) -> dict[str, Any]:
                 "key": "about",
                 "label": "留学生",
                 "summary": "基本情况",
-                "points": [_point(f"关于{n}", ids[:1])],
+                "points": [_point(f"关于{n}", ids[:1]), _point("你在找室友", ids, kind="state")],
             },
             {
                 "key": "values",
@@ -220,10 +241,14 @@ def _core(ids: list[str], n: int) -> dict[str, Any]:
                 "points": [_point("没有证据的结论", ["O999"])],
             },
             {
-                "key": "tensions",
+                "key": "hidden",
                 "label": "两面",
-                "points": [_point("怕麻烦人 ↔ 怕失望：一句话", ids)],
+                "points": [
+                    _point("跨话题的同一种劲头", ids),
+                    _point("只有一个对话的猜测", ids[:1]),
+                ],
             },
+            {"key": "tensions", "points": [_point("张力不再有这一节", ids)]},
             {"key": "education", "points": [_point("不该写在这一次", ids)]},
             {"key": "nonsense", "points": [_point("不认识的小节", ids)]},
         ],
@@ -253,6 +278,13 @@ def _career(ids: list[str], n: int) -> dict[str, Any]:
 def _history(ids: list[str], n: int) -> dict[str, Any]:
     return {
         "subsections": [
+            {
+                "key": "wishes",
+                "points": [
+                    _point("卡牌游戏", ids, status="在做"),
+                    _point("记账工具", ids[:1], status="乱写的状态"),
+                ],
+            },
             {
                 "key": "decisions",
                 "points": [_point("后来的决定", ids[-1:]), _point("先前的决定", ids[:1])],

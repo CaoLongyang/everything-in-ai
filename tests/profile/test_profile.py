@@ -52,7 +52,7 @@ def _run(vault: Path, now: dt.datetime = NOW) -> run_mod.Result:
 
 
 def _profiles(vault: Path) -> list[Path]:
-    return sorted((vault / "profile").glob("*.md"))
+    return sorted((vault / "profile").glob("*画像*.md"))
 
 
 # ---------- F18-01 不确认就不发；说要发多少就发多少 ----------
@@ -174,9 +174,10 @@ def test_F18_04_evidence_is_checked_and_counted(vault: Path) -> None:
     body, questions = text.split("## 未解问题")
     assert "没有证据的结论" not in body  # 只引用了不存在的 O999
     assert "- 没有证据的结论" in questions and "- 一个问题" in questions
-    [tension] = sub(result, "tensions").points
-    assert (tension.chats, tension.days) == (3, 3)
-    line = next(x for x in text.splitlines() if x.startswith("- [ ] 怕麻烦人 ↔ 怕失望：一句话[^"))
+    [hidden] = sub(result, "hidden").points
+    assert (hidden.chats, hidden.days) == (3, 3)
+    assert "- 只有一个对话的猜测" in questions  # 「没意识到的你」要至少 2 个对话
+    line = next(x for x in text.splitlines() if x.startswith("- [ ] 跨话题的同一种劲头[^"))
     number = line.rsplit("[^", 1)[1].rstrip("]")
     assert f"\n[^{number}]: 把握高 · 3 个对话、3 天：「" in text
 
@@ -194,7 +195,7 @@ def test_F18_05_profile_file_is_valid_and_linked(vault: Path) -> None:
     assert report.errors == [], report.errors
     stem = chat_file(vault, "claude").stem
     assert f"[[{stem}|信仰与理性]]" in result.path.read_text(encoding="utf-8")
-    evidence = sub(result, "tensions").points[0].evidence[0]
+    evidence = sub(result, "hidden").points[0].evidence[0]
     long = ChatLink("长" * 40, "x")
     assert f"[[x|{'长' * 30}…]]" in document_mod._evidence(evidence, {evidence.chat_id: long})
     assert "包含你的个人信息" in result.path.read_text(encoding="utf-8")

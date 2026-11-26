@@ -30,15 +30,15 @@ def test_F18_09_chapters_subsections_and_labels(vault: Path) -> None:
         "### 沟通偏好",
         "## 01 心理",
         "### 动机模式",
-        "### 你身上的张力\n\n> **两面**\n",
-        "### 你可能没意识到的你",
+        "### 你可能没意识到的你\n\n> **两面**\n",
         "## 02 学业与职业",
         "### 教育\n\n> **先懂再动手**",
         "## 03 兴趣",
         "### 信仰\n\n> **改革宗**",
-        "## 04 决策记录",
-        "## 05 时间线",
-        "## 06 给 AI 的说明",
+        "## 04 想做的清单",
+        "## 05 决策记录",
+        "## 06 时间线",
+        "## 07 给 AI 的说明",
         "### 系统提示词",
         "### 分析与对话准则",
         "## 未解问题",
@@ -56,7 +56,7 @@ def test_F18_09_chapters_subsections_and_labels(vault: Path) -> None:
 
 
 def test_F18_09_evidence_shows_at_most_eight(vault: Path) -> None:
-    point = sub(_run(vault), "tensions").points[0]
+    point = sub(_run(vault), "hidden").points[0]
     many = Point(point.text, "中", point.evidence * 4)
     notes: list[str] = []
     line = document_mod._point(many, {}, notes, dated=False)
@@ -82,7 +82,7 @@ def test_F18_10_dated_chapters_are_sorted_by_evidence(vault: Path) -> None:
 def test_F18_11_ai_instructions_get_conclusions_only(vault: Path, model: FakeModel) -> None:
     _run(vault)
     [prompt] = model.ai_prompts
-    assert "核心标签：追问到底" in prompt and "怕麻烦人 ↔ 怕失望" in prompt
+    assert "核心标签：追问到底" in prompt and "跨话题的同一种劲头" in prompt
     assert "[O" not in prompt and "原话" not in prompt and OWN_JAVA[:10] not in prompt
 
 

@@ -470,3 +470,10 @@ def test_busy_port_falls_back_to_another() -> None:
             server.server_close()
     finally:
         taken.server_close()
+
+
+def test_profile_ask_actions(server: tuple[str, str, Path]) -> None:
+    base, token, vault = server
+    plan = _post(base, {"action": "profile_ask_plan", "params": {"vault": str(vault)}}, token)
+    assert plan["command"].startswith("eia profile ask") and "--yes" not in plan["command"]
+    assert plan["exit_code"] == 1 and "还没有画像" in plan["stderr"] + plan["stdout"]

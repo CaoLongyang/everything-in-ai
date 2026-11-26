@@ -97,7 +97,8 @@ ruff format .                      # 自动格式化
 
 **profile/**（`docs/specs/profile.md`，实现决定见 ADR 0009）
 - 四步：`material.py` 本机整理（只要 `own` / `ai` 段和笔记，`ai` 截到 500 字）→ `extract.py` 分批提取观察、**逐句核对原话**、按对话缓存到 `profile_observations` 表 → `synth.py` 分 4 次请求按 `CHAPTERS` 的结构（00 核心档案 … 06 给 AI 的说明，见 profile.delta-format.md）汇总，证据编号由程序核对、对话数天数日期由程序算 → `document.py` 新建 `profile/<日期> 画像.md`，读上一版勾了「不像我」的条目（新旧格式都认）。
-- 改提示词（`prompts.py`）要把 `PROMPT_VERSION` 加一，旧缓存才会作废。
+- 改第 2 步的提示词（`prompts.py` 的 `EXTRACT_SYSTEM`）且会改变观察结果时，要把 `PROMPT_VERSION` 加一，旧缓存才会作废；只改汇总的提示词不用。
+- `supplement.py`：`eia profile ask` 出访谈问题（只发结论）、建空的「我的补充」；`material.collect_self` 把访谈回答和「我的补充」当作第 2 步的材料。
 - 测试用 `tests/profile/conftest.py` 的假模型：第 2 步故意编原话、引用不存在的对话，第 3 步故意引用不存在的观察编号。
 
 ## 改规格的方式

@@ -36,6 +36,7 @@ from eia.interests import feedback as feedback_mod
 from eia.interests import learn as learn_mod
 from eia.interests.config import InterestsError
 from eia.profile import run as profile_mod
+from eia.profile import supplement as supplement_mod
 from eia.schedule import windows as schedule_windows
 from eia.schedule.runs import JOBS, read_runs, run_job
 from eia.schedule.windows import ScheduleError, WindowsScheduler
@@ -583,6 +584,29 @@ def profile_run(
             f"有 {len(result.skipped)} 个对话这次没分析成（AI 的回复格式不对，重试也没用）："
             f"{names}。没算进这份画像，下次运行会重试"
         )
+
+
+@profile_group.command(name="ask")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option(
+    "--yes", is_flag=True, help="确认把画像的结论发给文本模型出题。不加就只告诉你要发多少。"
+)
+def profile_ask(vault: Path, yes: bool) -> None:
+    """根据最新画像里空着、不确定的地方出访谈问题，写到 profile/访谈 <日期>.md，你来回答。"""
+    try:
+        plan = supplement_mod.plan_ask(vault)
+        click.echo(
+            f"要把「{plan.profile.stem}」的结论共 {plan.chars} 字"
+            f"发给 {plan.model}（{plan.service}）出访谈问题。只发结论，不发你的对话和原话。"
+        )
+        if not yes:
+            click.echo("确认的话加上 --yes 再运行一次；不加就到此为止，什么都没有发出。")
+            return
+        path, count = supplement_mod.run_ask(vault, plan)
+    except (supplement_mod.ProfileAskError, llm.LLMError, VaultError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"已写访谈  {path.relative_to(vault).as_posix()}：{count} 个问题")
+    click.echo("在 Obsidian 里打开它，把回答写在「你的回答：」后面；下次生成画像时就会用上")
 
 
 @main.group(name="digest")

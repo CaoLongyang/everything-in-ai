@@ -397,6 +397,15 @@ def action_profile_run(params: dict[str, Any]) -> dict[str, Any]:
     return run_cli("profile", "run", "--vault", _vault(params), *_profile_range(params), "--yes")
 
 
+def action_profile_ask_plan(params: dict[str, Any]) -> dict[str, Any]:
+    """访谈第 1 步：告诉你要发多少，什么都不发。"""
+    return run_cli("profile", "ask", "--vault", _vault(params))
+
+
+def action_profile_ask(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("profile", "ask", "--vault", _vault(params), "--yes")
+
+
 _LABELS_LINE = re.compile(r"^(?:\*\*一句话的你：\*\*|# 你：)\s*(.*)$", re.MULTILINE)
 
 

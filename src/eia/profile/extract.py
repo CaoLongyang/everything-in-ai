@@ -260,7 +260,7 @@ def _kind(value: object) -> ObservationKind:
 
 
 def _snippet_kind(value: object) -> SnippetKind:
-    for name in ("own", "ai", "note"):
+    for name in ("own", "ai", "note", "self"):
         if value == name:
             return name
     raise ValueError(f"缓存里的原话来源不认识：{value!r}")

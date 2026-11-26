@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from eia.profile.extract import Observation
-from eia.profile.synth import DATED, Point, Profile, Rejected
+from eia.profile.synth import DATED, WISHES, Point, Profile, Rejected
 from eia.schema.ids import new_id
 from eia.schema.io import FrontmatterError, create_new, read_document, render_document
 from eia.schema.model import SCHEMA_VERSION, EntryType, Status
@@ -25,11 +25,14 @@ EVIDENCE_SHOWN = 8
 EMPTY = "（材料里没有）"
 REJECT_BOX = "不像我"
 REJECTED_HEADING = "## 你说过不像你的"
+CHANGED_HEADING = "## 你说过已经变了的"
+OUTDATED = "过时"  # 勾掉一条、原因以它开头：当时没错，现在变了（profile.delta-v2b.md 第 3.2 节）
 # 第一、二版：「- [x] 不像我｜结论（把握：…）原因」
 _CHECKED = re.compile(r"^- \[[xX]\] " + REJECT_BOX + r"｜(?P<text>.+?)（把握：[^）]*）(?P<why>.*)$")
 # 现在：「- [x] **日期** 结论[^3] 原因」，日期只有决策记录和时间线有
 _CHECKED_NOTE = re.compile(
-    r"^- \[[xX]\] (?:\*\*(?P<day>[^*]+)\*\* )?(?P<text>.+?)\[\^\d+\](?P<why>.*)$"
+    r"^- \[[xX]\] (?:\*\*(?P<day>\d{4}-\d{2}-\d{2}|日期未知)\*\* )?"
+    r"(?P<text>.+?)\[\^\d+\](?P<why>.*)$"
 )
 _CARRIED = re.compile(r"^- (?P<text>.+?)(?:——原因：(?P<why>.*))?$")
 
@@ -61,26 +64,34 @@ def read_rejected(path: Path | None) -> list[Rejected]:
     if path is None:
         return []
     found: dict[str, Rejected] = {}
-    in_carried = False
+    carried_kind: bool | None = None  # 在哪一节：None 不是带过来的；False 不像我；True 已经变了
     for line in read_document(path).body.replace("\r\n", "\n").split("\n"):
         if line.startswith("## "):
-            in_carried = line.strip() == REJECTED_HEADING
+            heading = line.strip()
+            carried_kind = (
+                False
+                if heading == REJECTED_HEADING
+                else True
+                if heading == CHANGED_HEADING
+                else None
+            )
             continue
         match = _CHECKED.match(line.strip())
         if match is not None:
             text = match["text"].strip()
-            found[text] = Rejected(text, _why(match["why"]))
+            found[text] = _rejected(text, match["why"])
             continue
         noted = _CHECKED_NOTE.match(line.strip())
         if noted is not None:
-            text = noted["text"].strip()
+            text = noted["text"].strip().replace("**", "")
             text = f"{noted['day']}｜{text}" if noted["day"] else text
-            found[text] = Rejected(text, _why(noted["why"]))
+            found[text] = _rejected(text, noted["why"])
             continue
-        carried = _CARRIED.match(line.strip()) if in_carried else None
+        carried = _CARRIED.match(line.strip()) if carried_kind is not None else None
         if carried is not None:
             text = carried["text"].strip()
-            found.setdefault(text, Rejected(text, (carried["why"] or "").strip()))
+            why = (carried["why"] or "").strip()
+            found.setdefault(text, Rejected(text, why, outdated=bool(carried_kind)))
     return list(found.values())
 
 
@@ -162,7 +173,7 @@ def render_body(
     for chapter in profile.chapters:
         names = "、".join(_one_line(s.title) for s in chapter.subsections if s.title and s.points)
         out.append(f"- **{chapter.title}**" + (f"：{names}" if names else ""))
-    out += ["- **06 给 AI 的说明**：系统提示词、分析与对话准则", ""]
+    out += ["- **07 给 AI 的说明**：系统提示词、分析与对话准则", ""]
     if profile.omitted:
         out += [f"> 观察太多，最早的 {profile.omitted} 条没有参与汇总。", ""]
     for chapter in profile.chapters:
@@ -183,9 +194,13 @@ def render_body(
             if intro:
                 out += [f"> {intro}", ""]
             for point in sub.points:
-                out.append(_point(point, links, notes, dated=chapter.key in DATED))
+                out.append(
+                    _point(
+                        point, links, notes, dated=chapter.key in DATED, wish=chapter.key == WISHES
+                    )
+                )
             out.append("")
-    out += ["---", "", "## 06 给 AI 的说明", "", "### 系统提示词", ""]
+    out += ["---", "", "## 07 给 AI 的说明", "", "### 系统提示词", ""]
     if profile.system_prompt:
         out += ["> 可以直接复制给 ChatGPT、Claude 等 AI，让它一开始就了解你。", ""]
         out += ["````text", profile.system_prompt.replace("````", "```"), "````", ""]
@@ -196,16 +211,29 @@ def render_body(
     out += ["", "---", "", "## 未解问题", ""]
     out += [f"- {_one_line(q)}" for q in dict.fromkeys(profile.open_questions)] or ["（没有）"]
     out.append("")
-    if rejected:
+    wrong = [r for r in rejected if not r.outdated]
+    changed = [r for r in rejected if r.outdated]
+    if wrong:
         out += [REJECTED_HEADING, "", "> 下次生成时也会避开这些。想撤回，删掉那一行就行。", ""]
-        out += [f"- {r.text}" + (f"——原因：{r.why}" if r.why else "") for r in rejected]
+        out += [f"- {r.text}" + (f"——原因：{r.why}" if r.why else "") for r in wrong]
+        out.append("")
+    if changed:
+        out += [
+            CHANGED_HEADING,
+            "",
+            "> 当时没错、现在变了的。下次生成时写进时间线当作过去的事。",
+            "",
+        ]
+        out += [f"- {r.text}" + (f"——原因：{r.why}" if r.why else "") for r in changed]
         out.append("")
     if notes:
         out += ["---", "", "## 证据", "", *notes, ""]
     return "\n".join(out)
 
 
-def _point(point: Point, links: dict[str, ChatLink], notes: list[str], *, dated: bool) -> str:
+def _point(
+    point: Point, links: dict[str, ChatLink], notes: list[str], *, dated: bool, wish: bool = False
+) -> str:
     """正文一行；证据作为脚注加到 notes。"""
     number = len(notes) + 1
     count = f"{point.chats} 个对话" + (f"、{point.days} 天" if point.days else "")
@@ -213,8 +241,26 @@ def _point(point: Point, links: dict[str, ChatLink], notes: list[str], *, dated:
     if len(point.evidence) > EVIDENCE_SHOWN:
         shown.append(f"……还有 {len(point.evidence) - EVIDENCE_SHOWN} 条")
     notes.append(f"[^{number}]: 把握{point.confidence} · {count}：" + "；".join(shown))
+    text = _one_line(point.text)
+    if wish:
+        first, last = _month_day(point.first_day), _month_day(point.last_day)
+        return f"- [ ] **{text}** · {point.status} · 首次 {first} · 最近 {last}[^{number}]"
     when = f"**{point.first_day or '日期未知'}** " if dated else ""
-    return f"- [ ] {when}{_one_line(point.text)}[^{number}]"
+    as_of = f"（截至 {point.last_day[:7]}）" if point.kind == "state" and point.last_day else ""
+    return f"- [ ] {when}{text}{as_of}[^{number}]"
+
+
+def _month_day(day: str | None) -> str:
+    return day[5:] if day else "日期未知"
+
+
+def _rejected(text: str, why: str) -> Rejected:
+    reason = _why(why)
+    if reason.startswith(OUTDATED):
+        return Rejected(
+            text, reason.removeprefix(OUTDATED).lstrip("：:，, ").strip(), outdated=True
+        )
+    return Rejected(text, reason)
 
 
 def _evidence(obs: Observation, links: dict[str, ChatLink]) -> str:

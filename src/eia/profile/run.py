@@ -14,7 +14,8 @@ from eia import llm
 from eia.profile import extract as extract_mod
 from eia.profile.document import ChatLink, latest_profile, read_rejected, write_profile
 from eia.profile.extract import Observation
-from eia.profile.material import ChatMaterial, collect
+from eia.profile.material import ChatMaterial, collect, collect_self
+from eia.profile.supplement import ensure_supplement
 from eia.profile.synth import Profile, synthesize
 from eia.schema.vault import load_config
 
@@ -86,6 +87,7 @@ def plan_profile(
     if since > until:
         raise ProfileError(f"开始日期 {since} 晚于结束日期 {until}")
     materials, skipped = collect(root, tz, since, until)
+    materials += collect_self(root, tz)  # 访谈回答和「我的补充」不受时间范围限制
     if not materials:
         raise ProfileError(f"{since} ~ {until} 之间没有你说过的话，换个时间范围试试（--since）")
     text = llm.get_client(root).config.text
@@ -104,6 +106,7 @@ def run_profile(
 ) -> Result:
     """第 2–4 步。任何一步出错都不写画像文件；第 2 步已完成的对话留在缓存里。"""
     tz = load_config(root).timezone
+    ensure_supplement(root, now=now)
     client = llm.get_client(root)
     extracted = extract_mod.extract(root, client, plan.to_send, progress=progress)
     observations: list[Observation] = []
