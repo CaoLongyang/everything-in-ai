@@ -3,238 +3,384 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>eia 试用台</title>
+<title>eia</title>
 <style>
 :root {
-  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #e3e1da;
-  --accent: #2f5d50; --accent-ink: #ffffff; --soft: #eaf1ee; --warn: #9a5b00; --bad: #a3271f;
-  --good: #2f6b3a; --term: #1e1f1c; --term-ink: #e8e6df; --chip: #f0eee8;
+  --bg: #FAFAF8; --panel: #FFFFFF; --ink: #111111; --ink2: #3D3D39; --muted: #6A6A65; --faint: #9A9A94;
+  --line: #E0E0DA; --line2: #ECECE7; --soft: #F1F1EC; --accent: #FF4F00; --accent-ink: #FFFFFF;
+  --good: #1E7A3A; --warn: #9A5B00; --bad: #B42318; --term: #F4F4F0; --term-ink: #2B2B28; --chip: #F1F1EC;
+  --serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STZhongsong", serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #161714; --panel: #1f201d; --ink: #ecebe6; --muted: #a09f98; --line: #34352f;
-    --accent: #7fb8a4; --accent-ink: #10201b; --soft: #24302b; --warn: #e0a54a; --bad: #ef7d73;
-    --good: #84c48f; --term: #0f100e; --term-ink: #dcdad2; --chip: #2a2b27;
+    --bg: #141413; --panel: #1C1C1A; --ink: #F2F2EE; --ink2: #CFCFC8; --muted: #A3A39C; --faint: #77776F;
+    --line: #34342F; --line2: #2A2A26; --soft: #22221F; --accent: #FF6A26; --accent-ink: #141413;
+    --good: #6FCF8E; --warn: #E6A84A; --bad: #F08A80; --term: #1F1F1C; --term-ink: #DEDED6; --chip: #262623;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
-header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
-.bar { max-width: 1080px; margin: 0 auto; padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.brand { font-weight: 700; letter-spacing: .02em; }
-.brand small { font-weight: 400; color: var(--muted); margin-left: 6px; }
-.vault { flex: 1; min-width: 260px; display: flex; gap: 8px; }
-input[type=text], input[type=date], input[type=search], select, textarea {
-  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
-  border-radius: 8px; padding: 7px 10px; min-width: 0; }
-input[type=text], input[type=search] { flex: 1; }
-textarea { width: 100%; resize: vertical; min-height: 84px; }
-button { font: inherit; cursor: pointer; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--line);
-  background: var(--panel); color: var(--ink); white-space: nowrap; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button:disabled { opacity: .5; cursor: progress; }
-nav { max-width: 1080px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; overflow-x: auto; }
-nav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
-nav button.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-main { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
+[hidden] { display: none !important; }
+body.on-me .you-strip { display: none; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); }
+a { color: inherit; }
+.serif { font-family: var(--serif); }
+.mono { font-family: var(--mono); }
+
+/* 顶栏 */
+header { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1200px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; gap: 28px; align-items: center; }
+.brand { font: 700 22px/1 var(--serif); text-decoration: none; position: relative; padding-right: 10px; }
+.brand i { position: absolute; right: 0; top: 0; width: 6px; height: 6px; background: var(--accent); }
+nav#tabs { display: flex; gap: 4px; height: 100%; }
+nav#tabs button { border: none; background: none; color: var(--ink2); font: inherit; font-size: 15px; padding: 0 12px; cursor: pointer; border-bottom: 3px solid transparent; border-radius: 0; height: 100%; }
+nav#tabs button:hover { color: var(--ink); }
+nav#tabs button.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--accent); }
+.gsearch { flex: 1; display: flex; justify-content: flex-end; }
+.gsearch input { width: min(440px, 100%); }
+.vault-pill { font-size: 13px; color: var(--muted); border: 1px solid var(--line); background: var(--panel); border-radius: 4px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.vault-pill b { color: var(--good); font-weight: 400; }
+.you-strip { background: var(--soft); border-bottom: 1px solid var(--line); }
+.you-strip .in { max-width: 1200px; margin: 0 auto; padding: 10px 24px; display: flex; gap: 12px; align-items: center; font-size: 14px; flex-wrap: wrap; }
+.you-strip .k { color: var(--muted); }
+.you-strip .v { font-weight: 600; flex: 1; }
+.you-strip button { border: none; background: none; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 36px 24px 96px; }
 section.tab { display: none; } section.tab.on { display: block; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
-.card h2 { font-size: 16px; margin: 0 0 4px; }
-.card p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
-label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.stat { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-.stat .k { color: var(--muted); font-size: 13px; }
-.stat .v { font-size: 22px; font-weight: 650; margin-top: 2px; }
-.stat .s { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-all; }
+.page-head { margin-bottom: 28px; }
+.page-head h1 { font: 700 36px/1.2 var(--serif); margin: 0; }
+.page-head p { margin: 8px 0 0; color: var(--ink2); }
+.page-head .meta { font: 13px/1.5 var(--mono); color: var(--muted); margin-top: 6px; }
+
+/* 表单和按钮 */
+input[type=text], input[type=date], input[type=search], input[type=number], input[type=password], select, textarea {
+  font: inherit; font-size: 14.5px; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 4px; padding: 7px 10px; min-width: 0; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
+input[type=text], input[type=search], input[type=password] { flex: 1; }
+textarea { width: 100%; resize: vertical; min-height: 84px; }
+button { font: inherit; font-size: 14px; cursor: pointer; border-radius: 4px; padding: 7px 14px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); white-space: nowrap; }
+button:hover { border-color: var(--ink); }
+button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+a > button { pointer-events: none; }
+.link { border: none; background: none; padding: 0; text-decoration: underline; text-underline-offset: 4px; color: var(--ink); }
+
+/* 「卡片」：不再是盒子，是一条粗线开头的一节 */
+.card { border-top: 1.5px solid var(--ink); padding: 18px 0 30px; }
+.card h2 { font-size: 17px; margin: 0 0 4px; }
+.card p.hint, p.hint { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--ink2); font-size: 14px; }
 .ok { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
-.term { background: var(--term); color: var(--term-ink); border-radius: 10px; padding: 12px 14px; margin-top: 12px;
-  font: 13px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto; }
-.term .cmd { color: #9fd3bf; } .term .meta { color: #8f8d85; } .term .err { color: #f0a39b; }
-.chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 9px; font-size: 12.5px; color: var(--muted); margin-right: 6px; }
-.msg { border-left: 3px solid var(--line); padding: 6px 0 6px 12px; margin: 10px 0; }
-.msg.user { border-left-color: var(--accent); }
-.msg.note { border-left-color: var(--warn); }
-.msg .who { font-size: 12.5px; color: var(--muted); }
-.msg .text { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
-.headline { border-top: 1px solid var(--line); padding: 14px 0; }
-.headline:first-child { border-top: none; }
-.headline h3 { margin: 0 0 6px; font-size: 15.5px; }
-.badge { display: inline-block; min-width: 34px; text-align: center; background: var(--soft); color: var(--accent);
-  border-radius: 6px; padding: 0 6px; font-weight: 700; margin-right: 8px; }
-.headline ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
-.headline a { color: var(--ink); }
-.answer { white-space: pre-wrap; background: var(--soft); border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
-.empty { color: var(--muted); padding: 8px 0; }
-.files { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
-.side { position: sticky; top: 112px; max-height: calc(100vh - 130px); display: flex; flex-direction: column; }
+.chip { display: inline-block; background: var(--chip); border-radius: 3px; padding: 0 7px; font-size: 12.5px; color: var(--ink2); margin-right: 6px; }
+.empty { color: var(--muted); padding: 10px 0; font-size: 14px; }
+.tip { color: var(--ink2); background: var(--soft); padding: 12px 14px; font-size: 13.5px; border-radius: 4px; }
+
+/* 运行结果：先给结果，命令放进「技术细节」 */
+.out { margin-top: 12px; border-left: 3px solid var(--line); background: var(--term); padding: 10px 14px; border-radius: 0 4px 4px 0; }
+.out.good { border-left-color: var(--good); } .out.fail { border-left-color: var(--bad); }
+.out pre { margin: 0; font: 13px/1.6 var(--mono); color: var(--term-ink); white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto; }
+.out .err { color: var(--bad); }
+.out details { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.out details code { font-family: var(--mono); }
+.out .running { color: var(--muted); font-size: 14px; }
+
+/* 两栏 */
+.cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 48px; align-items: start; }
+.sec-head { display: flex; gap: 10px; align-items: baseline; border-top: 1.5px solid var(--ink); padding-top: 14px; margin: 0 0 6px; }
+.sec-head h3 { margin: 0; font-size: 15px; }
+.sec-head span { color: var(--muted); font-size: 13.5px; }
+.sec-head .more { margin-left: auto; font-size: 13.5px; }
+.block { margin-bottom: 40px; }
+
+/* 今天：大事 */
+.hl { display: grid; grid-template-columns: 44px 1fr; gap: 0 4px; padding: 14px 0; border-bottom: 1px solid var(--line2); }
+.hl .n { font: 24px/1.1 var(--mono); color: var(--faint); }
+.hl h4 { margin: 0; font: 700 18px/1.4 var(--serif); }
+.hl .m { color: var(--ink2); font-size: 13.5px; margin-top: 4px; }
+.hl .m b { color: var(--ink); }
+.hl details { grid-column: 2; margin-top: 6px; font-size: 13.5px; color: var(--muted); }
+.hl details ul { margin: 6px 0 0; padding-left: 18px; }
+.recent button { display: flex; width: 100%; justify-content: space-between; gap: 12px; text-align: left; border: none; border-bottom: 1px solid var(--line2); border-radius: 0; background: none; padding: 10px 0; white-space: normal; }
+.recent button:hover { color: var(--accent); }
+.recent .d { color: var(--muted); font: 12.5px var(--mono); flex: none; }
+
+/* 今天：为你挑的 */
+.pick { padding: 14px 0; border-bottom: 1px solid var(--line2); }
+.pick .t a { font: 700 17px/1.4 var(--serif); text-decoration: none; }
+.pick .t a:hover { text-decoration: underline; }
+.pick .m { color: var(--ink2); font-size: 13.5px; margin: 4px 0 8px; }
+.pick .m b { color: var(--ink); }
+.pick .rate { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pick .rate button { padding: 4px 12px; font-size: 13px; }
+.pick .rate button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pick .rate button.on.no { background: var(--bad); border-color: var(--bad); color: #fff; }
+.pick details { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.pick details .row input[type=text] { flex: 1 1 200px; padding: 4px 8px; font-size: 13px; }
+.pick details select { padding: 3px 6px; font-size: 13px; }
+
+/* 第一次打开 */
+.welcome { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 56px; }
+.welcome .kicker { font: 13px var(--mono); color: var(--muted); letter-spacing: .12em; }
+.welcome h1 { font: 700 40px/1.3 var(--serif); margin: 10px 0 16px; }
+.welcome h1 i { color: var(--accent); font-style: normal; }
+.welcome .lead { color: var(--ink2); font-size: 16px; margin: 0 0 32px; }
+.steps { border-top: 1.5px solid var(--ink); padding-top: 16px; }
+.steps .t { font-size: 13px; font-weight: 700; letter-spacing: .1em; margin-bottom: 8px; }
+.step { display: grid; grid-template-columns: 36px 1fr; gap: 14px; padding: 16px 0; position: relative; }
+.step .dot { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--faint); display: grid; place-items: center; font: 15px var(--mono); color: var(--muted); background: var(--bg); }
+.step.now .dot { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.step.done .dot { background: var(--soft); border-color: var(--soft); color: var(--good); }
+.step h3 { margin: 4px 0 2px; font-size: 18px; }
+.step.todo h3 { color: var(--ink2); }
+.step.done h3 { color: var(--muted); text-decoration: line-through; }
+.step p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.safe { display: flex; gap: 12px; background: var(--soft); padding: 14px 16px; border-radius: 4px; margin-top: 16px; font-size: 13.5px; color: var(--ink2); }
+.safe b { color: var(--ink); display: block; font-size: 14.5px; }
+.gets { border-top: 1.5px solid var(--ink); padding-top: 16px; }
+.gets .t { font-size: 13px; font-weight: 700; letter-spacing: .1em; margin-bottom: 12px; }
+.get { border: 1px solid var(--line); background: var(--panel); border-radius: 4px; padding: 14px 18px; margin-bottom: 12px; }
+.get b { display: block; font-size: 15.5px; margin-bottom: 4px; }
+.get span { color: var(--ink2); font-size: 13.5px; }
+.banner { display: flex; gap: 14px; align-items: center; border: 1px solid var(--ink); padding: 12px 16px; margin-bottom: 28px; border-radius: 4px; flex-wrap: wrap; }
+.banner .x { margin-left: auto; }
+
+/* 我 */
+.labels { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 28px; }
+.tag { display: inline-block; border: 1.4px solid var(--ink); padding: 4px 12px; font-weight: 700; font-size: 15px; }
+.tag.sm { font-size: 12.5px; padding: 1px 8px; border-width: 1px; font-weight: 600; }
+.ch { border-top: 1px solid var(--line); }
+.ch:first-child { border-top: 1.5px solid var(--ink); }
+.ch > button { display: grid; grid-template-columns: 40px auto auto 1fr auto; gap: 12px; align-items: center; width: 100%; text-align: left; border: none; border-radius: 0; background: none; padding: 16px 0; white-space: normal; }
+.ch > button:hover .nm { color: var(--accent); }
+.ch .no { font: 13px var(--mono); color: var(--faint); }
+.ch.open .no { color: var(--accent); }
+.ch .nm { font-weight: 700; font-size: 15.5px; }
+.ch .sum { color: var(--ink2); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch .cnt { color: var(--muted); font-size: 13.5px; }
+.ch .body { padding: 0 0 24px 52px; }
+.tip-box { display: flex; gap: 12px; border: 1px solid var(--line); background: var(--panel); padding: 12px 16px; margin-bottom: 24px; border-radius: 4px; font-size: 14px; color: var(--ink2); }
+.tip-box b { color: var(--ink); }
+.tip-box .x { margin-left: auto; border: none; background: none; color: var(--muted); padding: 0 4px; font-size: 16px; }
+.side-list .filelist button .p { font-family: var(--mono); }
+
+/* Markdown（文件、对话、画像共用） */
+.md { word-break: break-word; }
+.md h1, .md h2, .md h3, .md h4 { line-height: 1.35; margin: 1.3em 0 .5em; }
+.md h1 { font: 700 26px/1.3 var(--serif); }
+.md h2 { font: 700 21px/1.35 var(--serif); }
+.md h3 { font-size: 16px; }
+.md p { margin: .55em 0; white-space: pre-wrap; }
+.md blockquote { margin: .7em 0; padding: 4px 14px; border-left: 2px solid var(--accent); color: var(--ink2); }
+.md blockquote b { color: var(--ink); }
+.md details { margin: .6em 0; border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; background: var(--soft); }
+.md details summary { cursor: pointer; color: var(--muted); }
+.md pre { background: var(--term); color: var(--term-ink); border-radius: 4px; padding: 12px 14px; overflow: auto; font: 13px/1.6 var(--mono); white-space: pre-wrap; }
+.md code { font-family: var(--mono); font-size: .9em; background: var(--chip); padding: 0 4px; border-radius: 3px; }
+.md pre code { background: none; padding: 0; }
+.md hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+.md .marker { color: var(--muted); font-size: 12.5px; border: 1px dashed var(--line); border-radius: 4px; padding: 2px 8px; margin: 8px 0; }
+.md a.wiki { color: var(--ink); text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+.md ul { padding-left: 20px; }
+.md li { margin: 7px 0; }
+.md li.task { list-style: none; display: flex; gap: 10px; align-items: flex-start; margin-left: -20px; flex-wrap: wrap; }
+.md li.task > span:nth-child(2) { flex: 1; min-width: 0; }
+.md li.task .box { flex: none; width: 15px; height: 15px; margin-top: 5px; border: 1.4px solid var(--faint); font-size: 11px; line-height: 12px; text-align: center; color: var(--bad); }
+.md li.task.done > span:nth-child(2) { color: var(--muted); text-decoration: line-through; }
+.md li.task.done .box { border-color: var(--bad); }
+sup.fn { cursor: pointer; color: var(--accent); font: 700 11px var(--mono); padding: 0 2px; margin-left: 2px; }
+sup.fn::before { content: "["; } sup.fn::after { content: "]"; }
+sup.fn.on { background: var(--accent); color: var(--accent-ink); }
+.fn-box { flex-basis: 100%; margin: 6px 0 4px; padding: 4px 0 4px 14px; border-left: 2px solid var(--accent); font-size: 14px; }
+.fn-box .fn-head { color: var(--muted); font-size: 12.5px; }
+.fn-box ul { margin: 4px 0 0; padding-left: 0; list-style: none; }
+.fn-box li { margin: 6px 0; font-family: var(--serif); color: var(--ink2); }
+
+/* 找：两栏浏览 */
+.subnav { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 24px; overflow-x: auto; }
+.subnav button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 14px; color: var(--ink2); }
+.subnav button.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+.sub { display: none; } .sub.on { display: block; }
+.files { display: grid; grid-template-columns: 320px 1fr; gap: 32px; align-items: start; }
+.side { position: sticky; top: 84px; max-height: calc(100vh - 110px); display: flex; flex-direction: column; border-top: 1.5px solid var(--ink); padding-top: 14px; }
 .side input { width: 100%; flex: none; }
-.filelist { overflow: auto; margin-top: 6px; }
-.filelist button { display: block; width: 100%; text-align: left; border: none; border-radius: 6px; padding: 6px 8px; background: none; white-space: normal; }
-.filelist button:hover { background: var(--chip); }
-.filelist button.on { background: var(--soft); }
-.filelist .t { display: block; font-size: 14px; line-height: 1.35; }
+.filelist { overflow: auto; margin-top: 8px; }
+.filelist button { display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid var(--line2); border-radius: 0; padding: 9px 4px; background: none; white-space: normal; }
+.filelist button:hover { background: var(--soft); }
+.filelist button.on { background: var(--soft); box-shadow: inset 3px 0 var(--accent); }
+.filelist .t { display: block; font-size: 14px; line-height: 1.4; }
 .filelist .p { display: block; font-size: 12px; color: var(--muted); word-break: break-all; }
-#fileFolders button { padding: 2px 10px; font-size: 13px; border-radius: 999px; }
-#fileFolders button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.note { min-width: 0; }
+#fileFolders button, #convPlatforms button { padding: 2px 10px; font-size: 13px; }
+#fileFolders button.on, #convPlatforms button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.note { min-width: 0; border-top: 1.5px solid var(--ink); padding-top: 14px; }
 .note .path { color: var(--muted); font-size: 13px; word-break: break-all; }
 .props { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 13.5px; }
-.props td { border-top: 1px solid var(--line); padding: 5px 8px; vertical-align: top; word-break: break-word; }
+.props td { border-top: 1px solid var(--line2); padding: 5px 8px; vertical-align: top; word-break: break-word; }
 .props td:first-child { color: var(--muted); width: 150px; white-space: nowrap; }
-.md { word-break: break-word; }
-.md h1, .md h2, .md h3, .md h4 { line-height: 1.35; margin: 1.2em 0 .4em; }
-.md h3 { font-size: 15px; color: var(--accent); border-top: 1px solid var(--line); padding-top: 12px; }
-.md p { margin: .5em 0; white-space: pre-wrap; }
-.md blockquote { margin: .6em 0; padding: 2px 12px; border-left: 3px solid var(--line); color: var(--muted); }
-.md details { margin: .6em 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; background: var(--chip); }
-.md details summary { cursor: pointer; color: var(--muted); }
-.md pre { background: var(--term); color: var(--term-ink); border-radius: 8px; padding: 10px 12px; overflow: auto; font-size: 13px; }
-.md code { font-family: ui-monospace, Consolas, monospace; font-size: .92em; background: var(--chip); padding: 0 4px; border-radius: 4px; }
-.md pre code { background: none; padding: 0; }
-.md .marker { color: var(--muted); font-size: 12px; border: 1px dashed var(--line); border-radius: 6px; padding: 2px 8px; margin: 8px 0; }
-.md a.wiki { color: var(--accent); }
 .chat-head { display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-.bubbles { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
-.bubble { max-width: 82%; border-radius: 14px; padding: 10px 14px; border: 1px solid var(--line); }
-.bubble.user { align-self: flex-end; background: var(--soft); border-color: transparent; border-bottom-right-radius: 4px; }
-.bubble.assistant { align-self: flex-start; background: var(--panel); border-bottom-left-radius: 4px; }
-.bubble .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.chat-head h2 { font: 700 22px/1.3 var(--serif); }
+.bubbles { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.bubble { max-width: 82%; border-radius: 6px; padding: 10px 14px; border: 1px solid var(--line); background: var(--panel); }
+.bubble.user { align-self: flex-end; background: var(--soft); border-color: transparent; }
+.bubble.assistant { align-self: flex-start; }
+.bubble .who { font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: var(--mono); }
 .bubble .md p:first-child { margin-top: 0; } .bubble .md p:last-child { margin-bottom: 0; }
 .bubble details { margin: 0 0 8px; }
-.notes-box { margin-top: 18px; border: 1px dashed var(--warn); border-radius: 10px; padding: 10px 14px; }
-.notes-box .who { color: var(--warn); font-size: 12px; }
-@media (max-width: 800px) { .bubble { max-width: 100%; } }
-.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 14px; margin: 10px 0; }
+.notes-box { margin-top: 18px; border-left: 2px solid var(--accent); padding: 6px 14px; }
+.notes-box .who { color: var(--accent); font-size: 12px; }
+.part { margin: 8px 0; padding: 6px 10px; border-radius: 4px; border: 1px dashed var(--faint); background: var(--panel); }
+.part .md { color: var(--muted); font-size: 13.5px; max-height: 260px; overflow: auto; }
+.part-tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 0 6px; margin-bottom: 2px; color: var(--ink2); border: 1px solid var(--line); }
+.part.src-error .part-tag { color: var(--bad); }
+.msg { border-left: 2px solid var(--line); padding: 6px 0 6px 12px; margin: 10px 0; }
+.msg.user { border-left-color: var(--ink); } .msg.note { border-left-color: var(--accent); }
+.msg .who { font-size: 12.5px; color: var(--muted); }
+.msg .text { white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+.hits button { display: block; width: 100%; text-align: left; border: none; border-bottom: 1px solid var(--line2); border-radius: 0; background: none; padding: 12px 0; white-space: normal; }
+.hits button:hover .t { color: var(--accent); }
+.hits .t { font: 700 16px/1.4 var(--serif); }
+.hits .p { color: var(--ink2); font-size: 13.5px; margin-top: 2px; }
+.hits .p b { background: #FFE3D3; color: var(--ink); font-weight: 600; }
+.hit-group { margin-bottom: 28px; }
+
+/* 管理 */
+.manage { display: grid; grid-template-columns: 200px 1fr; gap: 40px; align-items: start; }
+.manage .menu { position: sticky; top: 84px; display: flex; flex-direction: column; border-top: 1.5px solid var(--ink); padding-top: 10px; }
+.manage .menu button { text-align: left; border: none; border-radius: 0; background: none; padding: 9px 10px; color: var(--ink2); }
+.manage .menu button small { display: block; color: var(--muted); font-size: 12px; white-space: normal; }
+.manage .menu button.on { color: var(--ink); font-weight: 700; box-shadow: inset 3px 0 var(--accent); background: var(--soft); }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 16px; margin: 12px 0; }
 .form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .form input, .form select { width: 100%; }
-input[type=number], input[type=password] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; }
-input[type=password] { flex: 1; }
-.feed { display: grid; grid-template-columns: auto 160px 1fr auto; gap: 10px; align-items: center; padding: 5px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.stat { border-top: 1px solid var(--line); padding: 10px 0; }
+.stat .k { color: var(--muted); font-size: 13px; }
+.stat .v { font: 22px/1.3 var(--mono); margin-top: 2px; }
+.stat .s { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-all; }
+.feed { display: grid; grid-template-columns: auto 160px 1fr auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line2); font-size: 13.5px; }
 .feed .u { color: var(--muted); word-break: break-all; }
-.fgroup { margin-top: 12px; padding: 4px 0; font-weight: 600; font-size: 13.5px; }
-.isearch { margin: 8px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.fgroup { margin-top: 14px; padding: 4px 0; font-weight: 700; font-size: 13.5px; }
+.isearch { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; }
 .isearch label { font-size: 13.5px; }
 .feed button { padding: 2px 8px; font-size: 12.5px; }
 .status-line { margin: 4px 0; }
 .disabled { opacity: .45; pointer-events: none; }
-.pick { border-top: 1px solid var(--line); padding: 10px 0; }
-.pick:first-child { border-top: none; }
-.pick .t a { color: var(--ink); font-weight: 600; }
-.pick .m { color: var(--muted); font-size: 13px; margin: 2px 0 6px; }
-.pick .rate { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.pick .rate button { padding: 3px 10px; font-size: 13px; }
-.pick .rate button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.pick .rate button.on.no { background: var(--bad); border-color: var(--bad); }
-.pick .rate input[type=text] { flex: 1 1 180px; padding: 4px 8px; font-size: 13px; }
-.pick .rate select { padding: 3px 6px; font-size: 13px; }
-.interest { display: grid; grid-template-columns: auto 180px 1fr 1fr; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.interest { display: grid; grid-template-columns: auto 180px 1fr 1fr; gap: 8px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line2); }
 .interest input[type=text] { width: 100%; padding: 5px 8px; font-size: 13.5px; }
 .interest .kw, .interest .ev { grid-column: 2 / -1; } .interest .ev { color: var(--muted); font-size: 12.5px; }
-.interest .tag { font-size: 12px; color: var(--warn); }
-@media (max-width: 700px) { .interest { grid-template-columns: auto 1fr; } .interest input[type=text] { grid-column: 2; } }
-@media (max-width: 600px) { .feed { grid-template-columns: auto 1fr; } .feed .u { grid-column: 1 / -1; } }
-@media (max-width: 800px) { .files { grid-template-columns: 1fr; } .side { position: static; max-height: 50vh; } }
-@media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
-/* 画像 */
-.side-title { font-size: 12.5px; color: var(--muted); margin: 4px 0 2px; font-weight: 600; letter-spacing: .03em; }
-.toc { display: flex; flex-direction: column; margin-top: 4px; overflow: auto; }
-.toc a { color: var(--ink); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 13.5px; }
-.toc a:hover { background: var(--chip); }
-.pill { display: inline-block; background: var(--soft); color: var(--accent); border-radius: 999px; padding: 3px 12px; margin: 3px 6px 3px 0; font-weight: 600; font-size: 14px; }
-.pf-hero { margin: 16px 0 6px; padding: 14px 16px; border-radius: 12px; background: var(--chip); }
-.pf-hero .k, .pf-stat .k { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
-.pf-stat { grid-column: 1 / -1; cursor: pointer; }
-.pf-notice { color: var(--muted); font-size: 12.5px; line-height: 1.7; margin: 8px 2px 0; }
-.pf-stat:hover { border-color: var(--accent); }
-.pf .md h2 { font-size: 18px; margin-top: 1.6em; }
-.pf .md h3 { font-size: 15.5px; }
-.pf .md hr { border: none; border-top: 1px solid var(--line); margin: 22px 0 0; }
-.pf .md blockquote { border-left-color: var(--accent); color: var(--ink); background: var(--soft); border-radius: 0 8px 8px 0; padding: 8px 12px; }
-.pf .md blockquote b { color: var(--accent); }
-.md ul { padding-left: 20px; }
-.md li { margin: 6px 0; }
-.md li.task { list-style: none; display: flex; gap: 8px; align-items: flex-start; margin-left: -20px; flex-wrap: wrap; }
-.md li.task > span:nth-child(2) { flex: 1; min-width: 0; }
-.md li.task .box { flex: none; width: 16px; height: 16px; margin-top: 4px; border: 1.5px solid var(--line); border-radius: 4px; font-size: 11px; line-height: 13px; text-align: center; color: var(--bad); }
-.md li.task.done > span:nth-child(2) { color: var(--muted); text-decoration: line-through; }
-.md li.task.done .box { border-color: var(--bad); }
-sup.fn { cursor: pointer; color: var(--accent); font-weight: 700; padding: 0 3px; margin-left: 2px; border-radius: 4px; background: var(--soft); font-size: 11px; }
-sup.fn.on { background: var(--accent); color: var(--accent-ink); }
-.fn-box { flex-basis: 100%; margin: 6px 0 4px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 13.5px; }
-.fn-box .fn-head { color: var(--muted); font-size: 12.5px; }
-.fn-box ul { margin: 4px 0 0; padding-left: 18px; }
-/* 聊天：不是我写的段 */
-.part { margin: 8px 0; padding: 6px 10px; border-radius: 8px; border: 1px dashed var(--line); background: var(--chip); }
-.part .md { color: var(--muted); font-size: 13.5px; max-height: 260px; overflow: auto; }
-.part-tag { display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; margin-bottom: 2px; background: var(--panel); color: var(--muted); }
-.part.src-ai .part-tag { color: var(--accent); }
-.part.src-error .part-tag { color: var(--bad); }
-.part.src-code .part-tag { color: var(--warn); }
+.interest .tag { font-size: 12px; color: var(--warn); border: none; padding: 0; font-weight: 600; }
+.answer { white-space: pre-wrap; background: var(--soft); border-radius: 4px; padding: 12px 14px; margin-top: 12px; }
+.headline { border-top: 1px solid var(--line2); padding: 12px 0; }
+
+@media (max-width: 980px) {
+  .cols, .welcome, .manage, .files { grid-template-columns: 1fr; gap: 28px; }
+  .side, .manage .menu { position: static; max-height: 50vh; }
+  .manage .menu { flex-direction: row; overflow-x: auto; }
+  .manage .menu button small { display: none; }
+  .gsearch { display: none; }
+  .bubble { max-width: 100%; }
+  .ch > button { grid-template-columns: 32px auto 1fr auto; } .ch .tag { display: none; }
+  .ch .body { padding-left: 0; }
+}
+@media (max-width: 640px) {
+  .bar { gap: 12px; padding: 0 16px; } main { padding: 24px 16px 80px; }
+  .vault-pill { display: none; }
+  .page-head h1, .welcome h1 { font-size: 28px; }
+  .feed { grid-template-columns: auto 1fr; } .feed .u { grid-column: 1 / -1; }
+  .interest { grid-template-columns: auto 1fr; } .interest input[type=text] { grid-column: 2; }
+}
+.term { margin-top: 12px; background: var(--term); color: var(--term-ink); border-left: 3px solid var(--line); padding: 10px 14px; font: 13px/1.6 var(--mono); white-space: pre-wrap; word-break: break-word; }
+.term .err { color: var(--bad); }
 </style>
 </head>
 <body>
 <header>
   <div class="bar">
-    <div class="brand">eia 试用台<small>只在你的电脑上运行</small></div>
-    <div class="vault">
-      <input type="text" id="vault" list="recent" placeholder="vault 路径，例如 C:\Users\...\eia-llm-test" spellcheck="false">
-      <datalist id="recent"></datalist>
-      <button class="primary" id="useVault">打开</button>
-    </div>
+    <a class="brand" href="#home" data-tab-link="home">eia<i></i></a>
+    <nav id="tabs">
+      <button data-tab="home" class="on">今天</button>
+      <button data-tab="me">我</button>
+      <button data-tab="find">找</button>
+      <button data-tab="manage">管理</button>
+    </nav>
+    <div class="gsearch"><input type="search" id="gq" placeholder="搜你说过的话、画像、新闻……  回车搜索" spellcheck="false"></div>
+    <button class="vault-pill" id="vaultPill" title="换一个知识库"><b>●</b> <span id="vaultName">还没打开知识库</span></button>
   </div>
-  <nav id="tabs">
-    <button data-tab="overview" class="on">概览</button>
-    <button data-tab="profile">画像</button>
-    <button data-tab="chats">聊天记录</button>
-    <button data-tab="files">文件</button>
-    <button data-tab="import">导入</button>
-    <button data-tab="headlines">新闻雷达</button>
-    <button data-tab="interests">兴趣</button>
-    <button data-tab="ai">AI 服务</button>
-    <button data-tab="settings">设置</button>
-  </nav>
+  <div class="you-strip" id="youStrip" hidden><div class="in"><span class="k">你：</span><span class="v" id="youLabels"></span><button id="youMore">看我的画像 →</button></div></div>
 </header>
 
 <main>
-  <!-- 概览 -->
-  <section class="tab on" id="tab-overview">
-    <div class="card">
-      <h2>这个 vault</h2>
-      <p class="hint">知识库就是一个文件夹。这里显示它的配置和内容数量。</p>
-      <div class="grid" id="overview"></div>
+  <!-- 今天 -->
+  <section class="tab on" id="tab-home">
+    <div id="welcome" hidden>
+      <div class="welcome">
+        <div>
+          <div class="kicker">欢迎使用 EIA</div>
+          <h1>把你和 AI 的聊天记录，<br>变成一个了解你的知识库<i>。</i></h1>
+          <p class="lead">你在 ChatGPT、Claude、Gemini 里聊过的东西，eia 会整理成能搜索的笔记，再帮你写一份「你是什么样的人」的画像，每天挑出你可能关心的新闻。</p>
+          <div class="steps">
+            <div class="t">几步开始</div>
+            <div id="stepList"></div>
+          </div>
+          <div class="safe"><span>🔒</span><div><b>你的数据都留在这台电脑上</b>聊天记录存成普通文件，用记事本都能打开。只有你点了「确认发送」，才会把内容发给 AI。</div></div>
+        </div>
+        <div class="gets">
+          <div class="t">做完之后你会有</div>
+          <div class="get"><b>一份关于你的画像</b><span>比如 <span class="tag sm">追问到原理才停</span>，每一句都附上你的原话，能核对。</span></div>
+          <div class="get"><b>每天挑出的新闻</b><span>多家媒体都在报道的大事，再加上按你的兴趣挑的几篇。</span></div>
+          <div class="get"><b>能搜索的聊天记录</b><span>三个平台的对话放在一起，一搜就能找回你半年前说过的话。</span></div>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <h2>格式检查 <span class="chip">eia validate</span></h2>
-      <p class="hint">逐个检查 Markdown 文件的字段是否合规。只读，不改文件。</p>
-      <div class="row"><button class="primary" data-run="validate">开始检查</button></div>
-      <div data-out="validate"></div>
-    </div>
-    <div class="card">
-      <h2>新建一个空 vault <span class="chip">eia init</span></h2>
-      <p class="hint">在填写的路径创建目录结构和带注释的配置模板。已有文件不会被改动。</p>
-      <div class="row"><input type="text" id="initPath" placeholder="新 vault 的路径" spellcheck="false"><button data-run="init">创建</button></div>
-      <div data-out="init"></div>
+
+    <div id="today">
+      <div class="banner" id="nextStep" hidden></div>
+      <div class="page-head"><h1>今天值得看的</h1><div class="meta" id="todayMeta"></div></div>
+      <div class="cols">
+        <div>
+          <div class="block">
+            <div class="sec-head"><h3>大事</h3><span>很多家媒体同时在报道的新闻</span><button class="link more" id="hlMore" hidden></button></div>
+            <div id="hlList"><div class="empty">加载中……</div></div>
+          </div>
+          <div class="block">
+            <div class="sec-head"><h3>最近的对话</h3><span>你最近 7 天聊过的</span><button class="link more" data-goto-tab="find">全部对话 →</button></div>
+            <div id="recentChats" class="recent"><div class="empty">加载中……</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="block">
+            <div class="sec-head"><h3>为你挑的</h3><span>按你的兴趣清单，从最近的新闻里挑</span></div>
+            <div id="picks"><div class="empty">加载中……</div></div>
+            <p class="tip">点「有用」「没用」，以后会挑得更准。挑选在你的电脑上完成，不花钱。<button class="link" data-goto-manage="interests">改我的兴趣清单 →</button></p>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- 画像 -->
-  <section class="tab" id="tab-profile">
-    <div class="files">
-      <aside class="card side">
-        <div class="side-title">所有画像</div>
-        <div id="profileList" class="filelist"><div class="empty">加载中……</div></div>
-        <div class="side-title" id="profileTocTitle" style="display:none">这一份的目录</div>
-        <div id="profileToc" class="toc"></div>
-      </aside>
-      <article class="card note pf" id="profileView">
-        <div class="empty">从左边选一份画像。还没有的话，先用下面的“生成新的画像”。</div>
-      </article>
-    </div>
-    <div class="card">
-      <h2>生成新的画像 <span class="chip">eia profile run</span></h2>
+  <!-- 我 -->
+  <section class="tab" id="tab-me">
+    <div class="page-head"><h1>我</h1><p id="meSub">AI 读了你的对话之后，对你的理解</p><div class="meta" id="meMeta"></div></div>
+    <div class="tip-box" id="meTip"><div><b>第一次看？这样读：</b>方框里是一句话概括 → 点开一章看要点 → 点 [1] 这样的小数字看你的原话 → 觉得不像你，在 Obsidian 里勾上那条前面的方框。</div><button class="x" id="meTipClose" title="知道了">×</button></div>
+    <div class="cols">
+      <div>
+        <div class="labels" id="meLabels"></div>
+        <div id="profileView"><div class="empty">加载中……</div></div>
+      </div>
+      <div>
+        <div class="block side-list">
+          <div class="sec-head"><h3>所有版本</h3><span>每次生成都是一个新文件</span></div>
+          <div id="profileList" class="filelist"><div class="empty">加载中……</div></div>
+        </div>
+        <div class="block">
+          <div class="sec-head"><h3>生成新的画像</h3></div>
+<div>
+      
       <p class="hint">第 1 步只在本机整理你说过的话，告诉你要发多少字、发给哪个服务，什么都不发。确认后第 2 步才发给你配置的文本模型，可能要几分钟。分析过、内容没变的对话不会重复发送。每次生成一个新文件，旧的不会被覆盖。</p>
       <div class="row"><input type="date" id="pfSince" title="从这天起"> <span class="chip">到</span> <input type="date" id="pfUntil" title="到这天为止"> <span class="hint" style="margin:0">都不填 = 最近 3 个月</span></div>
       <div class="row">
@@ -243,25 +389,27 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       </div>
       <div data-out="profile_plan"></div>
       <div data-out="profile_run"></div>
+    
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
-  <!-- 文件 -->
-  <section class="tab" id="tab-files">
-    <div class="files">
-      <aside class="card side">
-        <input type="search" id="fileQ" placeholder="搜索标题或路径">
-        <div class="row" id="fileFolders"></div>
-        <div id="fileList" class="filelist"><div class="empty">加载中……</div></div>
-      </aside>
-      <article class="card note" id="note">
-        <div class="empty">从左边选一个文件。这里显示的和 Obsidian 里看到的是同一个文件：上面是属性（frontmatter），下面是正文。只读。</div>
-      </article>
+  <!-- 找 -->
+  <section class="tab" id="tab-find">
+    <div class="page-head"><h1>找</h1><p>在你所有的对话、画像、新闻和笔记里找东西。</p></div>
+    <div class="subnav" id="findNav">
+      <button data-sub="results">搜索结果</button>
+      <button data-sub="chats" class="on">对话</button>
+      <button data-sub="said">我说过的话</button>
+      <button data-sub="files">所有文件</button>
     </div>
-  </section>
-
-  <!-- 对话 -->
-  <section class="tab" id="tab-chats">
+    <div class="sub" id="find-results">
+      <div class="row"><input type="search" id="fq" placeholder="输入要找的词，回车。比如：链表、预定论、签证" spellcheck="false"><button class="primary" id="fqGo">搜索</button></div>
+      <div id="hits" class="hits"><div class="empty">在上面或顶部的搜索框输入，回车。</div></div>
+    </div>
+    <div class="sub on" id="find-chats">
     <div class="files">
       <aside class="card side">
         <input type="search" id="fullQ" placeholder="搜所有对话的内容，回车（全文搜索）">
@@ -273,14 +421,17 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
         <div class="empty">从左边选一个对话，这里会像聊天软件一样显示你和 AI 的每一条消息。</div>
       </article>
     </div>
+    </div>
+    <div class="sub" id="find-said">
+
     <div class="card">
-      <h2>统计 <span class="chip">eia chats stats</span></h2>
+      <h2>统计</h2>
       <p class="hint">每个平台有多少对话、你说了多少话。</p>
       <div class="row"><button class="primary" data-run="chats_stats">统计</button></div>
       <div data-out="chats_stats"></div>
     </div>
     <div class="card">
-      <h2>在所有对话里搜我说过的话 <span class="chip">eia chats dump</span></h2>
+      <h2>在所有对话里搜我说过的话</h2>
       <p class="hint">勾上“只看我说的”，AI 的回答和思考过程一句都不会出现。笔记是你在对话文件里自己写的内容。</p>
       <div class="row">
         <label class="check"><input type="checkbox" id="onlyMe" checked> 只看我说的</label>
@@ -296,12 +447,56 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       <div data-out="chats_dump"></div>
       <div id="dumpList"></div>
     </div>
+    </div>
+    <div class="sub" id="find-files">
+    <div class="files">
+      <aside class="card side">
+        <input type="search" id="fileQ" placeholder="搜索标题或路径">
+        <div class="row" id="fileFolders"></div>
+        <div id="fileList" class="filelist"><div class="empty">加载中……</div></div>
+      </aside>
+      <article class="card note" id="note">
+        <div class="empty">从左边选一个文件。这里显示的和 Obsidian 里看到的是同一个文件：上面是属性（frontmatter），下面是正文。只读。</div>
+      </article>
+    </div>
+    </div>
   </section>
 
-  <!-- 导入 -->
-  <section class="tab" id="tab-import">
+  <!-- 管理 -->
+  <section class="tab" id="tab-manage">
+    <div class="page-head"><h1>管理</h1><p>导入对话、连接 AI、设置新闻和兴趣。一般设置好一次就不用常来。</p></div>
+    <div class="manage">
+      <div class="menu" id="manageNav">
+        <button data-sub="vault" class="on">知识库<small>用哪个文件夹</small></button>
+        <button data-sub="import">导入对话<small>ChatGPT、Claude、Gemini</small></button>
+        <button data-sub="news">新闻雷达<small>运行、每天自动运行</small></button>
+        <button data-sub="interests">兴趣清单<small>决定「为你挑的」挑什么</small></button>
+        <button data-sub="ai">AI 服务<small>测试连接、问一句</small></button>
+        <button data-sub="settings">设置<small>AI、新闻源、配置文件</small></button>
+        <button data-sub="tools">工具<small>检查格式、数据库</small></button>
+      </div>
+      <div>
+        <div class="sub on" id="manage-vault">
+          <div class="card">
+            <h2>知识库在哪个文件夹</h2>
+            <p class="hint">eia 的所有东西都放在一个文件夹里（叫「知识库」，也就是 Obsidian 说的 vault）。填它的路径，点「打开」。</p>
+            <div class="row">
+              <input type="text" id="vault" list="recent" placeholder="例如 C:\Users\你\Documents\my-vault" spellcheck="false">
+              <datalist id="recent"></datalist>
+              <button class="primary" id="useVault">打开</button>
+            </div>
+            <div class="grid" id="overview"></div>
+          </div>
+          <div class="card">
+      <h2>还没有知识库？新建一个</h2>
+      <p class="hint">在填写的路径创建目录结构和带注释的配置模板。已有文件不会被改动。</p>
+      <div class="row"><input type="text" id="initPath" placeholder="新知识库放在哪个文件夹，例如 C:\Users\你\Documents\my-vault" spellcheck="false"><button data-run="init">创建</button></div>
+      <div data-out="init"></div>
+    </div>
+        </div>
+        <div class="sub" id="manage-import">
     <div class="card">
-      <h2>导入对话 <span class="chip">eia import</span></h2>
+      <h2>导入对话</h2>
       <p class="hint">读官方导出的 zip，不用解压。先用“预览”看会新建多少，再真的导入。重复导入只更新，不会重复，你加的标签和笔记会保留。</p>
       <div class="row">
         <select id="impPlatform"><option value="chatgpt">ChatGPT</option><option value="claude">Claude</option><option value="gemini">Gemini（浏览器插件导出）</option></select>
@@ -315,95 +510,76 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       </div>
       <div data-out="import"></div>
     </div>
-  </section>
-
-  <!-- 新闻雷达 -->
-  <section class="tab" id="tab-headlines">
+        </div>
+        <div class="sub" id="manage-news">
+          <div class="card">
+            <h2>运行新闻雷达</h2>
+            <p class="hint">抓取新闻源 → 把讲同一件事的报道放在一起 → 至少几家不同媒体都在报的，写成一条「大事」。需要 Ollama 开着。</p>
+            <div class="row">
+              <label class="check"><input type="checkbox" id="hlDry"> 只预览，不写文件</label>
+              <button class="primary" data-run="headlines_run">现在运行</button>
+              <button data-run="headlines_check">检查新闻源能不能用</button>
+            </div>
+            <div data-out="headlines_run"></div>
+            <div data-out="headlines_check"></div>
+          </div>
+          <div class="card">
+            <h2>每天自动运行</h2>
+            <p class="hint">登记到 Windows 的任务计划程序。到点时电脑关着，开机后会补跑；不会弹出窗口，也不需要管理员权限。</p>
+            <div class="row">
+              <label class="check">每天<input type="text" id="schedAt" value="08:00" style="flex:0 0 140px" title="多个时间用逗号分开，例如 08:00,18:00"></label>
+              <button class="primary" data-run="schedule_install">登记 / 更新</button>
+              <button data-run="schedule_remove">取消自动运行</button>
+              <button data-run="schedule_run_now">现在跑一次</button>
+              <button data-run="schedule_status">刷新状态</button>
+            </div>
+            <div data-out="schedule_install"></div>
+            <div data-out="schedule_remove"></div>
+            <div data-out="schedule_run_now"></div>
+            <div data-out="schedule_status"></div>
+          </div>
+        </div>
+        <div class="sub" id="manage-interests">
+          <div class="card">
+            <h2>我的兴趣清单</h2>
+            <p class="hint">勾上的就是你的兴趣，「为你挑的」按它来挑。可以直接改名字和说明；「不要」里写不想看的方向。下面两种方式生成的草稿也会出现在这里，你确认后才生效。</p>
+            <div id="interestList"></div>
+            <div class="row">
+              <button id="addInterest">加一项</button>
+              <button class="primary" id="saveInterests">保存为我的兴趣清单</button>
+            </div>
+            <div id="interestResult"></div>
+          </div>
+          <div class="card">
+            <h2>从对话生成兴趣草稿</h2>
+            <p class="hint"><b>第 1 步</b>在本机把你说过的话按主题归组，不发出任何内容（第一次约 3 分钟）。<b>第 2 步</b>每组挑几段摘录发给 AI 起名字，发之前会告诉你发多少字。</p>
+            <div class="row">
+              <button data-run="interests_plan">第 1 步：本机归组</button>
+              <button class="primary" data-run="interests_name" id="nameBtn" disabled>第 2 步：确认发送并生成草稿</button>
+            </div>
+            <div data-out="interests_plan"></div>
+            <div data-out="interests_name"></div>
+          </div>
+          <div class="card">
+            <h2>根据评价改进兴趣</h2>
+            <p class="hint">把兴趣清单和你的评价（报道标题、你写的理由）发给 AI，让它提修改建议。建议会出现在上面的清单里，你确认后才生效。</p>
+            <div class="row">
+              <button data-run="interests_learn_plan">看看要发什么</button>
+              <button class="primary" data-run="interests_learn" id="learnBtn" disabled>确认发送</button>
+            </div>
+            <div data-out="interests_learn_plan"></div>
+            <div data-out="interests_learn"></div>
+          </div>
+          <div class="card">
+            <h2>把今天挑的写成文件</h2>
+            <p class="hint">「今天」页里看到的「为你挑的」只是预览；这里把它写进 inbox/digest/ 的当天文件，在 Obsidian 里也能看。</p>
+            <div class="row"><button class="primary" data-run="digest_run">写进今天的文件</button></div>
+            <div data-out="digest_run"></div>
+          </div>
+        </div>
+        <div class="sub" id="manage-ai">
     <div class="card">
-      <h2>运行雷达 <span class="chip">eia headlines run</span></h2>
-      <p class="hint">抓取配置里的新闻源 → 用向量模型把讲同一件事的报道归组 → 至少几家独立媒体都在报的写成条目。需要 Ollama 开着。</p>
-      <div class="row">
-        <label class="check"><input type="checkbox" id="hlDry"> 预览（不写文件）</label>
-        <button class="primary" data-run="headlines_run">运行</button>
-        <button data-run="headlines_check">检查新闻源</button>
-      </div>
-      <div data-out="headlines_run"></div>
-      <div data-out="headlines_check"></div>
-    </div>
-    <div class="card">
-      <h2>每天自动运行 <span class="chip">eia schedule</span></h2>
-      <p class="hint">登记到 Windows 任务计划程序。电脑那时关着，开机后补跑；不会弹出窗口；不需要管理员权限。每次运行的结果都记在下面。</p>
-      <div class="row">
-        <label class="check">每天<input type="text" id="schedAt" value="08:00" style="flex:0 0 140px" title="多个时间用逗号分开，例如 08:00,18:00"></label>
-        <button class="primary" data-run="schedule_install">登记 / 更新</button>
-        <button data-run="schedule_remove">删除</button>
-        <button data-run="schedule_run_now">现在跑一次（写运行记录）</button>
-        <button data-run="schedule_status">刷新状态</button>
-      </div>
-      <div data-out="schedule_install"></div>
-      <div data-out="schedule_remove"></div>
-      <div data-out="schedule_run_now"></div>
-      <div data-out="schedule_status"></div>
-    </div>
-    <div class="card">
-      <h2>已有的大事</h2>
-      <p class="hint">按报道的媒体数排序。数字是独立媒体数，同一家媒体的中英文源只算一家。</p>
-      <div class="row"><button data-run="headlines_list">刷新</button></div>
-      <div id="hlList"></div>
-    </div>
-  </section>
-
-  <!-- 兴趣 -->
-  <section class="tab" id="tab-interests">
-    <div class="card">
-      <h2>今日兴趣 <span class="chip">eia digest</span></h2>
-      <p class="hint">用你的兴趣清单给新闻雷达抓到的报道打分（本机计算，不花钱）。评价会马上影响之后的挑选：标了不相关的，和它很像的报道以后不再出现。</p>
-      <div class="row">
-        <button data-run="digest_picks">刷新</button>
-        <button class="primary" data-run="digest_run">写进今天的文件</button>
-      </div>
-      <div data-out="digest_run"></div>
-      <div id="picks"></div>
-    </div>
-
-    <div class="card">
-      <h2>我的兴趣清单</h2>
-      <p class="hint">勾上的就是你的兴趣。可以直接改名字、说明，「不要」里写不想看的方向。下面的草稿（从对话生成的、根据评价改进的）也在这里，确认后才生效。</p>
-      <div id="interestList"></div>
-      <div class="row">
-        <button id="addInterest">加一项</button>
-        <button class="primary" id="saveInterests">保存为我的兴趣清单</button>
-      </div>
-      <div id="interestResult"></div>
-    </div>
-
-    <div class="card">
-      <h2>从对话生成兴趣草稿 <span class="chip">eia interests draft</span></h2>
-      <p class="hint"><b>第 1 步</b>在本机把你说过的话按主题归组，不发出任何内容（第一次约 3 分钟）。<b>第 2 步</b>每组挑几段摘录发给你配置的 AI 起名字，发之前会告诉你发多少字。</p>
-      <div class="row">
-        <button data-run="interests_plan">第 1 步：本机归组</button>
-        <button class="primary" data-run="interests_name" id="nameBtn" disabled>第 2 步：确认发送并生成草稿</button>
-      </div>
-      <div data-out="interests_plan"></div>
-      <div data-out="interests_name"></div>
-    </div>
-
-    <div class="card">
-      <h2>根据评价改进兴趣 <span class="chip">eia interests learn</span></h2>
-      <p class="hint">把兴趣清单和你的评价（报道标题、你写的理由）发给 AI，让它提出修改建议。建议会出现在上面的清单里，你确认后才生效。</p>
-      <div class="row">
-        <button data-run="interests_learn_plan">看看要发什么</button>
-        <button class="primary" data-run="interests_learn" id="learnBtn" disabled>确认发送</button>
-      </div>
-      <div data-out="interests_learn_plan"></div>
-      <div data-out="interests_learn"></div>
-    </div>
-  </section>
-
-  <!-- AI -->
-  <section class="tab" id="tab-ai">
-    <div class="card">
-      <h2>当前配置 <span class="chip">eia llm show</span> <span class="chip">eia llm test</span></h2>
+      <h2>当前配置</h2>
       <p class="hint">key 只显示有没有设置，永远不会显示内容。“连通测试”会发一个极短的请求。</p>
       <div class="row"><button data-run="llm_show">查看配置</button><button class="primary" data-run="llm_test">连通测试</button></div>
       <div data-out="llm_show"></div>
@@ -416,9 +592,8 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       <div class="row"><button class="primary" data-run="llm_ask">发送</button></div>
       <div id="answer"></div>
     </div>
-  </section>
-  <!-- 设置 -->
-  <section class="tab" id="tab-settings">
+        </div>
+        <div class="sub" id="manage-settings">
     <div class="card" id="cfgStatus"><div class="empty">加载中……</div></div>
 
     <div class="card">
@@ -489,7 +664,7 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
     </div>
 
     <div class="card">
-      <h2>配置文件 <span class="chip">config.yaml</span></h2>
+      <h2>配置文件</h2>
       <p class="hint">上面的表单改的就是这个文件。也可以直接在这里改，或者用记事本打开。保存前会检查格式，旧文件备份在 .eia\config.yaml.bak。</p>
       <div class="row">
         <button id="openCfg">用记事本打开</button>
@@ -501,8 +676,16 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       <div class="row"><button class="primary" id="saveRaw">保存这个文件</button></div>
       <div id="rawResult"></div>
     </div>
+        </div>
+        <div class="sub" id="manage-tools">
+          <div class="card">
+      <h2>格式检查</h2>
+      <p class="hint">逐个检查 Markdown 文件的字段是否合规。只读，不改文件。</p>
+      <div class="row"><button class="primary" data-run="validate">开始检查</button></div>
+      <div data-out="validate"></div>
+    </div>
 
-    <div class="card">
+<div class="card">
       <h2>工具</h2>
       <p class="hint">数据库在 .eia\eia.db，存的是索引、报道、向量、评价和画像观察这些机器用的数据；Markdown 文件才是原件。重建会清掉报道、向量和画像观察，下次运行时重新抓、重新分析（画像会重新发送对话）。</p>
       <div class="row">
@@ -513,6 +696,9 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       <div data-out="db_status"></div>
       <div data-out="db_rebuild"></div>
       <div data-out="clip_template"></div>
+    </div>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -538,9 +724,11 @@ async function api(action, params = {}) {
 function terminal(target, r) {
   const box = document.querySelector(`[data-out="${target}"]`);
   if (!box) return;
-  if (r.error) { box.innerHTML = `<div class="term"><span class="err">${esc(r.error)}</span></div>`; return; }
-  const status = r.exit_code === 0 ? "成功" : `退出码 ${r.exit_code}`;
-  box.innerHTML = `<div class="term"><span class="cmd">$ ${esc(r.command)}</span>\n${esc(r.stdout)}${r.stderr ? `<span class="err">${esc(r.stderr)}</span>` : ""}<span class="meta">\n── ${status} · ${r.seconds} 秒</span></div>`;
+  if (r.error) { box.innerHTML = `<div class="out fail"><pre><span class="err">${esc(r.error)}</span></pre></div>`; return; }
+  const ok = r.exit_code === 0;
+  const text = (r.stdout || "").trim() || (ok ? "完成。" : "");
+  box.innerHTML = `<div class="out ${ok ? "good" : "fail"}"><pre>${esc(text)}${r.stderr ? `\n<span class="err">${esc(r.stderr.trim())}</span>` : ""}</pre>
+    <details><summary>技术细节</summary><code>$ ${esc(r.command)}</code> · ${ok ? "成功" : `退出码 ${r.exit_code}`} · ${r.seconds} 秒</details></div>`;
 }
 
 const params = {
@@ -563,11 +751,11 @@ const after = {
     list.innerHTML = `<p class="hint">共 ${r.total} 条${r.total > r.records.length ? `，显示前 ${r.records.length} 条` : ""}</p>` +
       r.records.map((m) => `<div class="msg ${m.role}"><div class="who">${who[m.role] || m.role} · ${esc(m.time ? m.time.slice(0, 16).replace("T", " ") : "无时间")} · <span class="chip">${esc(m.platform)}</span>${esc(m.title)}</div><div class="text">${esc(m.text)}</div></div>`).join("");
   },
-  headlines_run() { run("headlines_list"); refreshOverview(); },
+  headlines_run() { run("headlines_list"); refreshHome(); },
   profile_plan(r) { $("#pfRunBtn").disabled = !(r.exit_code === 0 && /第 2 步要把/.test(r.stdout)); },
   profile_run(r) {
     $("#pfRunBtn").disabled = true;
-    if (r.exit_code === 0) { const m = r.stdout.match(/已写画像\s+(\S.*?\.md)/); loadProfiles(m ? m[1] : ""); refreshOverview(); }
+    if (r.exit_code === 0) { const m = r.stdout.match(/已写画像\s+(\S.*?\.md)/); loadProfiles(m ? m[1] : ""); refreshHome(); }
   },
   schedule_install() { run("schedule_status"); },
   digest_picks(r) { drawPicks(r); },
@@ -578,15 +766,12 @@ const after = {
   interests_learn(r) { $("#learnBtn").disabled = true; if (r.exit_code === 0) loadInterests(); },
   schedule_remove() { run("schedule_status"); },
   schedule_run_now() { run("schedule_status"); run("headlines_list"); },
-  import(r) { if (!$("#impDry").checked && r.exit_code === 0) refreshOverview(); },
+  import(r) { if (!$("#impDry").checked && r.exit_code === 0) refreshHome(); },
   init(r) { if (r.exit_code === 0) { $("#vault").value = $("#initPath").value.trim(); useVault(); } },
   headlines_list(r) {
-    const box = $("#hlList");
-    if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
-    if (!r.entries.length) { box.innerHTML = `<div class="empty">还没有条目。先点上面的“运行”。</div>`; return; }
-    box.innerHTML = r.entries.map((e) => `<div class="headline"><h3><span class="badge">${e.count}</span>${esc(e.title)}</h3>
-      <div><span class="chip">${esc(e.created.slice(0, 16))}</span>${e.tags.map((t) => `<span class="chip">#${esc(t)}</span>`).join("")}<span class="chip">${esc(e.file)}</span></div>
-      <ul>${e.sources.map((s) => `<li><b>${esc(s.publisher)}</b> · <a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a></li>`).join("")}</ul></div>`).join("");
+    if (r.error) { $("#hlList").innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+    hlAll = [...r.entries].sort((a, b) => (b.created || "").localeCompare(a.created || "") || (b.count || 0) - (a.count || 0));
+    drawHeadlines();
   },
   llm_ask(r) {
     $("#answer").innerHTML = r.error ? `<div class="answer bad">${esc(r.error)}</div>` : `<div class="answer">${esc(r.answer)}</div><p class="hint">${r.seconds} 秒</p>`;
@@ -596,43 +781,111 @@ const after = {
 async function run(action, button) {
   if (button) button.disabled = true;
   const out = document.querySelector(`[data-out="${action}"]`);
-  if (out) out.innerHTML = `<div class="term"><span class="meta">运行中……</span></div>`;
+  if (out) out.innerHTML = `<div class="out"><span class="running">运行中……有的操作要几分钟，请别关掉页面。</span></div>`;
   try {
     const r = await api(action, params[action] ? params[action]() : {});
     if (r.command || r.error) terminal(action, r);
     if (after[action]) after[action](r);
   } catch (err) {
-    if (out) out.innerHTML = `<div class="term"><span class="err">连不上试用台：${esc(err)}。终端里的 playground.py 还开着吗？</span></div>`;
+    if (out) out.innerHTML = `<div class="out fail"><pre class="err">连不上 eia：${esc(err)}。启动它的那个命令窗口还开着吗？</pre></div>`;
   } finally { if (button) button.disabled = false; }
 }
 
 function stat(k, v, s = "", cls = "") { return `<div class="stat"><div class="k">${k}</div><div class="v ${cls}">${v}</div><div class="s">${s}</div></div>`; }
 
-async function refreshOverview() {
-  const box = $("#overview");
-  if (!$("#vault").value.trim()) { box.innerHTML = `<div class="empty">先在顶部填写 vault 路径，点“打开”。</div>`; return; }
-  const r = await api("info");
-  if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
-  if (!r.is_vault) { box.innerHTML = stat("状态", "不是 vault", "这个文件夹里没有 config.yaml。可以用下面的“新建”创建一个。", "bad"); return; }
-  const llm = r.llm ? stat("AI 服务", esc(r.llm.text), (r.llm.key ? "key 已设置" : "key 未设置") + " · 向量：" + esc(r.llm.embed || "未配置"), r.llm.key ? "" : "warn") : stat("AI 服务", "未配置", esc(r.llm_error), "warn");
-  const hl = r.headlines ? stat("新闻雷达", `${r.headlines.feeds} 个源`, `${r.headlines.publishers} 家媒体 · 门槛 ${r.headlines.min_sources} 家 · ${r.headlines.cluster}`) : stat("新闻雷达", "未配置", esc(r.headlines_error), "warn");
-  const pf = r.profile
-    ? `<div class="stat pf-stat" data-pf="${esc(r.profile.path)}" title="点开看这份画像"><div class="k">最新的画像 · ${esc(r.profile.title)}</div><div class="pf-labels">${r.profile.labels.map((l) => `<span class="pill">${esc(l)}</span>`).join("") || "（这份没有标签）"}</div></div>`
-    : stat("画像", "还没有", "去“画像”页生成第一份", "warn");
-  box.innerHTML = pf + stat("对话文件", r.counts.chats, "chats/ 目录") + stat("大事条目", r.counts.headlines, "inbox/headlines/") + llm + hl;
-  box.querySelector(".pf-stat")?.addEventListener("click", (e) => showTab("profile", e.currentTarget.dataset.pf));
+// ---------- 今天 ----------
+let hlAll = [], hlExpanded = false;
+
+async function refreshHome() {
+  const vault = $("#vault").value.trim();
+  $("#vaultName").textContent = vault ? vault.split(/[\\/]/).filter(Boolean).pop() : "还没打开知识库";
+  const r = vault ? await api("info") : { is_vault: false };
+  const ready = !r.error && r.is_vault;
+  const chats = ready ? r.counts.chats : 0;
+  const hasProfile = ready && !!r.profile;
+  $("#youStrip").hidden = !hasProfile;
+  if (hasProfile) $("#youLabels").textContent = r.profile.labels.join("  ·  ") || r.profile.title;
+
+  const steps = [
+    { done: ready, title: "选一个文件夹当知识库", text: "所有东西都会放在这个文件夹里。已经有了就填它的路径；没有就新建一个空的。", btn: "选择文件夹", go: () => showManage("vault") },
+    { done: chats > 0, title: "导入你的 AI 聊天记录", text: "先在 ChatGPT 等网站的设置里申请「导出数据」，收到压缩包后选中它就行，不用解压。", btn: "导入对话", go: () => showManage("import") },
+    { done: ready && !!(r.llm && r.llm.key), optional: true, title: "连接一个 AI 服务", text: "写画像需要 AI。可以用 DeepSeek（便宜），也可以用电脑本机的模型（不联网，但慢一些）。", btn: "设置 AI", go: () => showManage("settings") },
+    { done: hasProfile, title: "生成你的第一份画像", text: "大约 10 分钟。发送之前会先告诉你要发什么、发多少字，你点「确认」才会发。", btn: "去生成", go: () => showTab("me") },
+  ];
+  const now = steps.findIndex((x) => !x.done);
+  $("#stepList").innerHTML = steps.map((x, i) => `<div class="step ${x.done ? "done" : i === now ? "now" : "todo"}"><div class="dot">${x.done ? "✓" : i + 1}</div><div>
+      <h3>${x.title}${x.optional ? ` <small class="hint">（可以先跳过）</small>` : ""}</h3><p>${x.text}</p>
+      ${i === now ? `<button class="primary" data-step="${i}">${x.btn}</button>` : ""}</div></div>`).join("");
+  $("#stepList").querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => steps[+b.dataset.step].go()));
+
+  const fresh = !ready || chats === 0;
+  $("#welcome").hidden = !fresh; $("#today").hidden = fresh;
+  const banner = $("#nextStep");
+  const next = !fresh && now >= 0 ? steps[now] : null;
+  banner.hidden = !next || store("eia.hideBanner") === String(now);
+  if (next) {
+    banner.innerHTML = `<b>还差一步：${next.title}</b><span class="hint" style="margin:0">${next.text}</span><button class="primary" id="bannerGo">${next.btn}</button><button class="link x" id="bannerX">以后再说</button>`;
+    $("#bannerGo").addEventListener("click", next.go);
+    $("#bannerX").addEventListener("click", () => { store("eia.hideBanner", String(now)); banner.hidden = true; });
+  }
+  drawVault(r);
+  if (fresh) return;
+  const d = new Date();
+  $("#todayMeta").textContent = `${d.getMonth() + 1} 月 ${d.getDate()} 日 星期${"日一二三四五六"[d.getDay()]} · 知识库里有 ${chats} 个对话`;
+  run("headlines_list"); run("digest_picks"); loadRecentChats();
 }
 
-// ---------- 画像 ----------
+function drawHeadlines() {
+  const box = $("#hlList"), more = $("#hlMore");
+  if (!hlAll.length) { box.innerHTML = `<div class="empty">还没有大事。到「管理 → 新闻雷达」运行一次，或者设置每天自动运行。</div>`; more.hidden = true; return; }
+  const shown = hlExpanded ? hlAll : hlAll.slice(0, 5);
+  box.innerHTML = shown.map((e, i) => `<div class="hl"><div class="n">${String(i + 1).padStart(2, "0")}</div><div><h4>${esc(e.title)}</h4>
+      <div class="m"><b>${e.count} 家媒体</b>在报道 · ${esc(e.sources.slice(0, 3).map((x) => x.publisher).join("、"))}${e.sources.length > 3 ? " 等" : ""} · ${esc((e.created || "").slice(0, 10))}</div></div>
+      <details><summary>看看各家怎么报道</summary><ul>${e.sources.map((x) => `<li><b>${esc(x.publisher)}</b> · <a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a></li>`).join("")}</ul></details></div>`).join("");
+  more.hidden = hlAll.length <= 5;
+  more.textContent = hlExpanded ? "收起" : `看全部 ${hlAll.length} 条 →`;
+}
+$("#hlMore").addEventListener("click", () => { hlExpanded = !hlExpanded; drawHeadlines(); });
+
+async function loadRecentChats() {
+  const box = $("#recentChats");
+  const r = await api("conversations");
+  if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  const week = Date.now() - 7 * 864e5;
+  const recentOnes = r.conversations.filter((c) => Date.parse(c.updated) >= week).slice(0, 8);
+  const list = recentOnes.length ? recentOnes : r.conversations.slice(0, 5);
+  box.innerHTML = (recentOnes.length ? "" : `<div class="empty">最近 7 天没有新导入的对话，下面是最近的几个。</div>`) +
+    list.map((c) => `<button data-p="${esc(c.path)}"><span>${esc(c.title)}</span><span class="d">${esc(AI_NAME[c.platform] || c.platform)} · ${esc((c.updated || "").slice(5, 10))}</span></button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { showTab("find", "chats"); openConv(b.dataset.p); }));
+}
+
+function drawVault(r) {
+  const box = $("#overview");
+  if (!$("#vault").value.trim()) { box.innerHTML = ""; return; }
+  if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  if (!r.is_vault) { box.innerHTML = `<div class="empty warn">这个文件夹还不是知识库（里面没有 config.yaml）。可以用下面的「新建」。</div>`; return; }
+  const llm = r.llm ? stat("AI 服务", esc(r.llm.text.split(" · ").pop()), r.llm.key ? "已设置好" : "还没填 key", r.llm.key ? "" : "warn") : stat("AI 服务", "还没设置", "到「设置」里选一个", "warn");
+  const hl = r.headlines ? stat("新闻雷达", `${r.headlines.feeds} 个源`, `${r.headlines.publishers} 家媒体`) : stat("新闻雷达", "还没设置", "到「设置」里打开", "warn");
+  box.innerHTML = stat("对话", r.counts.chats, "chats 文件夹") + stat("大事", r.counts.headlines, "inbox/headlines 文件夹") + llm + hl;
+}
+
+// ---------- 我（画像） ----------
 let profilesLoaded = false, currentProfile = "";
+if (store("eia.meTip") === "closed") $("#meTip").hidden = true;
+$("#meTipClose").addEventListener("click", () => { $("#meTip").hidden = true; store("eia.meTip", "closed"); });
 
 async function loadProfiles(open = "") {
   const r = await api("profiles");
   profilesLoaded = true;
   const box = $("#profileList");
   if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
-  if (!r.profiles.length) { box.innerHTML = `<div class="empty">还没有画像。用下面的“生成新的画像”。</div>`; return; }
-  box.innerHTML = r.profiles.map((p) => `<button data-p="${esc(p.path)}"><span class="t">${esc(p.title)}</span><span class="p">${esc(p.period || "")}${p.chats ? ` · ${p.chats} 个对话` : ""}${p.model ? ` · ${esc(p.model)}` : ""}</span>${p.labels.length ? `<span class="p">${p.labels.slice(0, 3).map(esc).join(" · ")}</span>` : ""}</button>`).join("");
+  if (!r.profiles.length) {
+    box.innerHTML = `<div class="empty">还没有画像。</div>`;
+    $("#profileView").innerHTML = `<div class="empty">还没有画像。用右边的「生成新的画像」生成第一份：先看要发多少字，你确认后才发送。</div>`;
+    $("#meLabels").innerHTML = ""; $("#meMeta").textContent = "";
+    return;
+  }
+  box.innerHTML = r.profiles.map((p) => `<button data-p="${esc(p.path)}"><span class="t">${esc(p.title)}</span><span class="p">${esc(p.period || "")}${p.chats ? ` · ${p.chats} 个对话` : ""}${p.model ? ` · ${esc(p.model)}` : ""}</span></button>`).join("");
   box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openProfile(b.dataset.p)));
   openProfile(open || currentProfile || r.profiles[0].path);
 }
@@ -647,8 +900,29 @@ function splitFootnotes(body) {
     if (note) { notes[note[1]] = note[2]; continue; }
     if (!inEvidence) kept.push(line);
   }
-  while (kept.length && /^(---)?\s*$/.test(kept[kept.length - 1])) kept.pop();
   return { text: kept.join("\n"), notes };
+}
+
+// 按「## 」切成章；每章取第一个小节的标签和说明当一句话概括
+function splitChapters(text) {
+  const chapters = [];
+  let cur = null;
+  for (const line of text.split("\n")) {
+    const h = line.match(/^## (.*)$/);
+    if (h) { cur = { title: h[1].trim(), lines: [] }; chapters.push(cur); continue; }
+    if (cur) cur.lines.push(line);
+  }
+  return chapters.map((c) => {
+    const body = c.lines.join("\n").replace(/\n---\s*$/, "").trim();
+    const intro = body.match(/^> \*\*([^*]+)\*\*(?: —— (.*))?$/m);
+    const plain = body.split("\n").find((l) => l.trim() && !/^(#|>|-|\[|`|（)/.test(l.trim()));
+    const m = c.title.match(/^(\d{2})\s+(.*)$/);
+    return {
+      no: m ? m[1] : "", name: m ? m[2] : c.title, label: intro ? intro[1] : "",
+      summary: (intro && intro[2]) || (plain || "").replace(/\*\*/g, ""),
+      count: (body.match(/^- \[[ xX]\] /gm) || []).length, body,
+    };
+  });
 }
 
 async function openProfile(path) {
@@ -659,22 +933,45 @@ async function openProfile(path) {
   const r = await api("profile", { path });
   if (r.error) { view.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
   const { text, notes } = splitFootnotes(r.body);
-  let labels = [], notice = "";
-  const body = text.replace(/^((?:> .*\n)+)/m, (m) => { if (!notice) { notice = m.replace(/^> /gm, "").trim(); return ""; } return m; }).replace(/^(?:\*\*一句话的你：\*\*|# 你：)\s*(.*)$/m, (m, l) => { labels = l.split("·").map((x) => x.trim()).filter(Boolean); return ""; })
-    .replace(/^# 个人画像\s*$/m, "").replace(/^## 目录\n[\s\S]*?(?=\n---|\n## )/m, "");
-  view.innerHTML = `<div class="chat-head"><div><h2 style="margin:0">${esc(r.meta.title || r.path)}</h2>
-      <div class="path">${esc(r.meta.period || "")}${r.meta.chats ? ` · ${esc(r.meta.chats)} 个对话` : ""}${r.meta.model ? ` · ${esc(r.meta.model)}` : ""}</div></div>
-      <a href="obsidian://open?path=${encodeURIComponent(r.absolute)}"><button>在 Obsidian 中打开（勾「不像我」）</button></a></div>
-    ${labels.length ? `<div class="pf-hero"><div class="k">一句话的你</div><div class="pf-labels">${labels.map((l) => `<span class="pill">${esc(l)}</span>`).join("")}</div></div>` : ""}
-    ${notice ? `<p class="pf-notice">${notice.split("\n").map(inline).join("<br>")}</p>` : ""}
-    <div class="md">${renderMarkdown(body)}</div>`;
-  // 目录：每一章
-  const heads = [...view.querySelectorAll(".md h2")];
-  heads.forEach((h, i) => { h.id = "pf-h" + i; });
-  $("#profileTocTitle").style.display = heads.length ? "" : "none";
-  $("#profileToc").innerHTML = heads.map((h) => `<a href="#${h.id}">${esc(h.textContent)}</a>`).join("");
-  // 点脚注：在那一条下面展开证据
-  view.querySelectorAll("sup.fn").forEach((sup) => sup.addEventListener("click", () => {
+  let labels = [];
+  const clean = text.replace(/^(?:\*\*一句话的你：\*\*|# 你：)\s*(.*)$/m, (m, l) => { labels = l.split("·").map((x) => x.trim()).filter(Boolean); return ""; });
+  const chapters = splitChapters(clean).filter((c) => c.name !== "目录" && c.name !== "证据");
+  $("#meSub").textContent = `AI 读了你的 ${r.meta.chats || "这些"} 个对话之后，对你的理解`;
+  $("#meMeta").textContent = [r.meta.title, r.meta.period && `根据 ${r.meta.period} 的对话`, r.meta.model, "含学号等个人信息，分享前先看一遍"].filter(Boolean).join(" · ");
+  $("#meLabels").innerHTML = labels.length ? `<div class="hint" style="width:100%;margin:0">一句话的你</div>` + labels.map((l) => `<span class="tag">${esc(l)}</span>`).join("") : "";
+  view.innerHTML = chapters.map((c, i) => `<div class="ch" data-i="${i}"><button>
+      <span class="no">${esc(c.no || String(i + 1).padStart(2, "0"))}</span><span class="nm">${esc(c.name)}</span>
+      ${c.label ? `<span class="tag sm">${esc(c.label)}</span>` : "<span></span>"}<span class="sum">${esc(c.summary)}</span>
+      <span class="cnt">${c.count ? `${c.count} 条 ›` : "›"}</span></button><div class="body" hidden></div></div>`).join("") +
+    `<p class="hint" style="margin-top:20px"><a href="obsidian://open?path=${encodeURIComponent(r.absolute)}">在 Obsidian 中打开这份画像</a>：勾「不像我」、加自己的笔记都在那里做。</p>`;
+  view.querySelectorAll(".ch").forEach((row) => {
+    const c = chapters[+row.dataset.i];
+    row.querySelector("button").addEventListener("click", () => {
+      const body = row.querySelector(".body");
+      if (body.hidden && !body.innerHTML) {
+        body.innerHTML = `<div class="md">${renderMarkdown(c.body)}</div>`;
+        bindFootnotes(body, notes);
+        const code = body.querySelector("pre code");
+        if (code && /给 AI/.test(c.name)) {
+          const copy = document.createElement("button");
+          copy.className = "primary"; copy.textContent = "复制这段提示词";
+          copy.addEventListener("click", async () => {
+            try { await navigator.clipboard.writeText(code.textContent); copy.textContent = "已复制，贴给任何 AI 都行"; }
+            catch { copy.textContent = "复制失败，请手动选中复制"; }
+          });
+          code.parentElement.after(copy);
+        }
+      }
+      body.hidden = !body.hidden;
+      row.classList.toggle("open", !body.hidden);
+    });
+  });
+  view.querySelector(".ch button")?.click();  // 默认展开第一章
+}
+
+// 点 [1] 这样的小数字：在那一条下面展开证据和原话
+function bindFootnotes(root, notes) {
+  root.querySelectorAll("sup.fn").forEach((sup) => sup.addEventListener("click", () => {
     const host = sup.closest("li") || sup.parentElement;
     const open = host.querySelector(`.fn-box[data-fn="${sup.dataset.fn}"]`);
     if (open) { open.remove(); sup.classList.remove("on"); return; }
@@ -689,24 +986,20 @@ async function openProfile(path) {
   }));
 }
 
-function showTab(tab, profilePath = "") {
-  if (profilePath) currentProfile = profilePath;
-  document.querySelector(`#tabs button[data-tab="${tab}"]`)?.click();
-  if (tab === "profile" && profilePath && profilesLoaded) openProfile(profilePath);
-}
-
 function useVault() {
   const v = $("#vault").value.trim();
   if (v) { store("eia.vault", v); const list = [v, ...recent().filter((x) => x !== v)].slice(0, 8); store("eia.recent", JSON.stringify(list)); fillRecent(); }
-  refreshOverview();
-  for (const id of ["dumpList", "hlList", "answer"]) $("#" + id).innerHTML = "";
   allFiles = []; currentFile = ""; folderFilter = "";
   $("#note").innerHTML = `<div class="empty">从左边选一个文件。</div>`;
-  if (document.querySelector("#tab-files.on")) loadFiles();
   allConvs = []; currentConv = ""; convPlatform = ""; lastConv = null;
   $("#conv").innerHTML = `<div class="empty">从左边选一个对话。</div>`;
-  if (document.querySelector("#tab-chats.on")) loadConvs();
+  profilesLoaded = false; currentProfile = ""; hlAll = [];
+  for (const id of ["dumpList", "answer"]) $("#" + id).innerHTML = "";
   document.querySelectorAll("[data-out]").forEach((el) => (el.innerHTML = ""));
+  refreshHome();
+  const on = document.querySelector("section.tab.on")?.id.slice(4);
+  if (on === "me") loadProfiles();
+  if (on === "find" || on === "manage") showSub(on, store("eia." + on));
 }
 
 function fillRecent() { $("#recent").innerHTML = recent().map((v) => `<option value="${esc(v)}">`).join(""); }
@@ -920,20 +1213,27 @@ let interestRows = [];
 
 function drawPicks(r) {
   const box = $("#picks");
-  if (r.error) { box.innerHTML = `<div class="empty warn">${esc(r.error)}</div>`; return; }
-  const head = `<p class="hint">${r.candidates} 篇候选，挑出 ${r.picks.length} 篇（因评价排除 ${r.dropped_feedback}，因「不要」排除 ${r.dropped_exclude}）</p>`;
-  if (!r.picks.length) { box.innerHTML = head + `<div class="empty">今天没有和你的兴趣足够相关的报道。</div>`; return; }
-  box.innerHTML = head + r.picks.map((p, i) => `<div class="pick" data-i="${i}">
+  if (r.error) {
+    // 后端的报错是给命令行看的；没有兴趣清单这种常见情况，换成新人看得懂的话
+    box.innerHTML = /兴趣/.test(r.error)
+      ? `<div class="empty">还没有兴趣清单，所以还挑不了。</div><p class="hint">到「管理 → 兴趣清单」写下几个你关心的话题，或者让 AI 从你的对话里帮你归纳。</p>`
+      : `<div class="empty">${esc(r.error)}</div>`;
+    return;
+  }
+  if (!r.picks.length) { box.innerHTML = `<div class="empty">最近的新闻里，没有和你的兴趣足够相关的。</div>`; return; }
+  box.innerHTML = r.picks.map((p, i) => `<div class="pick" data-i="${i}">
       <div class="t"><a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.title)}</a></div>
-      <div class="m"><span class="chip">${esc(p.interest)}</span>${esc(p.publisher)} · ${esc(p.published.slice(5, 16).replace("T", " "))} · 相关度 ${p.score.toFixed(2)}</div>
+      <div class="m">因为你关注 <b>${esc(p.interest)}</b> · ${esc(p.publisher)} · ${esc(p.published.slice(5, 10))}</div>
       <div class="rate">
-        <button data-v="yes" class="${p.relevant === true ? "on" : ""}">👍 相关</button>
-        <button data-v="no" class="${p.relevant === false ? "on no" : ""}">👎 不相关</button>
-        <select title="打几颗星（可选）"><option value="">星数</option>${[1, 2, 3, 4, 5].map((s) => `<option ${p.stars === s ? "selected" : ""}>${s}</option>`).join("")}</select>
-        <input type="text" placeholder="为什么（可选），例如：只关心芯片，不关心手机" value="${esc(p.why || "")}">
-        <button data-v="save">保存评价</button>
-        <span class="hint" data-state></span>
-      </div></div>`).join("");
+        <button data-v="yes" class="${p.relevant === true ? "on" : ""}">有用</button>
+        <button data-v="no" class="${p.relevant === false ? "on no" : ""}">没用</button>
+        <span class="hint" style="margin:0" data-state></span>
+      </div>
+      <details><summary>多说几句（可选）</summary><div class="row">
+        <select title="打几颗星"><option value="">星数</option>${[1, 2, 3, 4, 5].map((n) => `<option ${p.stars === n ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <input type="text" placeholder="为什么，例如：只关心芯片，不关心手机" value="${esc(p.why || "")}">
+        <button data-v="save">保存</button></div></details></div>`).join("") +
+    `<p class="hint" style="margin-top:12px">从 ${r.candidates} 篇里挑出 ${r.picks.length} 篇${r.dropped_feedback ? `，按你的评价排除了 ${r.dropped_feedback} 篇` : ""}${r.dropped_exclude ? `，按「不要」排除了 ${r.dropped_exclude} 篇` : ""}。</p>`;
   box.querySelectorAll(".pick").forEach((row) => {
     const p = r.picks[row.dataset.i];
     let relevant = p.relevant;
@@ -941,7 +1241,7 @@ function drawPicks(r) {
     const save = async () => {
       const stars = row.querySelector("select").value, why = row.querySelector("input").value.trim();
       const res = await api("digest_rate", { url: p.url, title: p.title, publisher: p.publisher, interest: p.interest, relevant, stars, why });
-      row.querySelector("[data-state]").innerHTML = res.error ? `<span class="bad">${esc(res.error)}</span>` : `<span class="ok">已记下</span>`;
+      row.querySelector("[data-state]").innerHTML = res.error ? `<span class="bad">${esc(res.error)}</span>` : `<span class="ok">记下了</span>`;
     };
     yes.addEventListener("click", () => { relevant = relevant === true ? null : true; yes.classList.toggle("on", relevant === true); no.classList.remove("on", "no"); save(); });
     no.addEventListener("click", () => { relevant = relevant === false ? null : false; no.classList.toggle("on", relevant === false); no.classList.toggle("no", relevant === false); yes.classList.remove("on"); save(); });
@@ -1092,7 +1392,7 @@ async function saveForm() {
   if ($("#llmOn").checked && !$("#llmModel").value.trim()) { $("#saveResult").innerHTML = `<div class="term"><span class="err">请填写模型名</span></div>`; return false; }
   const r = await api("config_save_form", formPayload());
   const ok = saved($("#saveResult"), r);
-  if (ok) { await loadSettings(); refreshOverview(); }
+  if (ok) { await loadSettings(); refreshHome(); }
   return ok;
 }
 
@@ -1100,7 +1400,7 @@ $("#saveForm").addEventListener("click", saveForm);
 document.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", async () => {
   if (!(await saveForm())) return;
   const action = b.dataset.goto;
-  document.querySelector(`#tabs button[data-tab="${action === "llm_test" ? "ai" : "headlines"}"]`).click();
+  showManage(action === "llm_test" ? "ai" : "news");
   run(action, document.querySelector(`[data-run="${action}"]`));
 }));
 $("#saveKey").addEventListener("click", async () => {
@@ -1135,7 +1435,7 @@ $("#addFeed").addEventListener("click", () => {
 });
 $("#saveRaw").addEventListener("click", async () => {
   const r = await api("config_save_raw", { text: $("#cfgText").value });
-  if (saved($("#rawResult"), r)) { loadSettings(); refreshOverview(); }
+  if (saved($("#rawResult"), r)) { loadSettings(); refreshHome(); }
 });
 $("#openCfg").addEventListener("click", () => api("open_config"));
 $("#revealCfg").addEventListener("click", () => api("open_config", { reveal: true }));
@@ -1153,19 +1453,73 @@ document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click
   if (CONFIRM[b.dataset.run] && !confirm(CONFIRM[b.dataset.run])) return;
   run(b.dataset.run, b);
 }));
-$("#tabs").addEventListener("click", (e) => {
-  const tab = e.target.closest("button")?.dataset.tab;
-  if (!tab) return;
+// ---------- 导航：今天 · 我 · 找 · 管理 ----------
+const loaded = {};
+function showTab(tab, sub = "") {
+  if (!document.getElementById("tab-" + tab)) tab = "home";
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
-  document.querySelectorAll("section.tab").forEach((s) => s.classList.toggle("on", s.id === "tab-" + tab));
-  store("eia.tab", tab);
-  if (tab === "headlines" && !$("#hlList").innerHTML) { run("headlines_list"); run("schedule_status"); }
-  if (tab === "files" && !allFiles.length) loadFiles();
-  if (tab === "chats" && !allConvs.length) loadConvs();
-  if (tab === "profile" && !profilesLoaded) loadProfiles();
-  if (tab === "settings") loadSettings();
-  if (tab === "interests") { loadInterests(); run("digest_picks"); }
+  document.querySelectorAll("section.tab").forEach((x) => x.classList.toggle("on", x.id === "tab-" + tab));
+  document.body.classList.toggle("on-me", tab === "me");
+  if (location.hash.slice(1) !== tab) history.replaceState(null, "", "#" + tab);
+  if (tab === "me" && !profilesLoaded) loadProfiles();
+  if (tab === "find" || tab === "manage") showSub(tab, sub || store("eia." + tab));
+  window.scrollTo({ top: 0 });
+}
+function showSub(group, sub) {
+  const nav = $(`#${group}Nav`);
+  if (!sub || !nav.querySelector(`[data-sub="${sub}"]`)) sub = nav.querySelector(group === "find" ? '[data-sub="chats"]' : "button").dataset.sub;
+  nav.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.sub === sub));
+  document.querySelectorAll(`#tab-${group} .sub`).forEach((x) => x.classList.toggle("on", x.id === `${group}-${sub}`));
+  store("eia." + group, sub);
+  const key = group + "-" + sub;
+  if (key === "find-chats" && !allConvs.length) loadConvs();
+  if (key === "find-files" && !allFiles.length) loadFiles();
+  if (key === "manage-import") loadExports();
+  if (key === "manage-news" && !loaded.sched) { loaded.sched = true; run("schedule_status"); }
+  if (key === "manage-interests") loadInterests();
+  if (key === "manage-settings") loadSettings();
+}
+function showManage(sub) { showTab("manage", sub); }
+$("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) showTab(b.dataset.tab); });
+$("#findNav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) showSub("find", b.dataset.sub); });
+$("#manageNav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) showSub("manage", b.dataset.sub); });
+document.querySelector(".brand").addEventListener("click", (e) => { e.preventDefault(); showTab("home"); });
+$("#vaultPill").addEventListener("click", () => showManage("vault"));
+$("#youMore").addEventListener("click", () => showTab("me"));
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-goto-tab],[data-goto-manage]");
+  if (!t) return;
+  if (t.dataset.gotoTab) showTab(t.dataset.gotoTab); else showManage(t.dataset.gotoManage);
 });
+
+// 全局搜索：对话、画像、大事、笔记一起搜，按类型分组
+const TYPE_NAME = { chat: "对话", profile: "画像", headline: "大事", digest: "兴趣简报", clip: "剪藏", note: "笔记", topic: "专题" };
+async function globalSearch(q) {
+  q = q.trim();
+  if (!q) return;
+  $("#fq").value = q; $("#gq").value = q;
+  showTab("find", "results");
+  const box = $("#hits");
+  box.innerHTML = `<div class="empty">搜索中……</div>`;
+  const r = await api("search", { q });
+  if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  if (!r.hits.length) { box.innerHTML = `<div class="empty">没有找到「${esc(q)}」。换个说法，或者少打几个字试试。</div>`; return; }
+  const mark = (x) => esc(x).replace(/【/g, "<b>").replace(/】/g, "</b>");
+  const groups = {};
+  for (const h of r.hits) (groups[h.type || "other"] ||= []).push(h);
+  box.innerHTML = `<p class="hint">找到 ${r.hits.length} 条${r.hits.length >= 100 ? "（最多显示 100 条）" : ""}</p>` +
+    Object.entries(groups).map(([type, hits]) => `<div class="hit-group"><div class="sec-head"><h3>${esc(TYPE_NAME[type] || "其他")}</h3><span>${hits.length} 条</span></div>` +
+      hits.map((h) => `<button data-p="${esc(h.path)}" data-type="${esc(type)}"><div class="t">${esc(h.title || h.path)}</div><div class="p">${mark(h.snippet)}</div></button>`).join("") + `</div>`).join("");
+  box.querySelectorAll("button[data-p]").forEach((b) => b.addEventListener("click", () => openHit(b.dataset.p, b.dataset.type)));
+}
+function openHit(path, type) {
+  if (type === "chat") { showSub("find", "chats"); openConv(path); return; }
+  if (type === "profile") { showTab("me"); if (profilesLoaded) openProfile(path); else loadProfiles(path); return; }
+  showSub("find", "files"); openFile(path);
+}
+$("#gq").addEventListener("keydown", (e) => { if (e.key === "Enter") globalSearch($("#gq").value); });
+$("#fq").addEventListener("keydown", (e) => { if (e.key === "Enter") globalSearch($("#fq").value); });
+$("#fqGo").addEventListener("click", () => globalSearch($("#fq").value));
 $("#useVault").addEventListener("click", useVault);
 $("#vault").addEventListener("keydown", (e) => { if (e.key === "Enter") useVault(); });
 $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") run("chats_dump"); });
@@ -1175,9 +1529,9 @@ $("#impPlatform").addEventListener("change", syncThinking);
 $("#vault").value = DEFAULT_VAULT || store("eia.vault") || recent()[0] || "";
 if (DEFAULT_VAULT) { const list = [DEFAULT_VAULT, ...recent().filter((x) => x !== DEFAULT_VAULT)].slice(0, 8); store("eia.recent", JSON.stringify(list)); }
 $("#vault").addEventListener("change", () => store("eia.vault", $("#vault").value.trim()));
-fillRecent(); syncThinking(); loadExports(); refreshOverview();
-const savedTab = location.hash.slice(1) || store("eia.tab");  // 地址后面加 #profile 这样可以直接打开某一页
-if (savedTab) document.querySelector(`#tabs button[data-tab="${savedTab}"]`)?.click();
+fillRecent(); syncThinking();
+showTab(location.hash.slice(1) || "home");  // 地址后面加 #me、#find 这样可以直接打开某一页
+refreshHome();
 </script>
 </body>
 </html>
