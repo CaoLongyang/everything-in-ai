@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from eia.chat.source import normalize
 from eia.db import database
-from eia.llm import Client
+from eia.llm import Client, LLMOutputError
 from eia.profile.material import ChatMaterial, Snippet, SnippetKind
 from eia.profile.prompts import CATEGORIES, EXTRACT_SYSTEM
 
@@ -66,6 +66,9 @@ class ExtractResult:
     observations: dict[str, list[Observation]] = field(default_factory=dict)  # 按对话 id
     dropped: int = 0  # 原话对不上被丢掉的观察
     requests: int = 0
+    # 模型回复几次都不合格式、这次没分析成的对话（docs/specs/profile.delta-skip.md）。
+    # 不写缓存，下次运行会重试
+    skipped: list[ChatMaterial] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -102,16 +105,25 @@ def extract(
     *,
     progress: Callable[[int, int], None] | None = None,
 ) -> ExtractResult:
-    """把材料分批发给模型。每个对话做完就存一次，中途出错时已完成的不丢。"""
+    """把材料分批发给模型。每个对话做完就存一次，中途出错时已完成的不丢。
+
+    某一批的回复重试几次都不合格式：跳过这一批里的对话，接着做后面的（一个长对话切成几批时，
+    有一批失败整个对话就算没做成）。网络、key 这类错误照旧停下：后面的批次多半也会失败。
+    """
     model = client.config.text.model
     batches = _batches(materials)
     result = ExtractResult()
     pending: dict[str, list[Observation]] = {}
+    failed: set[str] = set()
     for number, batch in enumerate(batches, start=1):
         if progress is not None:
             progress(number, len(batches))
         labels = _labels(batch)
-        reply = client.complete_json(_prompt(batch, labels), _Extracted, system=EXTRACT_SYSTEM)
+        try:
+            reply = client.complete_json(_prompt(batch, labels), _Extracted, system=EXTRACT_SYSTEM)
+        except LLMOutputError:
+            reply = _Extracted(observations=[])
+            failed.update(unit.material.chat.id for unit in batch)
         result.requests += 1
         by_label = {label: material for material, label in labels.items()}
         for observed in reply.observations:
@@ -122,10 +134,15 @@ def extract(
                 continue
             pending.setdefault(material.chat.id, []).append(checked)
         for unit in batch:
-            if unit.last:
-                done = pending.pop(unit.material.chat.id, [])
-                _save(root, unit.material.key(model), unit.material.chat.id, done)
-                result.observations[unit.material.chat.id] = done
+            if not unit.last:
+                continue
+            chat_id = unit.material.chat.id
+            done = pending.pop(chat_id, [])
+            if chat_id in failed:
+                result.skipped.append(unit.material)
+                continue
+            _save(root, unit.material.key(model), chat_id, done)
+            result.observations[chat_id] = done
     return result
 
 

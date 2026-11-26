@@ -107,6 +107,8 @@ class FakeModel:
     def __init__(self) -> None:
         self.calls: list[tuple[str | None, str]] = []
         self.fail_synth = False
+        self.garble = ""  # 第 2 步：提示词里有这个标题的批次，回复不是 JSON
+        self.network_down = False
 
     @property
     def extract_prompts(self) -> list[str]:
@@ -126,7 +128,11 @@ class FakeModel:
 
     def complete(self, prompt: str, system: str | None, json_schema: Any) -> Reply:
         self.calls.append((system, prompt))
+        if self.network_down:
+            raise LLMCallError("连不上")
         if system == EXTRACT_SYSTEM:
+            if self.garble and self.garble in prompt:
+                return Reply("这不是 JSON")
             return Reply(json.dumps(self._extract(prompt), ensure_ascii=False))
         if self.fail_synth:
             raise LLMCallError("假装网络断了")

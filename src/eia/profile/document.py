@@ -95,6 +95,7 @@ def write_profile(
     model: str,
     now: dt.datetime,
     tz: dt.tzinfo | None,
+    skipped: int = 0,
 ) -> Path:
     folder = root / dir_for(EntryType.profile.value)
     folder.mkdir(parents=True, exist_ok=True)
@@ -118,7 +119,7 @@ def write_profile(
             "chats": chats,
             "model": model,
         }
-        body = render_body(profile, rejected, links=links, span=span, chats=chats)
+        body = render_body(profile, rejected, links=links, span=span, chats=chats, skipped=skipped)
         try:
             create_new(path, render_document(meta, body))
         except FileExistsError:
@@ -134,6 +135,7 @@ def render_body(
     links: dict[str, ChatLink],
     span: str,
     chats: int,
+    skipped: int = 0,
 ) -> str:
     notes: list[str] = []  # 文末的证据脚注
     out = [
@@ -143,6 +145,14 @@ def render_body(
         "> 每条后面的小数字是证据，在文末。觉得哪条不像你，勾上它前面的方框，后面可以写原因；"
         "下次生成时会避开。",
         "> 这份画像包含你的个人信息（学号、住址等），分享或同步到网上之前先看一遍。",
+        *(
+            [
+                f"> 另有 {skipped} 个对话这次没分析成（AI 的回复格式不对），"
+                "没算进这份画像；下次生成时会重试。"
+            ]
+            if skipped
+            else []
+        ),
         "",
         "**一句话的你：** " + (" · ".join(profile.labels) or "（还没有）"),
         "",

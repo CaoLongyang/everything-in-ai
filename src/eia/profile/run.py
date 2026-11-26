@@ -57,6 +57,7 @@ class Result:
     extract_requests: int
     rejected: int
     counts: dict[str, int] = field(default_factory=dict)  # 每章的要点数
+    skipped: list[str] = field(default_factory=list)  # 这次没分析成的对话标题，下次重试
 
 
 def default_since(until: dt.date, months: int = DEFAULT_MONTHS) -> dt.date:
@@ -123,7 +124,8 @@ def run_profile(
         rejected,
         links=links,
         period=(plan.since, plan.until),
-        chats=len(plan.materials),
+        chats=len(plan.materials) - len(extracted.skipped),
+        skipped=len(extracted.skipped),
         model=plan.model,
         now=now or dt.datetime.now(dt.UTC),
         tz=tz,
@@ -136,4 +138,5 @@ def run_profile(
         extract_requests=extracted.requests,
         rejected=len(rejected),
         counts={c.title: sum(len(s.points) for s in c.subsections) for c in profile.chapters},
+        skipped=[m.chat.title for m in extracted.skipped],
     )

@@ -577,6 +577,12 @@ def profile_run(
     click.echo(f"共 {result.observations} 条观察；原话对不上、被丢掉的 {result.dropped} 条")
     if result.rejected:
         click.echo(f"避开了你说过不像你的 {result.rejected} 条结论")
+    if result.skipped:
+        names = "、".join(result.skipped[:5]) + ("等" if len(result.skipped) > 5 else "")
+        click.echo(
+            f"有 {len(result.skipped)} 个对话这次没分析成（AI 的回复格式不对，重试也没用）："
+            f"{names}。没算进这份画像，下次运行会重试"
+        )
 
 
 @main.group(name="digest")
