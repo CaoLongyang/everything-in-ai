@@ -27,6 +27,7 @@ from click.testing import CliRunner
 
 from eia import llm
 from eia.chat.reader import ChatReadError, read_chat
+from eia.chat.source import label_chat
 from eia.cli import main
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
 from eia.schema.configedit import replace_section, save_config_text
@@ -98,6 +99,9 @@ def action_info(params: dict[str, Any]) -> dict[str, Any]:
         if (vault / folder).is_dir():
             counts[name] = sum(1 for _ in (vault / folder).rglob("*.md"))
     info["counts"] = counts
+    profiles = action_profiles(params)["profiles"]
+    if profiles:
+        info["profile"] = profiles[0]
     return info
 
 
@@ -123,8 +127,8 @@ def action_validate(params: dict[str, Any]) -> dict[str, Any]:
 
 def action_import(params: dict[str, Any]) -> dict[str, Any]:
     platform = str(params.get("platform"))
-    if platform not in ("chatgpt", "claude"):
-        raise ValueError("平台只能是 chatgpt 或 claude")
+    if platform not in ("chatgpt", "claude", "gemini"):
+        raise ValueError("平台只能是 chatgpt、claude 或 gemini")
     path = str(params.get("path") or "").strip()
     if not path:
         raise ValueError("请填写导出文件的路径")
@@ -155,6 +159,7 @@ def action_chats_dump(params: dict[str, Any]) -> dict[str, Any]:
         "jsonl",
         *_flag(params, "only_me", "--only-me"),
         *_flag(params, "no_notes", "--no-notes"),
+        *_flag(params, "own_only", "--own-only"),
         *_opt(params, "platform", "--platform"),
         *_opt(params, "since", "--since"),
         *_opt(params, "until", "--until"),
@@ -363,10 +368,96 @@ def action_conversation(params: dict[str, Any]) -> dict[str, Any]:
                 "time": m.time.strftime("%Y-%m-%d %H:%M") if m.time else None,
                 "text": m.text,
                 "thinking": m.thinking,
+                # 「我」的消息里每段文字的来源（docs/specs/chat-reader.delta-paste.md）
+                "parts": [
+                    {"source": p.source, "text": p.text.strip()} for p in parts if p.text.strip()
+                ]
+                if parts is not None
+                else None,
             }
-            for m in chat.messages
+            for m, parts in zip(chat.messages, label_chat(chat), strict=True)
         ],
     }
+
+
+# ---------- 画像（docs/specs/profile.md） ----------
+
+
+def _profile_range(params: dict[str, Any]) -> list[str]:
+    return [*_opt(params, "since", "--since"), *_opt(params, "until", "--until")]
+
+
+def action_profile_plan(params: dict[str, Any]) -> dict[str, Any]:
+    """不加 --yes：只在本机整理，告诉你要发多少，什么都不发。"""
+    return run_cli("profile", "run", "--vault", _vault(params), *_profile_range(params))
+
+
+def action_profile_run(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("profile", "run", "--vault", _vault(params), *_profile_range(params), "--yes")
+
+
+_LABELS_LINE = re.compile(r"^(?:\*\*一句话的你：\*\*|# 你：)\s*(.*)$", re.MULTILINE)
+
+
+def _profile_labels(body: str) -> list[str]:
+    match = _LABELS_LINE.search(body)
+    return [x.strip() for x in match[1].split("·") if x.strip()] if match else []
+
+
+def action_profiles(params: dict[str, Any]) -> dict[str, Any]:
+    """vault 里所有画像，最新的在前。"""
+    vault = Path(_vault(params)).resolve()
+    items = []
+    for path in sorted((vault / "profile").glob("*.md")) if (vault / "profile").is_dir() else []:
+        try:
+            document = read_document(path)
+        except FrontmatterError:
+            continue
+        meta = document.meta
+        if meta.get("type") != "profile":
+            continue
+        items.append(
+            {
+                "path": path.relative_to(vault).as_posix(),
+                "title": str(meta.get("title") or path.stem),
+                "created": str(meta.get("created") or ""),
+                "period": str(meta.get("period") or ""),
+                "chats": meta.get("chats"),
+                "model": str(meta.get("model") or ""),
+                "labels": _profile_labels(document.body),
+            }
+        )
+    items.sort(key=lambda item: item["created"], reverse=True)
+    return {"profiles": items}
+
+
+def action_profile(params: dict[str, Any]) -> dict[str, Any]:
+    vault = Path(_vault(params)).resolve()
+    target = (vault / str(params.get("path") or "")).resolve()
+    if not target.is_relative_to(vault / "profile") or target.suffix.lower() != ".md":
+        raise ValueError("只能打开 profile/ 里的画像")
+    document = read_document(target)
+    return {
+        "path": target.relative_to(vault).as_posix(),
+        "absolute": str(target),
+        "meta": {k: str(v) for k, v in document.meta.items()},
+        "body": document.body,
+    }
+
+
+# ---------- 工具：数据库、剪藏模板 ----------
+
+
+def action_db_status(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("db", "status", "--vault", _vault(params))
+
+
+def action_db_rebuild(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("db", "rebuild", "--vault", _vault(params), "--yes")
+
+
+def action_clip_template(params: dict[str, Any]) -> dict[str, Any]:
+    return run_cli("clip", "template", "--vault", _vault(params))
 
 
 # ---------- 设置：在网页里改 config.yaml 和 .env ----------

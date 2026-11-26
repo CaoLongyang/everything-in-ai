@@ -138,6 +138,41 @@ input[type=password] { flex: 1; }
 @media (max-width: 600px) { .feed { grid-template-columns: auto 1fr; } .feed .u { grid-column: 1 / -1; } }
 @media (max-width: 800px) { .files { grid-template-columns: 1fr; } .side { position: static; max-height: 50vh; } }
 @media (max-width: 600px) { .bar { padding: 10px 16px; } .vault { min-width: 100%; } }
+/* 画像 */
+.side-title { font-size: 12.5px; color: var(--muted); margin: 4px 0 2px; font-weight: 600; letter-spacing: .03em; }
+.toc { display: flex; flex-direction: column; margin-top: 4px; overflow: auto; }
+.toc a { color: var(--ink); text-decoration: none; padding: 4px 8px; border-radius: 6px; font-size: 13.5px; }
+.toc a:hover { background: var(--chip); }
+.pill { display: inline-block; background: var(--soft); color: var(--accent); border-radius: 999px; padding: 3px 12px; margin: 3px 6px 3px 0; font-weight: 600; font-size: 14px; }
+.pf-hero { margin: 16px 0 6px; padding: 14px 16px; border-radius: 12px; background: var(--chip); }
+.pf-hero .k, .pf-stat .k { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+.pf-stat { grid-column: 1 / -1; cursor: pointer; }
+.pf-notice { color: var(--muted); font-size: 12.5px; line-height: 1.7; margin: 8px 2px 0; }
+.pf-stat:hover { border-color: var(--accent); }
+.pf .md h2 { font-size: 18px; margin-top: 1.6em; }
+.pf .md h3 { font-size: 15.5px; }
+.pf .md hr { border: none; border-top: 1px solid var(--line); margin: 22px 0 0; }
+.pf .md blockquote { border-left-color: var(--accent); color: var(--ink); background: var(--soft); border-radius: 0 8px 8px 0; padding: 8px 12px; }
+.pf .md blockquote b { color: var(--accent); }
+.md ul { padding-left: 20px; }
+.md li { margin: 6px 0; }
+.md li.task { list-style: none; display: flex; gap: 8px; align-items: flex-start; margin-left: -20px; flex-wrap: wrap; }
+.md li.task > span:nth-child(2) { flex: 1; min-width: 0; }
+.md li.task .box { flex: none; width: 16px; height: 16px; margin-top: 4px; border: 1.5px solid var(--line); border-radius: 4px; font-size: 11px; line-height: 13px; text-align: center; color: var(--bad); }
+.md li.task.done > span:nth-child(2) { color: var(--muted); text-decoration: line-through; }
+.md li.task.done .box { border-color: var(--bad); }
+sup.fn { cursor: pointer; color: var(--accent); font-weight: 700; padding: 0 3px; margin-left: 2px; border-radius: 4px; background: var(--soft); font-size: 11px; }
+sup.fn.on { background: var(--accent); color: var(--accent-ink); }
+.fn-box { flex-basis: 100%; margin: 6px 0 4px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 13.5px; }
+.fn-box .fn-head { color: var(--muted); font-size: 12.5px; }
+.fn-box ul { margin: 4px 0 0; padding-left: 18px; }
+/* 聊天：不是我写的段 */
+.part { margin: 8px 0; padding: 6px 10px; border-radius: 8px; border: 1px dashed var(--line); background: var(--chip); }
+.part .md { color: var(--muted); font-size: 13.5px; max-height: 260px; overflow: auto; }
+.part-tag { display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; margin-bottom: 2px; background: var(--panel); color: var(--muted); }
+.part.src-ai .part-tag { color: var(--accent); }
+.part.src-error .part-tag { color: var(--bad); }
+.part.src-code .part-tag { color: var(--warn); }
 </style>
 </head>
 <body>
@@ -152,6 +187,7 @@ input[type=password] { flex: 1; }
   </div>
   <nav id="tabs">
     <button data-tab="overview" class="on">概览</button>
+    <button data-tab="profile">画像</button>
     <button data-tab="chats">聊天记录</button>
     <button data-tab="files">文件</button>
     <button data-tab="import">导入</button>
@@ -181,6 +217,32 @@ input[type=password] { flex: 1; }
       <p class="hint">在填写的路径创建目录结构和带注释的配置模板。已有文件不会被改动。</p>
       <div class="row"><input type="text" id="initPath" placeholder="新 vault 的路径" spellcheck="false"><button data-run="init">创建</button></div>
       <div data-out="init"></div>
+    </div>
+  </section>
+
+  <!-- 画像 -->
+  <section class="tab" id="tab-profile">
+    <div class="files">
+      <aside class="card side">
+        <div class="side-title">所有画像</div>
+        <div id="profileList" class="filelist"><div class="empty">加载中……</div></div>
+        <div class="side-title" id="profileTocTitle" style="display:none">这一份的目录</div>
+        <div id="profileToc" class="toc"></div>
+      </aside>
+      <article class="card note pf" id="profileView">
+        <div class="empty">从左边选一份画像。还没有的话，先用下面的“生成新的画像”。</div>
+      </article>
+    </div>
+    <div class="card">
+      <h2>生成新的画像 <span class="chip">eia profile run</span></h2>
+      <p class="hint">第 1 步只在本机整理你说过的话，告诉你要发多少字、发给哪个服务，什么都不发。确认后第 2 步才发给你配置的文本模型，可能要几分钟。分析过、内容没变的对话不会重复发送。每次生成一个新文件，旧的不会被覆盖。</p>
+      <div class="row"><input type="date" id="pfSince" title="从这天起"> <span class="chip">到</span> <input type="date" id="pfUntil" title="到这天为止"> <span class="hint" style="margin:0">都不填 = 最近 3 个月</span></div>
+      <div class="row">
+        <button data-run="profile_plan">第 1 步：看看要发多少</button>
+        <button class="primary" data-run="profile_run" id="pfRunBtn" disabled>第 2 步：确认发送并生成</button>
+      </div>
+      <div data-out="profile_plan"></div>
+      <div data-out="profile_run"></div>
     </div>
   </section>
 
@@ -223,7 +285,8 @@ input[type=password] { flex: 1; }
       <div class="row">
         <label class="check"><input type="checkbox" id="onlyMe" checked> 只看我说的</label>
         <label class="check"><input type="checkbox" id="noNotes"> 不要笔记</label>
-        <select id="platform"><option value="">全部平台</option><option>chatgpt</option><option>claude</option></select>
+        <label class="check" title="去掉你贴回的 AI 回答、代码、报错和附件，只留你自己写的段落"><input type="checkbox" id="ownOnly"> 只要我自己写的</label>
+        <select id="platform"><option value="">全部平台</option><option>chatgpt</option><option>claude</option><option>gemini</option></select>
         <input type="date" id="since" title="从这天起"> <span class="chip">到</span> <input type="date" id="until" title="到这天为止">
       </div>
       <div class="row">
@@ -241,7 +304,7 @@ input[type=password] { flex: 1; }
       <h2>导入对话 <span class="chip">eia import</span></h2>
       <p class="hint">读官方导出的 zip，不用解压。先用“预览”看会新建多少，再真的导入。重复导入只更新，不会重复，你加的标签和笔记会保留。</p>
       <div class="row">
-        <select id="impPlatform"><option value="chatgpt">ChatGPT</option><option value="claude">Claude</option></select>
+        <select id="impPlatform"><option value="chatgpt">ChatGPT</option><option value="claude">Claude</option><option value="gemini">Gemini（浏览器插件导出）</option></select>
         <input type="text" id="impPath" placeholder="导出 zip 的路径" spellcheck="false">
       </div>
       <div class="row" id="exportChips"></div>
@@ -438,6 +501,19 @@ input[type=password] { flex: 1; }
       <div class="row"><button class="primary" id="saveRaw">保存这个文件</button></div>
       <div id="rawResult"></div>
     </div>
+
+    <div class="card">
+      <h2>工具</h2>
+      <p class="hint">数据库在 .eia\eia.db，存的是索引、报道、向量、评价和画像观察这些机器用的数据；Markdown 文件才是原件。重建会清掉报道、向量和画像观察，下次运行时重新抓、重新分析（画像会重新发送对话）。</p>
+      <div class="row">
+        <button data-run="db_status">数据库状态</button>
+        <button data-run="db_rebuild" id="dbRebuild">重建数据库</button>
+        <button data-run="clip_template">生成剪藏模板</button>
+      </div>
+      <div data-out="db_status"></div>
+      <div data-out="db_rebuild"></div>
+      <div data-out="clip_template"></div>
+    </div>
   </section>
 </main>
 
@@ -470,7 +546,9 @@ function terminal(target, r) {
 const params = {
   init: () => ({ vault: $("#initPath").value.trim() }),
   import: () => ({ platform: $("#impPlatform").value, path: $("#impPath").value.trim(), dry_run: $("#impDry").checked, include_thinking: $("#impThinking").checked }),
-  chats_dump: () => ({ only_me: $("#onlyMe").checked, no_notes: $("#noNotes").checked, platform: $("#platform").value, since: $("#since").value, until: $("#until").value, q: $("#q").value, limit: 200 }),
+  chats_dump: () => ({ only_me: $("#onlyMe").checked, no_notes: $("#noNotes").checked, own_only: $("#ownOnly").checked, platform: $("#platform").value, since: $("#since").value, until: $("#until").value, q: $("#q").value, limit: 200 }),
+  profile_plan: () => ({ since: $("#pfSince").value, until: $("#pfUntil").value }),
+  profile_run: () => ({ since: $("#pfSince").value, until: $("#pfUntil").value }),
   headlines_run: () => ({ dry_run: $("#hlDry").checked }),
   schedule_install: () => ({ at: $("#schedAt").value }),
   llm_ask: () => ({ prompt: $("#prompt").value }),
@@ -486,6 +564,11 @@ const after = {
       r.records.map((m) => `<div class="msg ${m.role}"><div class="who">${who[m.role] || m.role} · ${esc(m.time ? m.time.slice(0, 16).replace("T", " ") : "无时间")} · <span class="chip">${esc(m.platform)}</span>${esc(m.title)}</div><div class="text">${esc(m.text)}</div></div>`).join("");
   },
   headlines_run() { run("headlines_list"); refreshOverview(); },
+  profile_plan(r) { $("#pfRunBtn").disabled = !(r.exit_code === 0 && /第 2 步要把/.test(r.stdout)); },
+  profile_run(r) {
+    $("#pfRunBtn").disabled = true;
+    if (r.exit_code === 0) { const m = r.stdout.match(/已写画像\s+(\S.*?\.md)/); loadProfiles(m ? m[1] : ""); refreshOverview(); }
+  },
   schedule_install() { run("schedule_status"); },
   digest_picks(r) { drawPicks(r); },
   digest_run() { run("digest_picks"); },
@@ -533,7 +616,83 @@ async function refreshOverview() {
   if (!r.is_vault) { box.innerHTML = stat("状态", "不是 vault", "这个文件夹里没有 config.yaml。可以用下面的“新建”创建一个。", "bad"); return; }
   const llm = r.llm ? stat("AI 服务", esc(r.llm.text), (r.llm.key ? "key 已设置" : "key 未设置") + " · 向量：" + esc(r.llm.embed || "未配置"), r.llm.key ? "" : "warn") : stat("AI 服务", "未配置", esc(r.llm_error), "warn");
   const hl = r.headlines ? stat("新闻雷达", `${r.headlines.feeds} 个源`, `${r.headlines.publishers} 家媒体 · 门槛 ${r.headlines.min_sources} 家 · ${r.headlines.cluster}`) : stat("新闻雷达", "未配置", esc(r.headlines_error), "warn");
-  box.innerHTML = stat("对话文件", r.counts.chats, "chats/ 目录") + stat("大事条目", r.counts.headlines, "inbox/headlines/") + llm + hl;
+  const pf = r.profile
+    ? `<div class="stat pf-stat" data-pf="${esc(r.profile.path)}" title="点开看这份画像"><div class="k">最新的画像 · ${esc(r.profile.title)}</div><div class="pf-labels">${r.profile.labels.map((l) => `<span class="pill">${esc(l)}</span>`).join("") || "（这份没有标签）"}</div></div>`
+    : stat("画像", "还没有", "去“画像”页生成第一份", "warn");
+  box.innerHTML = pf + stat("对话文件", r.counts.chats, "chats/ 目录") + stat("大事条目", r.counts.headlines, "inbox/headlines/") + llm + hl;
+  box.querySelector(".pf-stat")?.addEventListener("click", (e) => showTab("profile", e.currentTarget.dataset.pf));
+}
+
+// ---------- 画像 ----------
+let profilesLoaded = false, currentProfile = "";
+
+async function loadProfiles(open = "") {
+  const r = await api("profiles");
+  profilesLoaded = true;
+  const box = $("#profileList");
+  if (r.error) { box.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  if (!r.profiles.length) { box.innerHTML = `<div class="empty">还没有画像。用下面的“生成新的画像”。</div>`; return; }
+  box.innerHTML = r.profiles.map((p) => `<button data-p="${esc(p.path)}"><span class="t">${esc(p.title)}</span><span class="p">${esc(p.period || "")}${p.chats ? ` · ${p.chats} 个对话` : ""}${p.model ? ` · ${esc(p.model)}` : ""}</span>${p.labels.length ? `<span class="p">${p.labels.slice(0, 3).map(esc).join(" · ")}</span>` : ""}</button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openProfile(b.dataset.p)));
+  openProfile(open || currentProfile || r.profiles[0].path);
+}
+
+function splitFootnotes(body) {
+  const notes = {};
+  const kept = [];
+  let inEvidence = false;
+  for (const line of body.replace(/\r\n/g, "\n").split("\n")) {
+    if (/^## /.test(line)) inEvidence = line.trim() === "## 证据";
+    const note = line.match(/^\[\^(\d+)\]:\s*(.*)$/);
+    if (note) { notes[note[1]] = note[2]; continue; }
+    if (!inEvidence) kept.push(line);
+  }
+  while (kept.length && /^(---)?\s*$/.test(kept[kept.length - 1])) kept.pop();
+  return { text: kept.join("\n"), notes };
+}
+
+async function openProfile(path) {
+  currentProfile = path;
+  $("#profileList").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.p === path));
+  const view = $("#profileView");
+  view.innerHTML = `<div class="empty">加载中……</div>`;
+  const r = await api("profile", { path });
+  if (r.error) { view.innerHTML = `<div class="empty bad">${esc(r.error)}</div>`; return; }
+  const { text, notes } = splitFootnotes(r.body);
+  let labels = [], notice = "";
+  const body = text.replace(/^((?:> .*\n)+)/m, (m) => { if (!notice) { notice = m.replace(/^> /gm, "").trim(); return ""; } return m; }).replace(/^(?:\*\*一句话的你：\*\*|# 你：)\s*(.*)$/m, (m, l) => { labels = l.split("·").map((x) => x.trim()).filter(Boolean); return ""; })
+    .replace(/^# 个人画像\s*$/m, "").replace(/^## 目录\n[\s\S]*?(?=\n---|\n## )/m, "");
+  view.innerHTML = `<div class="chat-head"><div><h2 style="margin:0">${esc(r.meta.title || r.path)}</h2>
+      <div class="path">${esc(r.meta.period || "")}${r.meta.chats ? ` · ${esc(r.meta.chats)} 个对话` : ""}${r.meta.model ? ` · ${esc(r.meta.model)}` : ""}</div></div>
+      <a href="obsidian://open?path=${encodeURIComponent(r.absolute)}"><button>在 Obsidian 中打开（勾「不像我」）</button></a></div>
+    ${labels.length ? `<div class="pf-hero"><div class="k">一句话的你</div><div class="pf-labels">${labels.map((l) => `<span class="pill">${esc(l)}</span>`).join("")}</div></div>` : ""}
+    ${notice ? `<p class="pf-notice">${notice.split("\n").map(inline).join("<br>")}</p>` : ""}
+    <div class="md">${renderMarkdown(body)}</div>`;
+  // 目录：每一章
+  const heads = [...view.querySelectorAll(".md h2")];
+  heads.forEach((h, i) => { h.id = "pf-h" + i; });
+  $("#profileTocTitle").style.display = heads.length ? "" : "none";
+  $("#profileToc").innerHTML = heads.map((h) => `<a href="#${h.id}">${esc(h.textContent)}</a>`).join("");
+  // 点脚注：在那一条下面展开证据
+  view.querySelectorAll("sup.fn").forEach((sup) => sup.addEventListener("click", () => {
+    const host = sup.closest("li") || sup.parentElement;
+    const open = host.querySelector(`.fn-box[data-fn="${sup.dataset.fn}"]`);
+    if (open) { open.remove(); sup.classList.remove("on"); return; }
+    const note = notes[sup.dataset.fn];
+    if (!note) return;
+    const [head, ...rest] = note.split("：");
+    const items = rest.join("：").split("；").filter(Boolean);
+    const div = document.createElement("div");
+    div.className = "fn-box"; div.dataset.fn = sup.dataset.fn;
+    div.innerHTML = `<div class="fn-head">${inline(head)}</div><ul>${items.map((x) => `<li>${inline(x)}</li>`).join("")}</ul>`;
+    host.appendChild(div); sup.classList.add("on");
+  }));
+}
+
+function showTab(tab, profilePath = "") {
+  if (profilePath) currentProfile = profilePath;
+  document.querySelector(`#tabs button[data-tab="${tab}"]`)?.click();
+  if (tab === "profile" && profilePath && profilesLoaded) openProfile(profilePath);
 }
 
 function useVault() {
@@ -622,7 +781,16 @@ function inline(s) {
     .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
     .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>")
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, a, b) => `<a class="wiki" title="Obsidian 内部链接">${b || a}</a>`);
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, a, b) => `<a class="wiki" title="Obsidian 内部链接">${b || a}</a>`)
+    .replace(/\[\^(\d+)\]/g, '<sup class="fn" data-fn="$1" title="点开看证据">$1</sup>');
+}
+
+// 列表项开头的 [ ] / [x]：画像里勾上表示「不像我」
+function listItem(raw) {
+  const task = raw.match(/^\[( |x|X)\] (.*)$/);
+  if (!task) return `<li>${inline(raw)}</li>`;
+  const done = task[1] !== " ";
+  return `<li class="task${done ? " done" : ""}"><span class="box">${done ? "✕" : ""}</span><span>${inline(task[2])}</span></li>`;
 }
 
 function renderMarkdown(text) {
@@ -655,7 +823,7 @@ function renderMarkdown(text) {
     }
     if (/^\s*[-*] /.test(line)) {
       const items = [];
-      while (i < lines.length && /^\s*[-*] /.test(lines[i])) items.push(`<li>${inline(lines[i++].replace(/^\s*[-*] /, ""))}</li>`);
+      while (i < lines.length && /^\s*[-*] /.test(lines[i])) items.push(listItem(lines[i++].replace(/^\s*[-*] /, "")));
       out.push(`<ul>${items.join("")}</ul>`); continue;
     }
     if (/^(---|\*\*\*)\s*$/.test(line)) { out.push("<hr>"); i++; continue; }
@@ -717,9 +885,18 @@ function drawConv() {
       <a href="obsidian://open?path=${encodeURIComponent(r.absolute)}"><button>在 Obsidian 中打开</button></a></div></div>
     <div class="bubbles">${msgs.map((m) => `<div class="bubble ${m.role}"><div class="who">${m.role === "user" ? "我" : esc(ai)} · ${esc(m.time || "时间未知")}</div>
       ${m.thinking && !onlyMeView ? `<details><summary>思考过程</summary><div class="md">${renderMarkdown(m.thinking)}</div></details>` : ""}
-      <div class="md">${renderMarkdown(m.text)}</div></div>`).join("") || `<div class="empty">没有消息。</div>`}</div>
+      ${messageBody(m)}</div>`).join("") || `<div class="empty">没有消息。</div>`}</div>
     ${r.notes ? `<div class="notes-box"><div class="who">我的笔记（写在对话文件里，重新导入不会动）</div><div class="md">${renderMarkdown(r.notes)}</div></div>` : ""}`;
   $("#onlyMeView").addEventListener("change", (e) => { onlyMeView = e.target.checked; drawConv(); });
+}
+
+// 「我」的消息：不是我写的段（贴回的 AI 回答、代码、报错、附件）用浅色框和标签标出来
+const SOURCE_NAME = { ai: "贴回的 AI 回答", code: "代码", error: "报错", attachment: "附件" };
+function messageBody(m) {
+  if (!m.parts || m.parts.every((p) => p.source === "own")) return `<div class="md">${renderMarkdown(m.text)}</div>`;
+  return m.parts.map((p) => p.source === "own"
+    ? `<div class="md">${renderMarkdown(p.text)}</div>`
+    : `<div class="part src-${p.source}"><span class="part-tag">${SOURCE_NAME[p.source] || p.source}</span><div class="md">${renderMarkdown(p.text)}</div></div>`).join("");
 }
 
 $("#convQ").addEventListener("input", convView);
@@ -968,7 +1145,14 @@ $("#llmKeyEnv").addEventListener("input", keyState);
 
 function syncThinking() { $("#thinkWrap").style.display = $("#impPlatform").value === "claude" ? "" : "none"; }
 
-document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", () => run(b.dataset.run, b)));
+const CONFIRM = {
+  db_rebuild: "确定重建数据库吗？抓到的报道、向量和画像观察都会清掉，下次运行时重新抓、重新分析。",
+  profile_run: "确定把第 1 步列出的内容发给文本模型吗？",
+};
+document.querySelectorAll("[data-run]").forEach((b) => b.addEventListener("click", () => {
+  if (CONFIRM[b.dataset.run] && !confirm(CONFIRM[b.dataset.run])) return;
+  run(b.dataset.run, b);
+}));
 $("#tabs").addEventListener("click", (e) => {
   const tab = e.target.closest("button")?.dataset.tab;
   if (!tab) return;
@@ -978,6 +1162,7 @@ $("#tabs").addEventListener("click", (e) => {
   if (tab === "headlines" && !$("#hlList").innerHTML) { run("headlines_list"); run("schedule_status"); }
   if (tab === "files" && !allFiles.length) loadFiles();
   if (tab === "chats" && !allConvs.length) loadConvs();
+  if (tab === "profile" && !profilesLoaded) loadProfiles();
   if (tab === "settings") loadSettings();
   if (tab === "interests") { loadInterests(); run("digest_picks"); }
 });
@@ -991,7 +1176,7 @@ $("#vault").value = DEFAULT_VAULT || store("eia.vault") || recent()[0] || "";
 if (DEFAULT_VAULT) { const list = [DEFAULT_VAULT, ...recent().filter((x) => x !== DEFAULT_VAULT)].slice(0, 8); store("eia.recent", JSON.stringify(list)); }
 $("#vault").addEventListener("change", () => store("eia.vault", $("#vault").value.trim()));
 fillRecent(); syncThinking(); loadExports(); refreshOverview();
-const savedTab = store("eia.tab");
+const savedTab = location.hash.slice(1) || store("eia.tab");  // 地址后面加 #profile 这样可以直接打开某一页
 if (savedTab) document.querySelector(`#tabs button[data-tab="${savedTab}"]`)?.click();
 </script>
 </body>

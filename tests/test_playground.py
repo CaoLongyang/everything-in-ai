@@ -371,3 +371,87 @@ def test_interest_actions(server: tuple[str, str, Path]) -> None:
     assert "至少要选" in empty["error"]
     picks = _post(base, {"action": "digest_picks", "params": {"vault": str(vault)}}, token)
     assert "error" in picks  # 没有配置向量模型
+
+
+def test_conversation_shows_where_my_words_came_from(server: tuple[str, str, Path]) -> None:
+    import datetime as dt
+
+    from eia.chat.importer import import_conversations
+    from eia.chat.model import Conversation, Message
+
+    base, token, vault = server
+    t = dt.datetime(2026, 3, 1, 8, 0, tzinfo=dt.UTC)
+    reply = "这是 AI 之前说的一整句话，长度超过二十个字，用来测试贴回。"
+    messages = (
+        Message("user", t, "问一个问题"),
+        Message("assistant", t + dt.timedelta(minutes=1), reply),
+        Message("user", t + dt.timedelta(minutes=2), f"我没懂：\n\n{reply}"),
+    )
+    import_conversations(vault, [Conversation("chatgpt", "p1", "贴回", t, t, None, messages)])
+    [item] = _post(base, {"action": "conversations", "params": {"vault": str(vault)}}, token)[
+        "conversations"
+    ]
+    opened = _post(
+        base,
+        {"action": "conversation", "params": {"vault": str(vault), "path": item["path"]}},
+        token,
+    )
+    parts = [m["parts"] for m in opened["messages"]]
+    assert parts[1] is None  # AI 的消息没有分段
+    assert [p["source"] for p in parts[2]] == ["own", "ai"] and parts[2][1]["text"] == reply
+
+    dump = _post(
+        base, {"action": "chats_dump", "params": {"vault": str(vault), "own_only": True}}, token
+    )
+    assert "--own-only" in dump["command"]
+    assert [r["text"] for r in dump["records"]] == ["问一个问题", "我没懂："]
+
+
+def test_profile_pages(server: tuple[str, str, Path]) -> None:
+    base, token, vault = server
+    assert _post(base, {"action": "profiles", "params": {"vault": str(vault)}}, token) == {
+        "profiles": []
+    }
+    (vault / "profile").mkdir(exist_ok=True)
+    for name, created, labels_line in (
+        ("旧.md", "2026-11-25T00:00:00Z", "# 你：甲 · 乙"),
+        ("新.md", "2026-11-26T00:00:00Z", "**一句话的你：** 丙 · 丁 · 戊"),
+    ):
+        (vault / "profile" / name).write_text(
+            f"---\ntype: profile\ntitle: {name[0]}\ncreated: {created}\nperiod: x ~ y\nchats: 3\n"
+            f"---\n\n{labels_line}\n\n- [ ] 要点[^1]\n\n## 证据\n\n"
+            "[^1]: 把握高 · 1 个对话：「原话」\n",
+            encoding="utf-8",
+        )
+    (vault / "profile" / "不是画像.md").write_text("---\ntype: note\n---\n", encoding="utf-8")
+    listed = _post(base, {"action": "profiles", "params": {"vault": str(vault)}}, token)
+    assert [(p["title"], p["labels"]) for p in listed["profiles"]] == [
+        ("新", ["丙", "丁", "戊"]),
+        ("旧", ["甲", "乙"]),
+    ]
+    info = _post(base, {"action": "info", "params": {"vault": str(vault)}}, token)
+    assert info["profile"]["title"] == "新"
+
+    opened = _post(
+        base, {"action": "profile", "params": {"vault": str(vault), "path": "profile/新.md"}}, token
+    )
+    assert "[^1]: 把握高" in opened["body"] and opened["meta"]["chats"] == "3"
+    for bad in ("chats/x.md", "../x.md", "profile/../config.yaml"):
+        refused = _post(
+            base, {"action": "profile", "params": {"vault": str(vault), "path": bad}}, token
+        )
+        assert refused == {"error": "只能打开 profile/ 里的画像"}
+
+    plan = _post(base, {"action": "profile_plan", "params": {"vault": str(vault)}}, token)
+    assert plan["command"].startswith("eia profile run") and "--yes" not in plan["command"]
+    assert plan["exit_code"] == 1  # 测试 vault 里没有对话
+
+
+def test_tools(server: tuple[str, str, Path]) -> None:
+    base, token, vault = server
+    status = _post(base, {"action": "db_status", "params": {"vault": str(vault)}}, token)
+    assert status["exit_code"] == 0 and "表结构版本" in status["stdout"]
+    rebuilt = _post(base, {"action": "db_rebuild", "params": {"vault": str(vault)}}, token)
+    assert rebuilt["exit_code"] == 0 and rebuilt["command"].endswith("--yes")
+    clip = _post(base, {"action": "clip_template", "params": {"vault": str(vault)}}, token)
+    assert clip["exit_code"] == 0 and (vault / "eia-clipper.json").is_file()
