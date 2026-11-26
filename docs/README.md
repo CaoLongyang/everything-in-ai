@@ -25,7 +25,7 @@
 
 | 模块 | 文件 | 做什么 | 状态 |
 |---|---|---|---|
-| vault-schema | `vault-schema.md`、`vault-schema.delta-v1.md` | 文件格式、目录布局、`init` / `validate` / `new` | ✅ |
+| vault-schema | `vault-schema.md`、`vault-schema.delta-v1.md`、`vault-schema.delta-profile.md`（V2：画像条目） | 文件格式、目录布局、`init` / `validate` / `new` | ✅ |
 | chat-import | `chat-import.md`、`chat-import.delta-v1.md`（Claude）、`chat-import.delta-gemini.md`（Gemini） | 导入 ChatGPT / Claude / Gemini 对话 | ✅ |
 | llm-adapter | `llm-adapter.md`、`llm-adapter.delta-v1.md` | 接入 AI 服务（DeepSeek、Claude、本机 Ollama） | ✅ |
 | chat-reader | `chat-reader.md`、`chat-reader.delta-paste.md`（V2：标出文字来源） | 把对话读回来给其他模块分析 | ✅ |
@@ -34,11 +34,12 @@
 | interest-digest | `interest-digest.md` | 从对话生成兴趣、按兴趣挑新闻、评价 | ✅；`min_score` 校准在 V2 |
 | storage | `storage.md` | SQLite 数据库和全文搜索 | ✅ |
 | web-clip | `web-clip.md` | 浏览器剪藏插件的模板，剪下的网页直接合规 | ✅ |
+| profile | `profile.md` | 个人画像：AI 读你说过的话，写「数字化的你」 | 🔄 V2 |
 
 ## docs/adr/：实现中做的决定
 
-每个模块写代码时偏离规格、或规格没写到的决定，按编号记在这里（0001–0008，与上表模块对应：
-0001–0002 是 V0，0003 llm-adapter，0004 headline-radar，0005 scheduler，0006 interest-digest，0007 storage，0008 新闻源扩展）。
+每个模块写代码时偏离规格、或规格没写到的决定，按编号记在这里（0001–0009，与上表模块对应：
+0001–0002 是 V0，0003 llm-adapter，0004 headline-radar，0005 scheduler，0006 interest-digest，0007 storage，0008 新闻源扩展，0009 profile）。
 
 ## 其他目录
 

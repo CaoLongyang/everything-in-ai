@@ -30,6 +30,7 @@ class EntryType(StrEnum):
     chat = "chat"
     note = "note"
     topic = "topic"
+    profile = "profile"
 
 
 class Status(StrEnum):
@@ -44,7 +45,7 @@ class Platform(StrEnum):
     gemini = "gemini"
 
 
-ID_PATTERN = r"^(headline|digest|clip|chat|note|topic)-\d{8}-[a-z2-7]{6,12}$"
+ID_PATTERN = r"^(headline|digest|clip|chat|note|topic|profile)-\d{8}-[a-z2-7]{6,12}$"
 ID_RE = re.compile(ID_PATTERN)
 
 
@@ -122,10 +123,19 @@ class DigestEntry(Entry):
     score: StrictFloat | StrictInt | None = None
 
 
+class ProfileEntry(Entry):
+    """个人画像（docs/specs/vault-schema.delta-profile.md）。"""
+
+    period: StrictStr | None = None
+    chats: StrictInt | None = None
+    model: StrictStr | None = None
+
+
 MODELS: dict[str, type[Entry]] = {
     EntryType.headline.value: HeadlineEntry,
     EntryType.chat.value: ChatEntry,
     EntryType.digest.value: DigestEntry,
+    EntryType.profile.value: ProfileEntry,
 }
 
 

@@ -279,12 +279,15 @@ def test_F14_05_two_processes_write_at_the_same_time(vault: Path) -> None:
 def test_F14_06_older_schema_is_migrated(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     with database(vault):
         pass
-    monkeypatch.setattr(schema, "SCHEMA_VERSION", 2)
-    monkeypatch.setattr(schema, "MIGRATIONS", {2: "ALTER TABLE runs ADD COLUMN note TEXT;"})
+    nxt = schema.SCHEMA_VERSION + 1
+    monkeypatch.setattr(schema, "SCHEMA_VERSION", nxt)
+    monkeypatch.setattr(
+        schema, "MIGRATIONS", {**schema.MIGRATIONS, nxt: "ALTER TABLE runs ADD COLUMN note TEXT;"}
+    )
     with database(vault) as conn:
         columns = [r[1] for r in conn.execute("PRAGMA table_info(runs)")]
         version = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()[0]
-    assert "note" in columns and version == "2"
+    assert "note" in columns and version == str(nxt)
 
 
 def test_F14_06_newer_schema_is_refused_untouched(vault: Path) -> None:
@@ -302,8 +305,9 @@ def test_F14_06_newer_schema_is_refused_untouched(vault: Path) -> None:
 def test_F14_06_readonly_cannot_upgrade(vault: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     with database(vault):
         pass
-    monkeypatch.setattr(schema, "SCHEMA_VERSION", 2)
-    monkeypatch.setattr(schema, "MIGRATIONS", {2: "SELECT 1;"})
+    nxt = schema.SCHEMA_VERSION + 1
+    monkeypatch.setattr(schema, "SCHEMA_VERSION", nxt)
+    monkeypatch.setattr(schema, "MIGRATIONS", {**schema.MIGRATIONS, nxt: "SELECT 1;"})
     with pytest.raises(DatabaseError, match="去掉 --dry-run"):
         with database(vault, readonly=True):
             pass

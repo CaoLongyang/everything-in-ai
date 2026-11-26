@@ -35,6 +35,8 @@ from eia.interests import draft as draft_mod
 from eia.interests import feedback as feedback_mod
 from eia.interests import learn as learn_mod
 from eia.interests.config import InterestsError
+from eia.profile import run as profile_mod
+from eia.profile.prompts import CATEGORIES as PROFILE_CATEGORIES
 from eia.schedule import windows as schedule_windows
 from eia.schedule.runs import JOBS, read_runs, run_job
 from eia.schedule.windows import ScheduleError, WindowsScheduler
@@ -523,6 +525,59 @@ def interests_learn(vault: Path, yes: bool) -> None:
     click.echo("看过后运行 eia interests accept 才会生效")
 
 
+@main.group(name="profile")
+def profile_group() -> None:
+    """个人画像：AI 读你说过的话，写「数字化的你」（docs/specs/profile.md）。"""
+
+
+@profile_group.command(name="run")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--since", type=_DATE, help="从这天起（含），按消息时间。默认最近 3 个月。")
+@click.option("--until", type=_DATE, help="到这天为止（含），默认今天。")
+@click.option(
+    "--yes", is_flag=True, help="确认把材料发给文本模型。不加就只在本机整理并告诉你要发多少。"
+)
+def profile_run(
+    vault: Path, since: dt.datetime | None, until: dt.datetime | None, yes: bool
+) -> None:
+    """生成一份新的画像，写到 profile/（不覆盖旧版本）。"""
+    try:
+        plan = profile_mod.plan_profile(
+            vault,
+            since=since.date() if since else None,
+            until=until.date() if until else None,
+        )
+        click.echo(
+            f"范围 {plan.since} ~ {plan.until}：{len(plan.materials)} 个对话，"
+            f"你的材料 {plan.chars} 字（只有你写的、笔记和贴回的 AI 回答；代码、报错、附件不发）。"
+        )
+        if plan.skipped_files:
+            click.echo(
+                f"跳过 {plan.skipped_files} 个读不了的对话文件（用 eia chats dump 查看原因）"
+            )
+        reused = len(plan.materials) - len(plan.to_send)
+        if reused:
+            click.echo(f"其中 {reused} 个对话以前分析过、内容没变，不用再发。")
+        click.echo(
+            f"第 2 步要把 {len(plan.to_send)} 个对话、{plan.send_chars} 字发给 "
+            f"{plan.model}（{plan.service}）；第 3 步只发第 2 步得到的观察和原话摘录。"
+        )
+        if not yes:
+            click.echo("确认的话加上 --yes 再运行一次；不加就到此为止，什么都没有发出。")
+            return
+        result = profile_mod.run_profile(
+            vault, plan, progress=lambda n, total: click.echo(f"  第 2 步：第 {n}/{total} 批")
+        )
+    except (profile_mod.ProfileError, llm.LLMError, VaultError, DatabaseError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    names = {**PROFILE_CATEGORIES, "hidden": "你可能没意识到的你"}
+    counts = "，".join(f"{names[k]} {n} 条" for k, n in result.counts.items())
+    click.echo(f"已写画像  {result.path.relative_to(vault).as_posix()}：{counts}")
+    click.echo(f"共 {result.observations} 条观察；原话对不上、被丢掉的 {result.dropped} 条")
+    if result.rejected:
+        click.echo(f"避开了你说过不像你的 {result.rejected} 条结论")
+
+
 @main.group(name="digest")
 def digest_group() -> None:
     """按兴趣挑选资讯，写进 inbox/digest/。"""
@@ -599,6 +654,7 @@ def _db_report(state: db_ops.Status) -> None:
         "shown": "已看过的报道",
         "feedback": "评价",
         "interest_history": "兴趣历史",
+        "profile_observations": "画像观察",
     }
     click.echo(
         f"数据库 {state.size_bytes / 1_000_000:.1f} MB，表结构版本 {state.schema_version}，"

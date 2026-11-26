@@ -11,6 +11,7 @@ EXPECTED_DIRS = [
     "chats/gemini",
     "notes",
     "topics",
+    "profile",
 ]
 
 

@@ -142,7 +142,18 @@ eia digest rate <报道链接> --irrelevant --why "只关心芯片，不关心�
 eia interests learn --yes     # 根据你的评价，让 AI 提修改建议（写进草稿，你确认后才生效）
 ```
 
-## 6. 网页剪藏
+## 6. 个人画像
+
+```bash
+eia profile run               # 在本机整理最近 3 个月你说过的话，告诉你要发多少字、发给谁（什么都不发）
+eia profile run --yes         # 发给文本模型，生成 profile/<日期> 画像.md（每次一个新文件，不覆盖旧的）
+eia profile run --since 2025-01-01 --yes   # 换时间范围；分析过、没变的对话不会重复发
+```
+
+画像分「你说过的」和「推断」，每条都带你的原话和对话链接；AI 给的原话程序会去你的对话里核对，对不上的丢掉。
+觉得哪条不像你，在 Obsidian 里把那条的 `[ ]` 改成 `[x]`，后面可以写原因，下次生成时会避开。
+
+## 7. 网页剪藏
 
 1. 浏览器安装 [Obsidian Web Clipper](https://obsidian.md/clipper)。
 2. 运行 `eia clip template`，会在 vault 里生成 `eia-clipper.json`。
@@ -151,7 +162,7 @@ eia interests learn --yes     # 根据你的评价，让 AI 提修改建议（�
 以后剪下的网页会落进 `inbox/clips/`，带 `clip` 标签，直接通过 `eia validate`。
 模板按 vault 的时区生成：改了时区要重新生成、重新导入。
 
-## 7. 搜索
+## 8. 搜索
 
 ```bash
 eia search 量子计算
@@ -160,7 +171,7 @@ eia search 量子计算 --type chat     # 只搜对话
 
 搜索用的索引在 `.eia/eia.db`，可以随时删掉，`eia db rebuild` 会从 Markdown 重建（你的评价也会恢复）。
 
-## 8. 每天自动运行
+## 9. 每天自动运行
 
 **Windows**：登记到任务计划程序，后台运行，不弹窗；错过的时间开机后补跑。
 
@@ -186,6 +197,7 @@ eia schedule remove headlines
 | 新闻雷达 | 只是去下载新闻源（不发你的数据）；开了 `interest_search` 时，兴趣关键词会作为搜索词发给 Google News | 新闻网站、Google |
 | 向量模型（雷达归组、兴趣草稿第 1 步、简报打分） | 新闻标题；兴趣草稿会发**你说过的话** | 你配置的向量服务。兴趣草稿要求它在本机（如 Ollama），否则拒绝运行 |
 | `interests draft --yes`、`interests learn --yes` | 每组兴趣的几条摘录 / 兴趣清单和你的评价 | 你配置的文本模型。不加 `--yes` 只告诉你会发什么，不发 |
+| `profile run --yes` | 范围内**你写的话**、笔记、你贴回的 AI 回答（每段最多 500 字），以及对话标题和日期；不发代码、报错、附件和 AI 的回答 | 你配置的文本模型。不加 `--yes` 只告诉你会发多少，不发 |
 | `eia llm test` | 一个极短的测试请求 | 你配置的文本模型 |
 
 另外：

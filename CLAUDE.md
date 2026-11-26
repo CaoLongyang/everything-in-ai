@@ -42,10 +42,10 @@ ruff format .                      # 自动格式化
 
 ## 架构
 
-四个包，`src/eia/schema/`（数据契约）、`src/eia/chat/`（导入）、`src/eia/llm/`（AI 服务接入）和 `src/eia/headlines/`（新闻雷达），由 `src/eia/cli.py`（click）串起来。
+核心是 `src/eia/schema/`（数据契约）、`src/eia/chat/`（导入）、`src/eia/llm/`（AI 服务接入）和 `src/eia/headlines/`（新闻雷达），其余模块见下文，由 `src/eia/cli.py`（click）串起来。
 
 **schema/**
-- `model.py`：pydantic 模型。`Entry` 基类 + `ChatEntry` / `HeadlineEntry` / `DigestEntry`；`model_for(type)` 按 `type` 字段选模型。未知字段只警告。
+- `model.py`：pydantic 模型。`Entry` 基类 + `ChatEntry` / `HeadlineEntry` / `DigestEntry` / `ProfileEntry`；`model_for(type)` 按 `type` 字段选模型。未知字段只警告。
 - `io.py`：唯一的文件 IO 入口。关键设计（ADR 0001）：修改已有文件**不重新序列化 YAML**，`update_frontmatter` 只替换被改字段所在的行、新字段追加到末尾，写后重新解析校验；`atomic_write` 保证写失败不损坏原文件；`create_new` 用于新建（目标存在则 `FileExistsError`）。
 - `vault.py`：目录布局（`TYPE_DIRS`，chat 进 `chats/<platform>/`）、`config.yaml`（时区）、`init_vault`。
 - `ids.py` / `naming.py`：id 和文件名。chat 的 id 由 平台 + conversation_id 哈希决定（12 位后缀），其他条目随机 6 位；文件名日期按配置时区。
@@ -94,6 +94,11 @@ ruff format .                      # 自动格式化
 - `template.py`：`eia clip template` 按 vault 时区生成 Obsidian Web Clipper 的模板 JSON。插件没有随机数、不能转 UTC，
   所以 id 后缀用 Unix 秒数换字母，UTC 时间靠 `date_modify`（只返回日期）+ 两轮字面替换拼出来；只支持整小时时差。
 - 测试用 `tests/clip/clipper_sim.py` 按插件源码的规则渲染模板，不运行真插件；改模板写法要先看规格第 3.1 节的插件行为。
+
+**profile/**（`docs/specs/profile.md`，实现决定见 ADR 0009）
+- 四步：`material.py` 本机整理（只要 `own` / `ai` 段和笔记，`ai` 截到 500 字）→ `extract.py` 分批提取观察、**逐句核对原话**、按对话缓存到 `profile_observations` 表 → `synth.py` 每类汇总一次 + 「你可能没意识到的你」一次，证据编号由程序核对、对话数和天数由程序算 → `document.py` 新建 `profile/<日期> 画像.md`，读上一版勾了「不像我」的条目。
+- 改提示词（`prompts.py`）要把 `PROMPT_VERSION` 加一，旧缓存才会作废。
+- 测试用 `tests/profile/conftest.py` 的假模型：第 2 步故意编原话、引用不存在的对话，第 3 步故意引用不存在的观察编号。
 
 ## 改规格的方式
 

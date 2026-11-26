@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 DB_PATH = Path(".eia") / "eia.db"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class DatabaseError(Exception):
@@ -75,8 +75,18 @@ FTS = (
     " USING fts5(path UNINDEXED, title, body, tokenize='trigram')"
 )
 
-# 以后加字段：在这里加 2: "ALTER TABLE ..."，并把 SCHEMA_VERSION 改成 2
-MIGRATIONS: dict[int, str] = {}
+# 以后加字段：在这里加 3: "ALTER TABLE ..."，并把 SCHEMA_VERSION 改成 3
+MIGRATIONS: dict[int, str] = {
+    # 个人画像第 2 步的观察（docs/specs/profile.md 第 3 节）。key 由对话材料、提示词版本、模型决定
+    2: """
+CREATE TABLE IF NOT EXISTS profile_observations (
+    key TEXT PRIMARY KEY,
+    chat_id TEXT NOT NULL,
+    saved TEXT NOT NULL,
+    data TEXT NOT NULL              -- JSON：这个对话的观察
+);
+""",
+}
 
 
 def ensure_schema(conn: sqlite3.Connection, *, writable: bool) -> None:

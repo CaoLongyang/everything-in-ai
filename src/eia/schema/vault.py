@@ -21,6 +21,7 @@ TYPE_DIRS: dict[str, str] = {
     EntryType.clip.value: "inbox/clips",
     EntryType.note.value: "notes",
     EntryType.topic.value: "topics",
+    EntryType.profile.value: "profile",
 }
 CHAT_DIR = "chats"
 

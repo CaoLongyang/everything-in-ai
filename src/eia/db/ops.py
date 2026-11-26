@@ -20,6 +20,7 @@ TABLES = (
     "shown",
     "feedback",
     "interest_history",
+    "profile_observations",
 )
 
 
