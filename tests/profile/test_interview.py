@@ -104,7 +104,7 @@ def test_F18_23_follow_ups_from_answers_and_no_repeats(vault: Path, model: FakeM
             q("你最难忘的一次旅行是哪一次？", "turns"),  # 几乎一样，算问过
             q("没答的问题", "family"),  # 问过、没答，也不再问
             q("一个人去海边时在想什么？", "turns", follow_up=ref),
-            q("为什么那次之后决定学设计？", "school", follow_up=ref),
+            q("为什么那次之后决定学设计？", "school", follow_up=f"[{ref.replace(' ', '')}]"),
             q("家里人怎么看你学设计？", "family", follow_up=ref),
             q("第四个追问", "turns", follow_up=ref),
             q("编号不对的追问", "now", follow_up="不存在 第 9 题"),

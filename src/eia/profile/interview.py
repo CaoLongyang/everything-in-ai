@@ -285,7 +285,8 @@ def pick(
 ) -> list[Picked]:
     """AI 出的 (问题, 为什么问, 方面, 追问哪一题)，程序再过滤、排序、限量。"""
     asked = [_norm(q.question) for r in rounds for q in r.questions]
-    refs = {q.ref for r in rounds for q in r.questions if q.answer}
+    # AI 填出处时常带上方括号、换掉空格（实测：第二轮的追问一个都没认出来），比对时去掉这些
+    refs = {_ref_key(q.ref): q.ref for r in rounds for q in r.questions if q.answer}
     words = [w for w in settings.avoided_words if w]
     kept: list[Picked] = []
     seen: list[str] = []
@@ -302,12 +303,17 @@ def pick(
         if any(_similar(norm, old) for old in [*asked, *seen]):
             continue
         seen.append(norm)
-        ref = follow_up.strip() if follow_up.strip() in refs else ""
+        ref = refs.get(_ref_key(follow_up), "") if follow_up.strip() else ""
         kept.append(Picked(text, " ".join(why.split()), key, ref))
     follow_ups = [p for p in kept if p.follow_up][:MAX_FOLLOW_UPS]
     others = [p for p in kept if not p.follow_up]
     others.sort(key=lambda p: p.aspect not in settings.want)  # 勾了的方面排前面，其余保持 AI 的顺序
     return [*follow_ups, *others][:MAX_QUESTIONS]
+
+
+def _ref_key(ref: str) -> str:
+    """「[2026-11-26 第 3 题]」「2026-11-26第3题」「【2026-11-26 第3题】」都算同一个出处。"""
+    return re.sub(r"[\s\[\]【】()（）「」#:：]", "", ref).removeprefix("访谈")
 
 
 def _norm(text: str) -> str:
