@@ -44,6 +44,8 @@ from eia.schema.create import new_entry
 from eia.schema.model import EntryType, Platform
 from eia.schema.validate import ERROR, validate_vault
 from eia.schema.vault import CONFIG_NAME, VaultError, init_vault, is_vault, load_config
+from eia.sync import server as sync_server
+from eia.sync import store as sync_store
 
 _DIR = click.Path(file_okay=False, path_type=Path)
 
@@ -789,6 +791,68 @@ def clip_template_command(vault: Path, out: Path | None) -> None:
         click.echo(
             "提醒  这个时区有夏令时，模板里的时差是写死的；换季后重新运行这个命令并再导入一次。"
         )
+
+
+@main.group(name="sync")
+def sync_group() -> None:
+    """接收浏览器插件每天同步的 ChatGPT、Claude 对话（docs/specs/chat-sync.md）。"""
+
+
+def _sync_vault(vault: Path) -> None:
+    if not is_vault(vault):
+        raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
+
+
+@sync_group.command(name="serve")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option(
+    "--port", type=int, default=sync_server.DEFAULT_PORT, show_default=True, help="插件里填同一个"
+)
+def sync_serve(vault: Path, port: int) -> None:
+    """在本机运行接收服务（只听 127.0.0.1），Ctrl+C 停止。"""
+    _sync_vault(vault)
+    try:
+        server = sync_server.make_server(vault, port=port)
+    except OSError as exc:
+        raise click.ClickException(
+            f"端口 {port} 用不了（{exc.strerror or exc}）：可能已经有一个 eia sync serve 在运行，"
+            "或者换一个端口（--port），插件里也改成同一个"
+        ) from exc
+    click.echo(f"在 http://127.0.0.1:{port} 等插件发对话来，写进 {vault.resolve()}")
+    click.echo("插件要填的口令：eia sync token；按 Ctrl+C 停止")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        click.echo("已停止")
+    finally:
+        server.server_close()
+
+
+@sync_group.command(name="token")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+def sync_token(vault: Path) -> None:
+    """显示插件要填的口令（第一次运行时生成）。不要发给别人。"""
+    _sync_vault(vault)
+    click.echo(sync_store.token(vault))
+
+
+@sync_group.command(name="status")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--limit", type=int, default=30, show_default=True, help="显示最近几条。")
+def sync_status(vault: Path, limit: int) -> None:
+    """最近同步了哪些对话、有没有失败（只有平台、编号、消息数和结果）。"""
+    _sync_vault(vault)
+    try:
+        lines = sync_store.recent(vault, limit)
+    except DatabaseError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if not lines:
+        click.echo("还没有同步过。装好插件、运行 eia sync serve 后，插件每天会同步一次")
+        return
+    for line in lines:
+        mark = "  " if line.ok else "✗ "
+        why = f"（{line.error}）" if line.error else ""
+        click.echo(f"{mark}{line.started}  {line.summary}{why}")
 
 
 @main.command(name="run")
