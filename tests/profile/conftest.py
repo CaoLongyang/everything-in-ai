@@ -20,6 +20,7 @@ from eia.llm.config import load_llm_config
 from eia.llm.errors import LLMCallError
 from eia.profile.prompts import (
     ASK_SYSTEM,
+    CHAT_SYSTEM,
     EXTRACT_SYSTEM,
     PART_AI,
     PART_CAREER,
@@ -117,6 +118,7 @@ class FakeModel:
         self.garble = ""  # 第 2 步：提示词里有这个标题的批次，回复不是 JSON
         self.network_down = False
         self.ask_reply: list[dict[str, Any]] | None = None  # 访谈：不设就用下面的默认问题
+        self.chat_replies: list[dict[str, Any]] = []  # 聊聊：按顺序用；用完了给不重复的默认问题
 
     @property
     def extract_prompts(self) -> list[str]:
@@ -130,6 +132,10 @@ class FakeModel:
     @property
     def ask_prompts(self) -> list[str]:
         return [p for s, p in self.calls if s == ASK_SYSTEM]
+
+    @property
+    def chat_prompts(self) -> list[str]:
+        return [p for s, p in self.calls if s == CHAT_SYSTEM]
 
     @property
     def ai_prompts(self) -> list[str]:
@@ -148,6 +154,18 @@ class FakeModel:
             return Reply(json.dumps(self._extract(prompt), ensure_ascii=False))
         if self.fail_synth:
             raise LLMCallError("假装网络断了")
+        if system == CHAT_SYSTEM:
+            turn = (
+                self.chat_replies.pop(0)
+                if self.chat_replies
+                else {
+                    "reply": "听起来挺有意思的。",
+                    "question": f"默认问题 {len(self.calls)}",
+                    "aspect": "now",
+                    "depth": "light",
+                }
+            )
+            return Reply(json.dumps(turn, ensure_ascii=False))
         if system == ASK_SYSTEM and self.ask_reply is not None:
             return Reply(json.dumps({"questions": self.ask_reply}, ensure_ascii=False))
         if system == ASK_SYSTEM:

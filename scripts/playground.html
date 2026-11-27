@@ -296,6 +296,15 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
 }
 .term { margin-top: 12px; background: var(--term); color: var(--term-ink); border-left: 3px solid var(--line); padding: 10px 14px; font: 13px/1.6 var(--mono); white-space: pre-wrap; word-break: break-word; }
 .term .err { color: var(--bad); }
+.chat { margin-top: 20px; border-top: 1px solid var(--line2); padding-top: 14px; }
+.chat h4 { margin: 0 0 6px; font-size: 15px; }
+.chat-log { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; max-height: 520px; overflow-y: auto; }
+.chat-log .b { max-width: 85%; padding: 9px 12px; border-radius: 10px; line-height: 1.6; white-space: pre-wrap; }
+.chat-log .it { align-self: flex-start; background: var(--soft); color: var(--ink); }
+.chat-log .it .q { display: block; margin-top: 4px; font-weight: 600; }
+.chat-log .me { align-self: flex-end; background: var(--accent); color: var(--accent-ink); }
+.chat-log .note { align-self: center; color: var(--muted); font-size: 13px; }
+#chatText { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); resize: vertical; }
 </style>
 </head>
 <body>
@@ -401,6 +410,26 @@ sup.fn.on { background: var(--accent); color: var(--accent-ink); }
       </div>
       <div data-out="profile_ask_plan"></div>
       <div data-out="profile_ask"></div>
+      <div class="chat" id="chatBox">
+        <h4>聊聊</h4>
+        <p class="hint">不想填问卷的话，就像跟朋友聊天一样：它一次问一个问题，顺着你说的往下聊。每答一题就存进 profile 文件夹（「访谈 日期 聊天」），和访谈一样会用进画像。</p>
+        <div class="row"><button id="chatPlanBtn">开始聊聊</button></div>
+        <div id="chatConsent" hidden>
+          <p class="hint" id="chatConsentText"></p>
+          <div class="row"><button class="primary" id="chatStartBtn">好，开始</button></div>
+        </div>
+        <div id="chatLog" class="chat-log" hidden></div>
+        <div id="chatInput" hidden>
+          <textarea id="chatText" rows="3" placeholder="想到什么说什么。Enter 发送，Shift+Enter 换行"></textarea>
+          <div class="row">
+            <button class="primary" id="chatSend">发送</button>
+            <button data-say="换个话题">换个话题</button>
+            <button data-say="不想聊这个">不想聊这个</button>
+            <button data-say="还没想好">还没想好</button>
+            <button data-say="先到这">先到这</button>
+          </div>
+        </div>
+      </div>
     
           </div>
         </div>
@@ -742,6 +771,66 @@ function terminal(target, r) {
   box.innerHTML = `<div class="out ${ok ? "good" : "fail"}"><pre>${esc(text)}${r.stderr ? `\n<span class="err">${esc(r.stderr.trim())}</span>` : ""}</pre>
     <details><summary>技术细节</summary><code>$ ${esc(r.command)}</code> · ${ok ? "成功" : `退出码 ${r.exit_code}`} · ${r.seconds} 秒</details></div>`;
 }
+
+// ---------- 聊聊 ----------
+let chatSession = "";
+const DEPTH_NAMES = { light: "只问轻松的", mixed: "轻松为主，加几个深一点的", deep: "多问深的" };
+
+function chatBubble(cls, html) {
+  const log = $("#chatLog");
+  log.hidden = false;
+  log.insertAdjacentHTML("beforeend", `<div class="b ${cls}">${html}</div>`);
+  log.scrollTop = log.scrollHeight;
+}
+
+function chatShow(r) {
+  if (r.error) { chatBubble("note", esc(r.error)); return; }
+  chatSession = r.session;
+  if (r.question) {
+    chatBubble("it", `${r.said ? esc(r.said) : ""}<span class="q">${esc(r.question)}</span>`);
+    if (r.wrap_hint) chatBubble("note", "已经聊了不少了，想结束就点「先到这」");
+    $("#chatInput").hidden = false;
+    $("#chatText").focus();
+  } else {
+    chatBubble("it", esc(r.said));
+    chatBubble("note", r.saved ? `已存 ${esc(r.saved)}，下次生成画像时会用上` : "这次没有回答任何问题，什么都没存。");
+    $("#chatInput").hidden = true;
+    chatSession = "";
+    $("#chatPlanBtn").disabled = false;
+  }
+}
+
+async function chatSay(text) {
+  if (!chatSession) return;
+  chatBubble("me", esc(text || "（跳过）"));
+  $("#chatText").value = "";
+  for (const b of document.querySelectorAll("#chatInput button")) b.disabled = true;
+  try { chatShow(await api("chat_answer", { session: chatSession, text })); }
+  finally { for (const b of document.querySelectorAll("#chatInput button")) b.disabled = false; }
+}
+
+$("#chatPlanBtn").addEventListener("click", async () => {
+  const r = await api("chat_plan");
+  if (r.error) { $("#chatConsent").hidden = false; $("#chatConsentText").textContent = r.error; $("#chatStartBtn").hidden = true; return; }
+  $("#chatStartBtn").hidden = false;
+  $("#chatConsentText").textContent = `这次聊天会把画像的结论、访谈设置${r.answers ? `、你以前写的 ${r.answers} 条访谈回答` : ""}，以及你这次说的话，发给 ${r.model}（${r.service}）。不发你的聊天记录。每一轮大约发 ${r.chars} 字以上。深度：${DEPTH_NAMES[r.depth] || r.depth}（在「访谈设置」里改）。`;
+  $("#chatConsent").hidden = false;
+});
+
+$("#chatStartBtn").addEventListener("click", async () => {
+  $("#chatConsent").hidden = true;
+  $("#chatPlanBtn").disabled = true;
+  $("#chatLog").innerHTML = "";
+  chatBubble("note", "随时可以点下面的按钮换话题、跳过或结束。");
+  chatShow(await api("chat_start"));
+  if (!chatSession) $("#chatPlanBtn").disabled = false;
+});
+
+$("#chatSend").addEventListener("click", () => chatSay($("#chatText").value.trim()));
+$("#chatText").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); chatSay($("#chatText").value.trim()); }
+});
+for (const b of document.querySelectorAll("[data-say]")) b.addEventListener("click", () => chatSay(b.dataset.say));
 
 const params = {
   init: () => ({ vault: $("#initPath").value.trim() }),

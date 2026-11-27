@@ -73,7 +73,7 @@ def ensure_supplement(root: Path, *, now: dt.datetime | None = None) -> Path:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     when = (now or dt.datetime.now(dt.UTC)).replace(microsecond=0)
-    meta = _note_meta("我的补充", when)
+    meta = note_meta("我的补充", when)
     try:
         create_new(path, render_document(meta, SUPPLEMENT_HINT + "\n"))
     except FileExistsError:
@@ -119,7 +119,7 @@ def ensure_settings(root: Path, *, now: dt.datetime | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     when = (now or dt.datetime.now(dt.UTC)).replace(microsecond=0)
     try:
-        create_new(path, render_document(_note_meta("访谈设置", when), interview.settings_text()))
+        create_new(path, render_document(note_meta("访谈设置", when), interview.settings_text()))
     except FileExistsError:
         pass
     return path
@@ -179,14 +179,14 @@ def run_ask(root: Path, plan: AskPlan, *, now: dt.datetime | None = None) -> tup
         title = f"访谈 {day}" if n == 1 else f"访谈 {day} {n}"
         path = folder / f"{title}.md"
         try:
-            create_new(path, render_document(_note_meta(title, when), "\n".join(body)))
+            create_new(path, render_document(note_meta(title, when), "\n".join(body)))
         except FileExistsError:
             continue
         return path, len(questions)
     raise FileExistsError(f"{folder} 里今天的访谈太多了")
 
 
-def _note_meta(title: str, when: dt.datetime) -> dict[str, object]:
+def note_meta(title: str, when: dt.datetime) -> dict[str, object]:
     return {
         "schema": SCHEMA_VERSION,
         "id": new_id(EntryType.note.value, when),

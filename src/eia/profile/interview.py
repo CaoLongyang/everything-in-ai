@@ -54,7 +54,7 @@ _DEPTH_BY_NAME = {name: key for key, name, *_ in DEPTHS} | {
     "深入": "deep",
 }
 _DEPTH_HINTS = {key: hint for key, _, hint, *_ in DEPTHS}
-_CAPS = {key: (medium, deep) for key, _, _, medium, deep in DEPTHS}
+CAPS = {key: (medium, deep) for key, _, _, medium, deep in DEPTHS}
 LEVELS = ("light", "medium", "deep")  # 每一题的深浅
 EASY_NOTE = "想到多少说多少，没想好也可以。"
 
@@ -395,10 +395,10 @@ def pick(
     today: dt.date,
 ) -> list[Picked]:
     """AI 出的 (问题, 为什么问, 方面, 追问哪一题, 深浅)，程序再过滤、排序、限量。"""
-    asked = [_norm(q.question) for r in rounds for q in r.questions if not q.reaskable(today)]
+    asked = [norm(q.question) for r in rounds for q in r.questions if not q.reaskable(today)]
     # AI 填出处时常带上方括号、换掉空格（实测：第二轮的追问一个都没认出来），比对时去掉这些
     refs = {
-        _ref_key(q.ref): q.ref for r in rounds for q in r.questions if q.answer and not q.undecided
+        ref_key(q.ref): q.ref for r in rounds for q in r.questions if q.answer and not q.undecided
     }
     words = [w for w in settings.avoided_words if w]
     kept: list[Picked] = []
@@ -412,11 +412,11 @@ def pick(
             continue
         if any(w in text or w in why for w in words):
             continue
-        norm = _norm(text)
-        if any(_similar(norm, old) for old in [*asked, *seen]):
+        plain = norm(text)
+        if any(similar(plain, old) for old in [*asked, *seen]):
             continue
-        seen.append(norm)
-        ref = refs.get(_ref_key(follow_up), "") if follow_up.strip() else ""
+        seen.append(plain)
+        ref = refs.get(ref_key(follow_up), "") if follow_up.strip() else ""
         depth = level.strip() if level.strip() in LEVELS else "light"
         reason = " ".join(why.split())
         if depth != "light" and EASY_NOTE not in reason:
@@ -424,7 +424,7 @@ def pick(
         kept.append(Picked(text, reason, key, ref, depth))
     follow_ups = {id(p) for p in [p for p in kept if p.follow_up][:MAX_FOLLOW_UPS]}
     kept = [p for p in kept if not p.follow_up or id(p) in follow_ups]
-    medium_cap, deep_cap = _CAPS[settings.depth]
+    medium_cap, deep_cap = CAPS[settings.depth]
     caps = {"light": MAX_QUESTIONS, "medium": medium_cap, "deep": deep_cap}
     used = dict.fromkeys(LEVELS, 0)
     capped: list[Picked] = []
@@ -442,14 +442,14 @@ def pick(
     return sorted([*light[:room], *deep], key=capped.index)[:MAX_QUESTIONS]
 
 
-def _ref_key(ref: str) -> str:
+def ref_key(ref: str) -> str:
     """「[2026-11-26 第 3 题]」「2026-11-26第3题」「【2026-11-26 第3题】」都算同一个出处。"""
     return re.sub(r"[\s\[\]【】()（）「」#:：]", "", ref).removeprefix("访谈")
 
 
-def _norm(text: str) -> str:
+def norm(text: str) -> str:
     return re.sub(r"[\s，。？！、,.?!：:；;「」“”\"']", "", text)
 
 
-def _similar(a: str, b: str) -> bool:
+def similar(a: str, b: str) -> bool:
     return a == b or difflib.SequenceMatcher(None, a, b).ratio() >= SIMILAR

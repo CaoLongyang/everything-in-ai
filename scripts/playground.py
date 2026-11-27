@@ -31,6 +31,8 @@ from eia.chat.reader import ChatReadError, read_chat
 from eia.chat.source import label_chat
 from eia.cli import main
 from eia.headlines.config import HeadlinesConfigError, load_headlines_config
+from eia.profile import chat as chat_mod
+from eia.profile.supplement import ProfileAskError
 from eia.schema.configedit import replace_section, save_config_text
 from eia.schema.io import FrontmatterError, read_document
 from eia.schema.vault import CONFIG_NAME, VaultError, is_vault, load_config
@@ -412,6 +414,68 @@ _LABELS_LINE = re.compile(r"^(?:\*\*一句话的你：\*\*|# 你：)\s*(.*)$", r
 def _profile_labels(body: str) -> list[str]:
     match = _LABELS_LINE.search(body)
     return [x.strip() for x in match[1].split("·") if x.strip()] if match else []
+
+
+# 聊聊（profile.delta-chat.md）：和 eia profile chat 同一个 ChatSession；页面开着时放在内存里
+_CHATS: dict[str, chat_mod.ChatSession] = {}
+_CHATS_LOCK = threading.Lock()
+
+
+def _turn(chat: chat_mod.ChatSession, turn: chat_mod.Turn, key: str) -> dict[str, Any]:
+    saved = chat.path.relative_to(chat.root).as_posix() if chat.path else ""
+    return {
+        "session": key,
+        "said": turn.said,
+        "question": turn.question,
+        "number": turn.number,
+        "wrap_hint": turn.wrap_hint,
+        "ended": chat.ended,
+        "saved": saved,
+    }
+
+
+def action_chat_plan(params: dict[str, Any]) -> dict[str, Any]:
+    """聊聊第 1 步：告诉你会发什么、发给谁，什么都不发。"""
+    try:
+        plan = chat_mod.plan_chat(Path(_vault(params))).plan
+    except (ProfileAskError, llm.LLMError) as exc:
+        return {"error": str(exc)}
+    return {
+        "model": plan.model,
+        "service": plan.service,
+        "answers": plan.answers,
+        "chars": plan.chars,
+        "depth": plan.settings.depth,
+    }
+
+
+def action_chat_start(params: dict[str, Any]) -> dict[str, Any]:
+    try:
+        chat = chat_mod.plan_chat(Path(_vault(params)))
+        turn = chat.start()
+    except (ProfileAskError, llm.LLMError) as exc:
+        return {"error": str(exc)}
+    key = secrets.token_urlsafe(8)
+    with _CHATS_LOCK:
+        _CHATS[key] = chat
+    return _turn(chat, turn, key)
+
+
+def action_chat_answer(params: dict[str, Any]) -> dict[str, Any]:
+    key = str(params.get("session") or "")
+    with _CHATS_LOCK:
+        chat = _CHATS.get(key)
+    if chat is None:
+        return {"error": "这次聊天已经结束了（或者试用台重启过），点「开始聊聊」重新开始"}
+    try:
+        turn = chat.answer(str(params.get("text") or ""))
+    except llm.LLMError as exc:
+        kept = f"已经说的存在 {chat.path.relative_to(chat.root).as_posix()}。" if chat.path else ""
+        return {"error": f"{exc}。{kept}"}
+    if chat.ended:
+        with _CHATS_LOCK:
+            _CHATS.pop(key, None)
+    return _turn(chat, turn, key)
 
 
 def action_profiles(params: dict[str, Any]) -> dict[str, Any]:

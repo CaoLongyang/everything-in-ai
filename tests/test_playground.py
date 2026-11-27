@@ -477,3 +477,15 @@ def test_profile_ask_actions(server: tuple[str, str, Path]) -> None:
     plan = _post(base, {"action": "profile_ask_plan", "params": {"vault": str(vault)}}, token)
     assert plan["command"].startswith("eia profile ask") and "--yes" not in plan["command"]
     assert plan["exit_code"] == 1 and "还没有画像" in plan["stderr"] + plan["stdout"]
+
+
+def test_F18_34_chat_actions_share_the_terminal_code(server: tuple[str, str, Path]) -> None:
+    """网页的聊聊和 eia profile chat 用同一个 ChatSession；没有画像时说清楚，不发东西。"""
+    base, token, vault = server
+    plan = _post(base, {"action": "chat_plan", "params": {"vault": str(vault)}}, token)
+    assert "还没有画像" in plan["error"]
+    params = {"vault": str(vault), "session": "x"}
+    gone = _post(base, {"action": "chat_answer", "params": params}, token)
+    assert "已经结束" in gone["error"]
+    page = urllib.request.urlopen(base + "/").read().decode("utf-8")
+    assert 'id="chatBox"' in page and 'data-say="先到这"' in page

@@ -35,6 +35,7 @@ from eia.interests import draft as draft_mod
 from eia.interests import feedback as feedback_mod
 from eia.interests import learn as learn_mod
 from eia.interests.config import InterestsError
+from eia.profile import chat as chat_mod
 from eia.profile import interview as interview_mod
 from eia.profile import run as profile_mod
 from eia.profile import supplement as supplement_mod
@@ -619,6 +620,52 @@ def profile_ask(vault: Path, yes: bool) -> None:
     click.echo(f"已写访谈  {path.relative_to(vault).as_posix()}：{count} 个问题")
     click.echo("在 Obsidian 里打开它，把回答写在「你的回答：」后面；下次生成画像时就会用上")
     click.echo("想聊什么、不想聊什么，在 profile/访谈设置.md 里改；下次出题会接着你的回答追问")
+
+
+@profile_group.command(name="chat")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option("--yes", is_flag=True, help="不再问「开始吗」，直接开始聊。")
+def profile_chat(vault: Path, yes: bool) -> None:
+    """聊聊：像朋友一样一次问一个问题，顺着你的回答往下聊；每答一题就存进 profile/。"""
+    try:
+        session = chat_mod.plan_chat(vault)
+    except (supplement_mod.ProfileAskError, llm.LLMError, VaultError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    plan = session.plan
+    click.echo(
+        "这次聊天会把画像的结论、访谈设置"
+        + (f"、你以前写的 {plan.answers} 条访谈回答" if plan.answers else "")
+        + f"，以及你这次说的话，发给 {plan.model}（{plan.service}）。不发你的聊天记录。"
+    )
+    click.echo(f"每一轮大约发 {plan.chars} 字以上（模型不记得上一句，每次都要重新发）。")
+    if not yes and not click.confirm("开始吗？", default=True):
+        click.echo("没有开始，什么都没有发出。")
+        return
+    click.echo("随时可以说「换个话题」「不想聊这个」「还没想好」「先到这」。")
+    try:
+        turn = session.start()
+        while turn.question:
+            click.echo("")
+            if turn.said:
+                click.echo(f"它：{turn.said}")
+            click.echo(f"问：{turn.question}")
+            if turn.wrap_hint:
+                click.echo("（已经聊了不少了，想结束就说「先到这」）")
+            try:
+                text = click.prompt("你", default="", show_default=False, prompt_suffix="：")
+            except click.Abort:
+                text = "先到这"
+            turn = session.answer(text)
+    except llm.LLMError as exc:
+        where = session.path.relative_to(vault).as_posix() if session.path else ""
+        kept = f"已经说的存在 {where}。" if where else ""
+        raise click.ClickException(f"{exc}。{kept}") from exc
+    click.echo("")
+    click.echo(f"它：{turn.said}")
+    if session.path is not None:
+        click.echo(f"已存  {session.path.relative_to(vault).as_posix()}；下次生成画像时会用上")
+    else:
+        click.echo("这次没有回答任何问题，什么都没存。")
 
 
 @main.group(name="digest")
