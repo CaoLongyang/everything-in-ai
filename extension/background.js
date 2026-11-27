@@ -2,7 +2,7 @@
 import { SITES, pageRequest } from './lib/sites.js';
 import { SyncStop, afterRun, localDay, shouldRun, syncSite } from './lib/sync.js';
 
-const DEFAULTS = { port: 8771, token: '', paused: false, sites: { chatgpt: true, claude: true } };
+const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true } };
 const FIRST_DELAY_MIN = 10; // 打开浏览器 10 分钟后开始
 const RETRY_MIN = 60; // 没成功的，每小时再试
 let running = false;

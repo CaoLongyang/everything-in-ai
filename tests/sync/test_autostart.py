@@ -11,12 +11,12 @@ from tests.schedule.test_schedule import FakeSchtasks
 def test_F19_10_logon_task_runs_serve_without_time_limit(vault: Path) -> None:
     fake = FakeSchtasks()
     scheduler = WindowsScheduler(fake)
-    arguments = f'-m eia sync serve --vault "{vault.resolve()}" --port 8771'
+    arguments = f'-m eia sync serve --vault "{vault.resolve()}" --port 27771'
     name = scheduler.install_logon("sync", vault, arguments, "eia sync autostart --remove")
     assert name == task_name("sync", vault) and name.startswith("\\eia\\sync-")
     xml = fake.xml[0]
     for needle in (
-        "<LogonTrigger><Enabled>true</Enabled></LogonTrigger>",
+        "<LogonTrigger><Enabled>true</Enabled><UserId>",
         "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>",
         "<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>",
         "<LogonType>InteractiveToken</LogonType>",

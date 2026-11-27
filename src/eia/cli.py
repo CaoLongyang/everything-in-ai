@@ -817,9 +817,15 @@ def sync_serve(vault: Path, port: int) -> None:
     try:
         server = sync_server.make_server(vault, port=port)
     except OSError as exc:
+        reserved = getattr(exc, "winerror", None) == 10013
+        why = (
+            "被 Windows 保留了（查看：netsh interface ipv4 show excludedportrange protocol=tcp）"
+            if reserved
+            else "可能已经有一个 eia sync serve 在运行"
+        )
         raise click.ClickException(
-            f"端口 {port} 用不了（{exc.strerror or exc}）：可能已经有一个 eia sync serve 在运行，"
-            "或者换一个端口（--port），插件里也改成同一个"
+            f"端口 {port} 用不了（{exc.strerror or exc}）：{why}。"
+            "换一个端口（--port），插件设置里也改成同一个"
         ) from exc
     click.echo(f"在 http://127.0.0.1:{port} 等插件发对话来，写进 {vault.resolve()}")
     click.echo("插件要填的口令：eia sync token；按 Ctrl+C 停止")

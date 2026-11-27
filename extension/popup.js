@@ -1,6 +1,6 @@
 import { SITES } from './lib/sites.js';
 
-const DEFAULTS = { port: 8771, token: '', paused: false, sites: { chatgpt: true, claude: true } };
+const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true } };
 const $ = (id) => document.getElementById(id);
 
 async function load() {

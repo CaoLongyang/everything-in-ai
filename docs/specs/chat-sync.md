@@ -72,13 +72,13 @@ ChatGPT 和 Claude 的网页本身就是通过一些接口取你的对话列表�
 ### 4.3 eia 这边：`eia sync serve`
 
 ```powershell
-eia sync serve --vault <vault> [--port 8771]  # 前台运行，Ctrl+C 停止
+eia sync serve --vault <vault> [--port 27771]  # 前台运行，Ctrl+C 停止
 eia sync autostart --vault <vault>            # 登录 Windows 时自动在后台运行，现在也马上启动；--remove 取消
 eia sync token --vault <vault>                # 显示插件要填的口令（第一次运行时自动生成）
 eia sync status --vault <vault>               # 最近同步了哪些、有没有失败
 ```
 
-- 只监听 `127.0.0.1`，端口默认 `8771`，用 `--port` 改；插件设置里填同一个端口。
+- 只监听 `127.0.0.1`，端口默认 `27771`，用 `--port` 改；插件设置里填同一个端口。
 - **口令**：随机生成，存在 `.eia/eia.db`（不放 vault 的 Markdown 里，不进 git）。请求不带对的口令就拒绝。这样别的网页即使知道端口，也写不进你的 vault。
 - 单次最大 20 MB；不认识的平台、认不出的 JSON 直接拒绝并返回原因，不写文件。
 - **转换**：ChatGPT 的对话 JSON 和官方导出包里每个对话的格式基本相同，复用 `chat/chatgpt.py` 的解析（`current_node` 路径、角色、文字）；Claude 的复用 `chat/claude.py`（`text` 块、沿 `parent_message_uuid` 走到最新、附件只留占位）。两边有差别的地方实现前用真实返回核对，只记字段名和类型，不读内容（和 Gemini 规格第 2 节的做法一样）。

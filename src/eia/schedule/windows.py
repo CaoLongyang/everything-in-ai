@@ -11,6 +11,7 @@ import datetime as dt
 import hashlib
 import io
 import locale
+import os
 import re
 import subprocess
 import sys
@@ -101,11 +102,21 @@ def task_xml(
     )
 
 
-def logon_task_xml(job: str, vault: Path, python: Path, arguments: str, removal: str) -> str:
-    """登录 Windows 时启动、一直运行的任务（eia sync serve）：不限时长、不要求联网。"""
+def current_user() -> str:
+    """「域\\用户名」。登录触发器不写用户就是「任何用户登录时」，普通用户没有权限登记。"""
+    domain, user = os.environ.get("USERDOMAIN", ""), os.environ.get("USERNAME", "")
+    return f"{domain}\\{user}" if domain else user
+
+
+def logon_task_xml(
+    job: str, vault: Path, python: Path, arguments: str, removal: str, user: str
+) -> str:
+    """登录时启动、一直运行的任务（eia sync serve）：只在这个用户登录时、不限时长、不要求联网。"""
     vault = vault.resolve()
     return _xml(
-        triggers="<LogonTrigger><Enabled>true</Enabled></LogonTrigger>",
+        triggers=(
+            f"<LogonTrigger><Enabled>true</Enabled><UserId>{escape(user)}</UserId></LogonTrigger>"
+        ),
         arguments=arguments,
         description=f"everything-in-ai：{job}（vault：{vault}）。用 {removal} 删除。",
         vault=vault,
@@ -181,7 +192,7 @@ class WindowsScheduler:
     def install_logon(self, job: str, vault: Path, arguments: str, removal: str) -> str:
         """登记登录时启动的任务，并马上启动一次（不用等下次登录）。"""
         name = task_name(job, vault)
-        xml = logon_task_xml(job, vault, pythonw(), arguments, removal)
+        xml = logon_task_xml(job, vault, pythonw(), arguments, removal, current_user())
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "task.xml"
             path.write_bytes(xml.encode("utf-16"))

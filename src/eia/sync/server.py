@@ -22,7 +22,7 @@ from eia.chat.importer import import_conversations
 from eia.sync import store
 from eia.sync.convert import PLATFORMS, SyncFormatError, to_conversation
 
-DEFAULT_PORT = 8771
+DEFAULT_PORT = 27771
 MAX_BYTES = 20 * 1024 * 1024
 TOKEN_HEADER = "X-Eia-Token"
 _LOCAL_HOSTS = ("127.0.0.1", "localhost")
