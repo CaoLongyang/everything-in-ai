@@ -42,6 +42,7 @@ class _Question(BaseModel):
     why: str = ""
     aspect: str = ""  # 七个方面的 key（interview.ASPECTS）
     follow_up: str = ""  # 追问的话：指回以前哪一题
+    depth: str = "light"  # light / medium / deep
 
 
 class _Questions(BaseModel):
@@ -144,7 +145,7 @@ def conclusions(body: str) -> str:
 
 def run_ask(root: Path, plan: AskPlan, *, now: dt.datetime | None = None) -> tuple[Path, int]:
     reply = llm.get_client(root).complete_json(plan.text, _Questions, system=ASK_SYSTEM)
-    raw = [(q.question, q.why, q.aspect, q.follow_up) for q in reply.questions]
+    raw = [(q.question, q.why, q.aspect, q.follow_up, q.depth) for q in reply.questions]
     questions = interview.pick(raw, plan.settings, plan.rounds, plan.today)
     when = (now or dt.datetime.now(dt.UTC)).replace(microsecond=0)
     settings_path = ensure_settings(root, now=when)
@@ -167,6 +168,8 @@ def run_ask(root: Path, plan: AskPlan, *, now: dt.datetime | None = None) -> tup
         tags = [interview.ASPECT_NAMES[q.aspect]] if q.aspect else []
         if q.follow_up:
             tags.append(f"追问 {q.follow_up}")
+        if q.level == "deep":
+            tags.append("深一点")
         if tags:
             body += [f"（方面：{' · '.join(tags)}）" if q.aspect else f"（{tags[0]}）", ""]
         if q.why:

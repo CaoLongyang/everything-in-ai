@@ -19,8 +19,16 @@ from .test_profile import _run
 SETTINGS = Path("profile") / interview.SETTINGS
 
 
-def q(question: str, aspect: str = "", why: str = "", follow_up: str = "") -> dict[str, Any]:
-    return {"question": question, "why": why, "aspect": aspect, "follow_up": follow_up}
+def q(
+    question: str, aspect: str = "", why: str = "", follow_up: str = "", depth: str = "light"
+) -> dict[str, Any]:
+    return {
+        "question": question,
+        "why": why,
+        "aspect": aspect,
+        "follow_up": follow_up,
+        "depth": depth,
+    }
 
 
 def ask(vault: Path, model: FakeModel, reply: list[dict[str, Any]], day: int) -> Path:
@@ -176,21 +184,23 @@ def test_F18_26_prompts_have_no_author_specifics() -> None:
             assert word not in text, word
 
 
-def test_F18_27_depth_defaults_to_light_and_old_files_get_the_section(
+def test_F18_27_depth_defaults_to_mixed_and_old_files_get_the_section(
     vault: Path, model: FakeModel
 ) -> None:
     _run(vault)
     ask(vault, model, [q("热身")], 0)
-    assert "这次的深度：轻松" in model.ask_prompts[-1]
+    assert "这次的深度：轻松为主，加几个深一点的" in model.ask_prompts[-1]
     settings = interview.read_settings(vault / SETTINGS)
-    assert settings.has_depth and settings.depth == "light"
+    assert settings.has_depth and settings.depth == "mixed"
 
     # 勾了几个按最浅的
     text = (vault / SETTINGS).read_text(encoding="utf-8")
-    text = text.replace("- [x] 轻松：", "- [ ] 轻松：").replace("- [ ] 深入：", "- [x] 深入：")
-    text = text.replace("- [ ] 适中：", "- [x] 适中：")
+    text = text.replace("- [ ] 多问深的：", "- [x] 多问深的：")
     (vault / SETTINGS).write_text(text, encoding="utf-8")
-    assert interview.read_settings(vault / SETTINGS).depth == "medium"
+    assert interview.read_settings(vault / SETTINGS).depth == "mixed"
+    text = text.replace("- [ ] 只问轻松的：", "- [x] 只问轻松的：")
+    (vault / SETTINGS).write_text(text, encoding="utf-8")
+    assert interview.read_settings(vault / SETTINGS).depth == "light"
 
     # 旧的设置文件（没有「深度」）：末尾追加一次，你写的不变；以后的（自动）行还在「不想聊」里
     old = text[: text.index(interview.DEPTH_HEADING)] + text[text.index(interview.AVOID_HEADING) :]
@@ -230,3 +240,46 @@ def test_F18_28_tone_rules_and_undecided_answers(vault: Path, model: FakeModel) 
     model.ask_reply = [q("将来想做什么？", "now")]
     fourth, _ = supplement_mod.run_ask(vault, later, now=NOW + dt.timedelta(days=40))
     assert headings(fourth) == ["将来想做什么？"]  # 过了 30 天可以再问
+
+
+MIX = [
+    q("深 1", "values", depth="deep"),
+    q("中 1", "school", depth="medium"),
+    q("浅 1", "family"),
+    q("深 2", "turns", why="接着你说的转折", depth="deep"),
+    q("中 2", "work", depth="medium"),
+    q("深 3", "now", depth="deep"),
+    q("中 3", "people", depth="medium"),
+    q("中 4", "now", depth="medium"),
+    q("浅 2", "now"),
+    q("浅 3", "work"),
+    q("浅 4", "school"),
+]
+
+
+def set_depth(vault: Path, name: str) -> None:
+    text = (vault / SETTINGS).read_text(encoding="utf-8")
+    for _, other, *_ in interview.DEPTHS:
+        text = text.replace(f"- [x] {other}：", f"- [ ] {other}：")
+    text = text.replace(f"- [ ] {name}：", f"- [x] {name}：")
+    (vault / SETTINGS).write_text(text, encoding="utf-8")
+
+
+def test_F18_29_default_mix_light_first_and_capped(vault: Path, model: FakeModel) -> None:
+    _run(vault)
+    path = ask(vault, model, MIX, 0)
+    assert headings(path) == ["浅 1", "浅 2", "浅 3", "中 1", "中 2", "中 3", "深 1", "深 2"]
+    body = read_document(path).body
+    assert body.count("· 深一点）") == 2
+    assert body.count(interview.EASY_NOTE) == 5  # 中等 3 个 + 深的 2 个
+    assert "（为什么问：接着你说的转折。想到多少说多少，没想好也可以。）" in body
+
+    set_depth(vault, "只问轻松的")
+    light = ask(vault, model, [q(f"新{x['question']}", depth=x["depth"]) for x in MIX], 1)
+    assert headings(light) == ["新浅 1", "新浅 2", "新浅 3", "新浅 4"]
+
+    set_depth(vault, "多问深的")
+    deep = ask(vault, model, [q(f"再{x['question']}", depth=x["depth"]) for x in MIX], 2)
+    titles = headings(deep)
+    assert len(titles) == 8 and sum(t.startswith("再深") for t in titles) == 3  # AI 只给了 3 个深的
+    assert titles[-3:] == ["再深 1", "再深 2", "再深 3"] and titles[0].startswith("再浅")

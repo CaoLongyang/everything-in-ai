@@ -27,15 +27,36 @@ REASK_DAYS = 30  # 「还没想好」的问题，过了这么多天可以再问
 UNDECIDED_CHARS = 20
 _UNDECIDED = ("还没想好", "没想好", "不知道", "没想清楚", "说不清", "还没想清楚", "不确定")
 
-# 深度：key、名字、说明。勾了几个按最浅的；都没勾按轻松
-DEPTHS: tuple[tuple[str, str, str], ...] = (
-    ("light", "轻松", "只问事实和经历：在哪长大、最近在忙什么、做过什么"),
-    ("medium", "适中", "也可以问原因和感受：为什么这样选、那时候是什么感觉"),
-    ("deep", "深入", "也可以问困惑、矛盾、自己还没想清楚的事"),
+# 深度：一轮里浅的、中等的、深的各几个（docs/specs/profile.delta-interview-mix.md）。
+# key、名字、说明、中等最多几个、深的最多几个。勾了几个按最浅的（这里的顺序）；都没勾按默认
+DEPTHS: tuple[tuple[str, str, str, int, int], ...] = (
+    ("light", "只问轻松的", "全部问事实和经历", 0, 0),
+    (
+        "mixed",
+        "轻松为主，加几个深一点的",
+        "大部分问事实和经历，加两三个问原因和感受的，一两个问困惑、还没想清楚的事",
+        3,
+        2,
+    ),
+    (
+        "deep",
+        "多问深的",
+        "问原因和感受的最多 3 个，问困惑、矛盾的最多 4 个，其余问事实和经历",
+        3,
+        4,
+    ),
 )
-DEPTH_NAMES = {key: name for key, name, _ in DEPTHS}
-_DEPTH_BY_NAME = {name: key for key, name, _ in DEPTHS}
-_DEPTH_HINTS = {key: hint for key, _, hint in DEPTHS}
+DEFAULT_DEPTH = "mixed"
+DEPTH_NAMES = {key: name for key, name, *_ in DEPTHS}
+_DEPTH_BY_NAME = {name: key for key, name, *_ in DEPTHS} | {
+    "轻松": "light",  # 2026-11-27 当天的旧写法
+    "适中": "mixed",
+    "深入": "deep",
+}
+_DEPTH_HINTS = {key: hint for key, _, hint, *_ in DEPTHS}
+_CAPS = {key: (medium, deep) for key, _, _, medium, deep in DEPTHS}
+LEVELS = ("light", "medium", "deep")  # 每一题的深浅
+EASY_NOTE = "想到多少说多少，没想好也可以。"
 
 # 人生故事框架的七个方面（Life Story Interview 的简化版）：key、名字、说明、对应画像里的哪些小节
 ASPECTS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
@@ -53,7 +74,7 @@ _BY_NAME = {name: key for key, name, _, _ in ASPECTS}
 WANT_HEADING = "## 想聊的方面"
 ALSO_HEADING = "## 也想聊（自己写，一行一个）"
 AVOID_HEADING = "## 不想聊（一行一个；这些话题不会被问到）"
-DEPTH_HEADING = "## 深度（勾一个；默认轻松）"
+DEPTH_HEADING = "## 深度（勾一个）"
 
 _QUESTION = re.compile(r"^###\s*(\d+)\.\s*(.+)$")
 _META = re.compile(r"^（方面：(?P<aspect>[^·）]+)(?: · 追问 (?P<ref>[^）]+))?）$")
@@ -73,10 +94,10 @@ class Settings:
 
     @property
     def depth(self) -> str:
-        for key, _, _ in DEPTHS:
+        for key, *_ in DEPTHS:
             if key in self.depths:
                 return key
-        return "light"
+        return DEFAULT_DEPTH
 
     @property
     def avoided_aspects(self) -> set[str]:
@@ -146,9 +167,12 @@ def depth_text() -> str:
     return "\n".join(
         [
             DEPTH_HEADING,
-            "轻松：只问事实和经历。想让访谈问得更深，改勾下面的一项。",
+            "默认是第二项：先问轻松的事热身，再加几个深一点的。",
             "",
-            *(f"- [{'x' if key == 'light' else ' '}] {name}：{hint}" for key, name, hint in DEPTHS),
+            *(
+                f"- [{'x' if key == DEFAULT_DEPTH else ' '}] {name}：{hint}"
+                for key, name, hint, *_ in DEPTHS
+            ),
             "",
         ]
     )
@@ -327,6 +351,7 @@ def prompt_text(
         f"也想聊：{'；'.join(settings.also) or '（没写）'}",
         f"不想聊（绝对不要问）：{'；'.join(settings.avoided_words) or '（没写）'}",
         f"这次的深度：{DEPTH_NAMES[settings.depth]}（{_DEPTH_HINTS[settings.depth]}）",
+        "每题的 depth：light = 事实和经历；medium = 原因和感受；deep = 困惑、矛盾、还没想清楚的事",
         "",
         "## 七个方面现在有多少（方面 key：名字｜你已经写了几条回答｜画像里有几条要点）",
     ]
@@ -360,15 +385,16 @@ class Picked:
     why: str
     aspect: str  # key 或 ""
     follow_up: str  # 指回的那一题（Asked.ref）或 ""
+    level: str = "light"  # 这一题的深浅：light / medium / deep
 
 
 def pick(
-    raw: Sequence[tuple[str, str, str, str]],
+    raw: Sequence[tuple[str, str, str, str, str]],
     settings: Settings,
     rounds: Sequence[Round],
     today: dt.date,
 ) -> list[Picked]:
-    """AI 出的 (问题, 为什么问, 方面, 追问哪一题)，程序再过滤、排序、限量。"""
+    """AI 出的 (问题, 为什么问, 方面, 追问哪一题, 深浅)，程序再过滤、排序、限量。"""
     asked = [_norm(q.question) for r in rounds for q in r.questions if not q.reaskable(today)]
     # AI 填出处时常带上方括号、换掉空格（实测：第二轮的追问一个都没认出来），比对时去掉这些
     refs = {
@@ -377,7 +403,7 @@ def pick(
     words = [w for w in settings.avoided_words if w]
     kept: list[Picked] = []
     seen: list[str] = []
-    for question, why, aspect, follow_up in raw:
+    for question, why, aspect, follow_up, level in raw:
         text = " ".join(question.split())
         if not text:
             continue
@@ -391,11 +417,29 @@ def pick(
             continue
         seen.append(norm)
         ref = refs.get(_ref_key(follow_up), "") if follow_up.strip() else ""
-        kept.append(Picked(text, " ".join(why.split()), key, ref))
-    follow_ups = [p for p in kept if p.follow_up][:MAX_FOLLOW_UPS]
-    others = [p for p in kept if not p.follow_up]
-    others.sort(key=lambda p: p.aspect not in settings.want)  # 勾了的方面排前面，其余保持 AI 的顺序
-    return [*follow_ups, *others][:MAX_QUESTIONS]
+        depth = level.strip() if level.strip() in LEVELS else "light"
+        reason = " ".join(why.split())
+        if depth != "light" and EASY_NOTE not in reason:
+            reason = f"{reason}{'' if not reason or reason[-1] in '。！？.!?' else '。'}{EASY_NOTE}"
+        kept.append(Picked(text, reason, key, ref, depth))
+    follow_ups = {id(p) for p in [p for p in kept if p.follow_up][:MAX_FOLLOW_UPS]}
+    kept = [p for p in kept if not p.follow_up or id(p) in follow_ups]
+    medium_cap, deep_cap = _CAPS[settings.depth]
+    caps = {"light": MAX_QUESTIONS, "medium": medium_cap, "deep": deep_cap}
+    used = dict.fromkeys(LEVELS, 0)
+    capped: list[Picked] = []
+    for p in kept:
+        if used[p.level] < caps[p.level]:
+            used[p.level] += 1
+            capped.append(p)
+    # 从浅到深（先热身）；同样深浅里追问在前，然后是你勾了的方面，其余保持 AI 的顺序
+    capped.sort(
+        key=lambda p: (LEVELS.index(p.level), not p.follow_up, p.aspect not in settings.want)
+    )
+    deep = [p for p in capped if p.level != "light"]
+    light = [p for p in capped if p.level == "light"]
+    room = max(MAX_QUESTIONS - len(deep), 0)  # 名额不够时先少放轻松的，保住深一点的那几个
+    return sorted([*light[:room], *deep], key=capped.index)[:MAX_QUESTIONS]
 
 
 def _ref_key(ref: str) -> str:
