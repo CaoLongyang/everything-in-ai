@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,6 +26,11 @@ from eia.profile.supplement import AskPlan, ensure_settings, note_meta, plan_ask
 from eia.schema.io import atomic_write, create_new, render_document
 
 REPLY_CHARS = 120
+SHORT_CHARS = 8  # 回答这么短算「答得很短」
+COLD_NOTE = (
+    "TA最近两次答得很短或者跳过了：不要再追这个话题的细节，"
+    "换到TA画像里明显感兴趣的话题，或者给TA两个话题选。"
+)
 LIGHT_FIRST = 2  # 头几个问题必须是轻松的
 WRAP_AT = 10  # 聊到这么多题，提醒一句「今天先聊到这？」
 _ENDS = ("。", "！", "？", "!", "?", "…", "~", "～")
@@ -122,10 +128,16 @@ class ChatSession:
                 if command == "avoid"
                 else "TA想换个话题：换一个别的方面问。"
             )
-            return self._next(note=note)
+            return self._next(note=note + (COLD_NOTE if self._cold() else ""))
         current.answer = said
         self._save()
-        return self._next(note="回应TA刚说的话，再问下一个问题。")
+        note = "回应TA刚说的话，再问下一个问题。"
+        return self._next(note=note + (COLD_NOTE if self._cold() else ""))
+
+    def _cold(self) -> bool:
+        """最近两题都答得很短或者跳过了。"""
+        done = [item.answer for item in self.items if item.answer is not None][-2:]
+        return len(done) == 2 and all(len(a.strip()) <= SHORT_CHARS for a in done)
 
     # ---------- 出下一题 ----------
 
@@ -137,7 +149,7 @@ class ChatSession:
             problem = self._check(reply)
             if not problem:
                 break
-        said = _trim(reply.reply)
+        said = _trim(reply.reply, opening=not self.items)
         if problem:
             question, aspect = self._fallback()
             item = Item(said, question, aspect, "light", "")
@@ -304,8 +316,13 @@ def _command(text: str) -> str:
     return ""
 
 
-def _trim(text: str) -> str:
-    said = " ".join(text.split())
+def _trim(text: str, *, opening: bool = False) -> str:
+    """回应：去掉里面的问句（问题只能在 question 里，一次一个），太长截到最后一个完整的句子。"""
+    sentences = re.findall(r"[^。！？!?…~～]*[。！？!?…~～]*", " ".join(text.split()))
+    said = "".join(
+        part for part in sentences if part and (opening or not part.rstrip().endswith(("？", "?")))
+    )
+    said = said.strip()
     if len(said) <= REPLY_CHARS:
         return said
     cut = said[:REPLY_CHARS]

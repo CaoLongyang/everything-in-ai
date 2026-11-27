@@ -175,3 +175,26 @@ def test_F18_34_full_chat_in_terminal(vault: Path, model: FakeModel) -> None:
     assert "已存  profile/访谈" in result.output
     [path] = list((vault / "profile").glob("访谈 *聊天.md"))
     assert read_interview(path) == [("你在哪长大？", "北方小城")]
+
+
+def test_F18_35_one_question_at_a_time_and_reading_the_room(vault: Path, model: FakeModel) -> None:
+    from eia.profile.prompts import CHAT_SYSTEM
+
+    assert "不要自称「新朋友」" in CHAT_SYSTEM and "reply 里不要提问" in CHAT_SYSTEM
+    chat = session(
+        vault,
+        model,
+        [
+            t("最近在玩什么游戏？", reply="嗨，随便聊聊？"),
+            t("那局是怎么赢的？", reply="这个我挺好奇的。你平时一天怎么过的？"),
+            t("周末一般做什么？"),
+            t("想聊聊游戏，还是聊聊做饭？"),
+        ],
+    )
+    assert chat.start().said == "嗨，随便聊聊？"  # 开场的招呼可以带问号
+    second = chat.answer("最近在打一款策略游戏，上周赢了一局特别难的")
+    assert second.said == "这个我挺好奇的。"  # 回应里的问句删掉，一次只问一个问题
+    assert "答得很短" not in model.chat_prompts[-1]
+    chat.answer("运气")
+    chat.answer("躺着")
+    assert "答得很短或者跳过了" in model.chat_prompts[-1]  # 连着两次很短 → 让它换话题
