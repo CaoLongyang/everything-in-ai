@@ -38,8 +38,8 @@
 
 ## docs/adr/：实现中做的决定
 
-每个模块写代码时偏离规格、或规格没写到的决定，按编号记在这里（0001–0009，与上表模块对应：
-0001–0002 是 V0，0003 llm-adapter，0004 headline-radar，0005 scheduler，0006 interest-digest，0007 storage，0008 新闻源扩展，0009 profile）。
+每个模块写代码时偏离规格、或规格没写到的决定，按编号记在这里（0001–0010，与上表模块对应：
+0001–0002 是 V0，0003 llm-adapter，0004 headline-radar，0005 scheduler，0006 interest-digest，0007 storage，0008 新闻源扩展，0009 profile，0010 chat-sync）。
 
 ## 其他目录
 
