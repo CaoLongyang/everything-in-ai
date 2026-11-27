@@ -48,6 +48,7 @@ async function render() {
 }
 
 $('now').addEventListener('click', async () => {
+  await save(); // 填了口令没点「保存」就点同步，也照样用新填的
   $('now').disabled = true;
   $('now').textContent = '同步中…';
   await chrome.runtime.sendMessage({ type: 'sync-now' });
@@ -60,18 +61,22 @@ $('pause').addEventListener('click', async () => {
 });
 
 $('save').addEventListener('click', async () => {
+  await save();
+  $('saved').textContent = '已保存';
+  render();
+});
+
+async function save() {
   const { config } = await load();
   const port = Number($('port').value) || DEFAULTS.port;
   const next = {
     ...config,
     port,
-    token: $('token').value.trim(),
+    token: $('token').value.replace(/\s+/g, ''), // 复制时容易带上空格、换行
     sites: { chatgpt: $('site-chatgpt').checked, claude: $('site-claude').checked },
   };
   await chrome.storage.local.set({ settings: next });
-  $('saved').textContent = '已保存';
-  render();
-});
+}
 
 chrome.storage.onChanged.addListener(() => render());
 render();
