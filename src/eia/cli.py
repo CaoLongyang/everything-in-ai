@@ -35,6 +35,7 @@ from eia.interests import draft as draft_mod
 from eia.interests import feedback as feedback_mod
 from eia.interests import learn as learn_mod
 from eia.interests.config import InterestsError
+from eia.profile import interview as interview_mod
 from eia.profile import run as profile_mod
 from eia.profile import supplement as supplement_mod
 from eia.schedule import windows as schedule_windows
@@ -598,9 +599,17 @@ def profile_ask(vault: Path, yes: bool) -> None:
     try:
         plan = supplement_mod.plan_ask(vault)
         click.echo(
-            f"要把「{plan.profile.stem}」的结论共 {plan.chars} 字"
-            f"发给 {plan.model}（{plan.service}）出访谈问题。只发结论，不发你的对话和原话。"
+            f"要把「{plan.profile.stem}」的结论、访谈设置"
+            + (f"和你以前写的 {plan.answers} 条访谈回答" if plan.answers else "")
+            + f"共 {plan.chars} 字发给 {plan.model}（{plan.service}）出访谈问题。"
+            "不发你的对话和原话。"
         )
+        if plan.auto_avoid:
+            names = "、".join(interview_mod.ASPECT_NAMES[k] for k in plan.auto_avoid)
+            click.echo(
+                f"「{names}」连续两轮的问题你都没答，这次不问，并加进「访谈设置」的「不想聊」"
+                "（删掉那一行就恢复）"
+            )
         if not yes:
             click.echo("确认的话加上 --yes 再运行一次；不加就到此为止，什么都没有发出。")
             return
@@ -609,6 +618,7 @@ def profile_ask(vault: Path, yes: bool) -> None:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"已写访谈  {path.relative_to(vault).as_posix()}：{count} 个问题")
     click.echo("在 Obsidian 里打开它，把回答写在「你的回答：」后面；下次生成画像时就会用上")
+    click.echo("想聊什么、不想聊什么，在 profile/访谈设置.md 里改；下次出题会接着你的回答追问")
 
 
 @main.group(name="digest")

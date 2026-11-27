@@ -116,6 +116,7 @@ class FakeModel:
         self.fail_synth = False
         self.garble = ""  # 第 2 步：提示词里有这个标题的批次，回复不是 JSON
         self.network_down = False
+        self.ask_reply: list[dict[str, Any]] | None = None  # 访谈：不设就用下面的默认问题
 
     @property
     def extract_prompts(self) -> list[str]:
@@ -147,6 +148,8 @@ class FakeModel:
             return Reply(json.dumps(self._extract(prompt), ensure_ascii=False))
         if self.fail_synth:
             raise LLMCallError("假装网络断了")
+        if system == ASK_SYSTEM and self.ask_reply is not None:
+            return Reply(json.dumps({"questions": self.ask_reply}, ensure_ascii=False))
         if system == ASK_SYSTEM:
             questions = [
                 {
