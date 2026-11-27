@@ -17,7 +17,7 @@
 | V2-9 | ⑨ 导入便利：`eia import <文件夹>` 自动识别平台、监视导出目录 | V2-6 / V2-7 | — | ⬜ |
 | V2-10 | ⑩ AI 自动打标签 / 摘要（默认关闭） | — | — | ⬜ |
 | V2-11 | ⑪ 新闻雷达 AI 中文标题（默认关闭） | — | — | ⬜ |
-| V2-12 | ⑫ `chat-sync` 浏览器插件每天同步 ChatGPT、Claude（走网站接口；Gemini 以后） | docs/specs/chat-sync.md | F19-01 至 F19-10 | ✅ 代码完成 2026-11-27；等作者装上插件实测 |
+| V2-12 | ⑫ `chat-sync` 浏览器插件每天同步 ChatGPT、Claude、Gemini（走网站接口） | docs/specs/chat-sync.md、chat-sync.delta-gemini.md | F19-01 至 F19-12 | ✅ 2026-11-27：ChatGPT、Claude 作者实测通过（新建 34、更新 4）；Gemini 等实测 |
 | V2-13 | ⑬ `knowledge-index`（Khoj） | — | — | ⬜ |
 
 试用台（`scripts/playground.*`，开发工具，不是产品功能）：

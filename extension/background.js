@@ -1,8 +1,8 @@
 // 插件的后台：每天一次，把 ChatGPT、Claude 上更新过的对话发给本机的 eia（docs/specs/chat-sync.md）。
-import { SITES, pageRequest } from './lib/sites.js';
+import { SITES } from './lib/sites.js';
 import { SyncStop, afterRun, localDay, shouldRun, syncSite } from './lib/sync.js';
 
-const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true } };
+const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true, gemini: true } };
 const FIRST_DELAY_MIN = 10; // 打开浏览器 10 分钟后开始
 const RETRY_MIN = 60; // 没成功的，每小时再试
 let running = false;
@@ -56,31 +56,36 @@ async function runOne(name, site, config, record, today) {
   try {
     [tab] = await chrome.tabs.query({ url: site.match });
     if (!tab) {
-      tab = await chrome.tabs.create({ url: site.home, active: false });
+      // Gemini 登录了多个 Google 账号时，用上次同步成功的那个账号（/u/1 之类）
+      const home = record?.home || site.home;
+      tab = await chrome.tabs.create({ url: home, active: false });
       opened = true;
       await loaded(tab.id);
     }
     const result = await syncSite(name, site, {
-      req: (path, useToken) => inPage(tab.id, path, useToken),
+      req: (request, which) => inPage(tab.id, request, which),
       eia: (method, path, body) => eia(config, method, path, body),
       sleep: keepAliveSleep,
       now: () => Date.now(),
       state,
     });
-    return afterRun(record, today, { at: Date.now(), limited: state.limited, result });
+    const done = afterRun(record, today, { at: Date.now(), limited: state.limited, result });
+    return { ...done, home: result.home || record?.home };
   } catch (error) {
     const stop = error instanceof SyncStop ? error : new SyncStop('site', String(error?.message || error));
-    return afterRun(record, today, { at: Date.now(), limited: state.limited, error: stop });
+    const failed = afterRun(record, today, { at: Date.now(), limited: state.limited, error: stop });
+    return { ...failed, home: record?.home };
   } finally {
     if (opened && tab) chrome.tabs.remove(tab.id).catch(() => {});
   }
 }
 
-async function inPage(tabId, path, useToken) {
+async function inPage(tabId, request, site) {
   const [frame] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: pageRequest,
-    args: [path, useToken],
+    func: site.page,
+    args: [request, site.useToken],
+    world: site.world, // Gemini 的令牌在网页自己的变量里，要在网页的主环境里运行
   });
   return frame?.result || { status: 0 };
 }

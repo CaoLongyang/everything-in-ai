@@ -233,7 +233,7 @@ def test_F19_05_plan_skips_conversations_vault_already_has(serve: Callable[[], R
 def test_F19_06_bad_requests_get_reasons(serve: Callable[[], Running]) -> None:
     running = serve()
     before = snapshot(running.root)
-    assert running.send("gemini", gpt()).status == 400
+    assert running.send("deepseek", gpt()).status == 400
     broken = running.call("POST", "/conversation", raw=b"{not json")
     assert broken.status == 400 and "JSON" in broken.body["error"]
     unknown = running.send("chatgpt", {"title": "没有 mapping"})

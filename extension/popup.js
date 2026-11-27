@@ -1,6 +1,6 @@
 import { SITES } from './lib/sites.js';
 
-const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true } };
+const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true, gemini: true } };
 const $ = (id) => document.getElementById(id);
 
 async function load() {
@@ -44,6 +44,7 @@ async function render() {
   $('token').value = config.token;
   $('site-chatgpt').checked = config.sites.chatgpt;
   $('site-claude').checked = config.sites.claude;
+  $('site-gemini').checked = config.sites.gemini;
   if (!config.token) $('setup').open = true;
 }
 
@@ -73,7 +74,11 @@ async function save() {
     ...config,
     port,
     token: $('token').value.replace(/\s+/g, ''), // 复制时容易带上空格、换行
-    sites: { chatgpt: $('site-chatgpt').checked, claude: $('site-claude').checked },
+    sites: {
+      chatgpt: $('site-chatgpt').checked,
+      claude: $('site-claude').checked,
+      gemini: $('site-gemini').checked,
+    },
   };
   await chrome.storage.local.set({ settings: next });
 }

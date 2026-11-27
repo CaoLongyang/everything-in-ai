@@ -172,3 +172,54 @@ test('F19_09 429 按 Retry-After 等，没有就等 60 秒；一天 3 次就停'
   const waits = often.requests.filter((r) => r.path === path);
   assert.ok(waits[1].at - waits[0].at >= DEFAULT_WAIT_MS);
 });
+
+test('F19_12 Gemini：列表按翻页标记取完、两组都取；对话按轮去重、翻页；网址带账号', async () => {
+  const requests = [];
+  const pages = {
+    'MaZiqc:0:': { inner: [null, 'next-page-token', [['c_a', '甲', 0, 0, 0, [100, 5e8]], ['c_b', '乙', 0, 0, 0, [90, 0]]]] },
+    'MaZiqc:0:next-page-token': { inner: [null, null, [['c_c', '丙', 0, 0, 0, [80, 0]]]] },
+    'MaZiqc:1:': { inner: [null, null, [['c_a', '甲', 0, 0, 0, [100, 5e8]]]] },
+    'hNvQHb:c_b:': { inner: [[[['c_b', 'r1'], 0, [['问']], [[['rc1', ['答']]]], [90, 0]]], 'more-turns-token'] },
+    'hNvQHb:c_b:more-turns-token': { inner: [[[['c_b', 'r1'], 0, [['问']], [[['rc1', ['答']]]], [90, 0]], [['c_b', 'r0'], 0, [['早']], [[['rc0', ['早答']]]], [10, 0]]]] },
+  };
+  let clock = 0;
+  const deps = {
+    now: () => clock,
+    sleep: async (ms) => {
+      clock += ms;
+    },
+    state: { limited: 0 },
+    req: async (request, site) => {
+      requests.push(request);
+      assert.equal(site.world, 'MAIN');
+      const key =
+        request.rpc === 'MaZiqc'
+          ? `MaZiqc:${request.payload[2][0]}:${request.payload[1] || ''}`
+          : `hNvQHb:${request.payload[0]}:${request.payload[2] || ''}`;
+      const json = pages[key] || { inner: [] };
+      return { status: 200, json: { ...json, prefix: '/u/1' } };
+    },
+    eia: async (method, path, body) => {
+      if (path === '/status') return { status: 200, body: {} };
+      if (path === '/plan') {
+        deps.plan = body.items;
+        return { status: 200, body: { need: ['c_b'] } };
+      }
+      deps.sent = body.data;
+      return { status: 200, body: { result: '新建' } };
+    },
+  };
+  const result = await syncSite('gemini', SITES.gemini, deps);
+  assert.deepEqual(
+    deps.plan.map((i) => i.id),
+    ['c_a', 'c_b', 'c_c'],
+  );
+  assert.equal(deps.plan[0].updated, 100.5);
+  assert.equal(deps.sent.conversationId, 'c_b');
+  assert.equal(deps.sent.title, '乙');
+  assert.equal(deps.sent.url, 'https://gemini.google.com/u/1/app/b');
+  assert.equal(deps.sent.turns.length, 2); // 第二页重复的那一轮去掉了
+  assert.equal(deps.sent.possiblyIncomplete, false);
+  assert.equal(result.home, 'https://gemini.google.com/u/1/app');
+  assert.equal(requests.filter((r) => r.rpc === 'hNvQHb').length, 2);
+});

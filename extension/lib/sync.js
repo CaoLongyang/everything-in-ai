@@ -15,7 +15,7 @@ export class SyncStop extends Error {
 }
 
 // deps:
-//   req(path)            在网页里请求网站，返回 { status, json?, retryAfter? }
+//   req(request, site)   在网页里请求网站（request 是地址，Gemini 是接口编号和参数），返回 { status, json?, retryAfter? }
 //   eia(method, path, body)  请求本机的 eia，返回 { status, body }；连不上时 status 为 0
 //   sleep(ms)            等待
 //   now()                现在的毫秒数
@@ -35,7 +35,7 @@ export async function syncSite(name, site, deps) {
 
   let formatErrors = 0;
   for (const id of need) {
-    const data = await call(site.conversationPath(id, ctx));
+    const data = await site.conversation(call, id, ctx);
     const reply = await deps.eia('POST', '/conversation', { platform: name, data });
     if (reply.status === 0) throw new SyncStop('eia', 'eia 中途停了，稍后接着同步');
     if (reply.status === 422) {
@@ -49,18 +49,18 @@ export async function syncSite(name, site, deps) {
     formatErrors = 0;
     bump(counts, reply.status === 200 ? reply.body?.result || '未知' : `eia 回复 ${reply.status}`);
   }
-  return { listed: items.length, needed: need.length, counts };
+  return { listed: items.length, needed: need.length, counts, home: ctx.home };
 }
 
 // 包一层：请求之间至少隔 GAP_MS；429 按 Retry-After 等，一天 MAX_LIMITED 次就停；没登录、出错就停。
 export function rateLimited(site, deps) {
   let last = -Infinity;
-  return async function call(path) {
+  return async function call(request) {
     for (;;) {
       const wait = last + GAP_MS - deps.now();
       if (wait > 0) await deps.sleep(wait);
       last = deps.now();
-      const response = await deps.req(path, site.useToken);
+      const response = await deps.req(request, site);
       last = deps.now();
       if (response.status === 200) return response.json;
       if (response.status === 429) {

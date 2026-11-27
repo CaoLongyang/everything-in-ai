@@ -23,7 +23,7 @@ ChatGPT 和 Claude 的网页本身就是通过一些接口取你的对话列表�
 |---|---|---|---|---|
 | ChatGPT | `chatgpt.com/backend-api/conversations?offset=&limit=`（带 `update_time`） | `…/backend-api/conversation/<id>`，从 `current_node` 沿 `parent` 走回开头 | `message.create_time` | [pionxzh/chatgpt-exporter](https://github.com/pionxzh/chatgpt-exporter) `src/api.ts` |
 | Claude | `claude.ai/api/organizations/<org>/chat_conversations`（带 `updated_at`） | `…/chat_conversations/<id>?tree=True&rendering_mode=messages`，从 `current_leaf_message_uuid` 沿 `parent_message_uuid` 走回开头 | `created_at` | [agoramachina/claude-exporter](https://github.com/agoramachina/claude-exporter) `chrome/content.js`、`chrome/utils.js` |
-| Gemini | 先不做，见第 10 节 | | | |
+| Gemini | 见 `chat-sync.delta-gemini.md`（2026-11-27 加上） | | | |
 
 规则（ADR 0010 第 2 条）：
 
@@ -131,7 +131,7 @@ eia 这边全部用 pytest 测，用合成的、按真实字段结构写的 JSON
 
 ## 10. 已知局限
 
-- **Gemini 这一版不做**：它的网页接口（`batchexecute`）返回的是没有字段名、层层嵌套的数组，靠位置猜含义，比另外两家难得多，这次也没找到能参考的开源代码。Gemini 先继续用你现在的 Gemini 导出插件 + `eia import gemini`；以后单独研究，写 delta spec。
+- ~~**Gemini 这一版不做**~~（2026-11-27 已加上，见 `chat-sync.delta-gemini.md`）：它的网页接口（`batchexecute`）返回的是没有字段名、层层嵌套的数组，靠位置猜含义，比另外两家难得多，这次也没找到能参考的开源代码。Gemini 先继续用你现在的 Gemini 导出插件 + `eia import gemini`；以后单独研究，写 delta spec。
 - 浏览器要开过、登录着网站，eia 要在后台运行；当天没开浏览器就第二天补。
 - 一天同步一次，今天聊的最晚明天才进 vault；想马上同步就点「现在同步」。
 - 临时对话不在对话列表里，同步不到；在网站上删掉的对话，vault 里会留着。

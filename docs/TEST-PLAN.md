@@ -216,7 +216,7 @@
 
 ### F19 chat-sync（docs/specs/chat-sync.md，V2）
 
-eia 这边用 pytest；插件的 F19-08、F19-09 用 Node 自带的测试工具，在 `extension/` 目录里跑（`node --test`），不在 `check.py` 里。
+eia 这边用 pytest；插件的 F19-08、F19-09、F19-12 用 Node 自带的测试工具，在 `extension/` 目录里跑（`node --test`），不在 `check.py` 里。
 
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
@@ -230,6 +230,8 @@ eia 这边用 pytest；插件的 F19-08、F19-09 用 Node 自带的测试工具�
 | F19-08 | 插件挑对话：按 eia 回的「要取」逐个取；eia 回成功才算完成；中断后接着跑；当天成功后不再跑 | 自动（Node） |
 | F19-09 | 插件限速：对话之间至少隔 2 秒；429 按 `Retry-After` 等，没有就等 60 秒；一天 3 次就停 | 自动（Node） |
 | F19-10 | `eia sync autostart` 登记「登录时启动」的任务（运行 `eia sync serve`、不限时长、不要求联网）并马上启动；`--remove` 先停掉再删除；测试里不真的登记 | 自动 |
+| F19-11 | Gemini 的原始轮转成合规的 chat 文件：按时间排序、只取选中的回答、同一轮共用时间；和 gemini-chat-exporter 导出的是同一个文件；没有时间、格式认不出的拒绝、不写文件（docs/specs/chat-sync.delta-gemini.md） | 自动 |
+| F19-12 | 插件取 Gemini：列表按翻页标记取完、两个分组都取、重复的去掉；对话按翻页取完、按轮去重；网址带账号；请求在网页主环境里运行 | 自动（Node） |
 
 ### F6 重复导入
 | 编号 | 验收标准 | 方式 |

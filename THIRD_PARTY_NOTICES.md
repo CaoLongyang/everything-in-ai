@@ -96,3 +96,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## gemini-chat-exporter
+
+- 项目：https://github.com/CaoLongyang/gemini-chat-exporter （本项目作者自己的另一个项目，MIT；参考的是 2026-11-25 的版本）
+- 用到的地方：`extension/lib/sites.js` 的 Gemini 部分（`batchexecute` 的请求写法、`MaZiqc` / `hNvQHb` 的参数和翻页，改写自 `gemini-export.js` 的 `rpc()`、`parseBatch()`、`listAll()`、`readConversation()`）；`src/eia/sync/convert.py` 的 `gemini_record`（每一轮各位置的含义，改写自 `turnToMessages()`、`buildRecord()`）
+- 说明：见 `docs/specs/chat-sync.delta-gemini.md`。
+
+```
+MIT License
+
+Copyright (c) 2026 CaoLongyang
+```
