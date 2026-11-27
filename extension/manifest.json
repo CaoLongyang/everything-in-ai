@@ -1,11 +1,29 @@
 {
   "manifest_version": 3,
-  "name": "eia 对话同步",
-  "version": "0.1.0",
-  "description": "每天把 ChatGPT、Claude、Gemini 上更新过的对话存成 Markdown 文件（或发给你电脑上的 eia）。内容不出你的电脑。",
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_popup": "popup.html", "default_title": "eia 对话同步" },
-  "permissions": ["alarms", "storage", "scripting", "downloads", "downloads.ui"],
-  "host_permissions": ["https://chatgpt.com/*", "https://claude.ai/*", "https://gemini.google.com/*", "http://127.0.0.1/*"],
-  "minimum_chrome_version": "116"
+  "name": "__MSG_name__",
+  "version": "0.2.0",
+  "description": "__MSG_description__",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "__MSG_name__"
+  },
+  "permissions": [
+    "alarms",
+    "storage",
+    "scripting",
+    "downloads",
+    "downloads.ui"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "minimum_chrome_version": "116",
+  "default_locale": "en"
 }

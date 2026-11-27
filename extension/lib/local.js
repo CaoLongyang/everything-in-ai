@@ -8,7 +8,7 @@ export const FOLDER = 'ai-chat-sync';
 // known：{ [platform]: { [id]: { updated, name } } }，哪些对话存过、存成什么名字；由调用方存下来
 // save(path, text, mime)：写一个文件（相对「下载」文件夹）
 // formats：['md'] / ['json'] / ['md', 'json']
-export function localSink({ known, save, formats = ['md'] }) {
+export function localSink({ known, save, formats = ['md'], lang = 'zh' }) {
   const listed = {}; // 这次列表里每个对话的更新时间，存完后记下来，下次和它比
   return async function eia(method, path, body) {
     if (path === '/status') return { status: 200, body: { ok: true } };
@@ -28,7 +28,7 @@ export function localSink({ known, save, formats = ['md'] }) {
     if (path === '/conversation') {
       let rec;
       try {
-        rec = toRecord(platform, body.data);
+        rec = toRecord(platform, body.data, lang);
       } catch (error) {
         if (error instanceof FormatError) return { status: 422, body: { error: error.message } };
         throw error;
@@ -36,7 +36,7 @@ export function localSink({ known, save, formats = ['md'] }) {
       if (rec.messages.length === 0) return { status: 200, body: { result: '跳过', reason: '没有文字消息' } };
       const before = mine[rec.id];
       const name = before?.name || fileName(rec);
-      if (formats.includes('md')) await save(`${FOLDER}/${platform}/${name}.md`, toMarkdown(rec), 'text/markdown');
+      if (formats.includes('md')) await save(`${FOLDER}/${platform}/${name}.md`, toMarkdown(rec, lang), 'text/markdown');
       if (formats.includes('json')) {
         await save(`${FOLDER}/${platform}/${name}.json`, JSON.stringify(body.data, null, 1), 'application/json');
       }

@@ -1,5 +1,6 @@
 // 插件的后台：每天一次，把 ChatGPT、Claude、Gemini 上更新过的对话
 // 发给本机的 eia，或者（没装 eia 时）存成文件放进「下载」文件夹（docs/specs/chat-sync.md、chat-sync.delta-standalone.md）。
+import { resolveLang } from './lib/i18n.js';
 import { localSink } from './lib/local.js';
 import { SITES } from './lib/sites.js';
 import { SyncStop, afterRun, localDay, shouldRun, syncSite } from './lib/sync.js';
@@ -7,6 +8,7 @@ import { SyncStop, afterRun, localDay, shouldRun, syncSite } from './lib/sync.js
 const DEFAULTS = {
   mode: '', // 'files' 存成文件；'eia' 发给 eia。没选过时：填了口令就是 eia，否则是 files
   formats: ['md'],
+  lang: 'auto', // 'auto' 跟随浏览器、'zh'、'en'
   port: 27771,
   token: '',
   paused: false,
@@ -36,7 +38,11 @@ function schedule() {
 async function settings() {
   const { settings: saved } = await chrome.storage.local.get('settings');
   const config = { ...DEFAULTS, ...(saved || {}), sites: { ...DEFAULTS.sites, ...(saved?.sites || {}) } };
-  return { ...config, mode: config.mode || (config.token ? 'eia' : 'files') };
+  return {
+    ...config,
+    mode: config.mode || (config.token ? 'eia' : 'files'),
+    lang: resolveLang(config.lang, chrome.i18n.getUILanguage()),
+  };
 }
 
 async function runAll({ manual }) {
@@ -83,6 +89,7 @@ async function runOne(name, site, config, record, today, target) {
       sleep: keepAliveSleep,
       now: () => Date.now(),
       state,
+      lang: config.lang,
     });
     const done = afterRun(record, today, { at: Date.now(), limited: state.limited, result });
     return { ...done, home: result.home || record?.home };
@@ -100,7 +107,7 @@ async function filesTarget(config, known) {
   const hide = chrome.downloads.setUiOptions ? chrome.downloads.setUiOptions({ enabled: false }).catch(() => {}) : null;
   await hide;
   return {
-    eia: localSink({ known, formats: config.formats, save: download }),
+    eia: localSink({ known, formats: config.formats, lang: config.lang, save: download }),
     async done() {
       if (chrome.downloads.setUiOptions) await chrome.downloads.setUiOptions({ enabled: true }).catch(() => {});
     },

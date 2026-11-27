@@ -1,5 +1,6 @@
 // 同步一个网站：取对话列表 → 问 eia 哪些要取 → 逐个取内容发给 eia（docs/specs/chat-sync.md 第 4.2 节）。
 // 不碰 chrome.* ，浏览器相关的都由调用方传进来，方便用 node --test 测。
+import { t } from './i18n.js';
 
 export const GAP_MS = 2000; // 两次请求网站之间至少隔多久
 export const DEFAULT_WAIT_MS = 60_000; // 被限速、网站没说等多久时
@@ -20,40 +21,45 @@ export class SyncStop extends Error {
 //   sleep(ms)            等待
 //   now()                现在的毫秒数
 //   state                { limited: 今天被限速的次数 }，会被修改，调用方负责存下来
+//   lang                 提示用中文（'zh'，默认）还是英文（'en'）
 export async function syncSite(name, site, deps) {
+  const lang = deps.lang || 'zh';
   const counts = {};
   const status = await deps.eia('GET', '/status');
   if (status.status !== 200) {
-    throw new SyncStop('eia', status.status === 401 ? '口令不对：在插件里重新填 eia sync token 显示的口令' : 'eia 没开：运行 eia sync serve');
+    throw new SyncStop('eia', t(lang, status.status === 401 ? 'badToken' : 'eiaDown'));
   }
   const call = rateLimited(site, deps);
   const ctx = await site.prepare(call);
   const items = await site.list(call, ctx);
   const plan = await deps.eia('POST', '/plan', { platform: name, items });
-  if (plan.status !== 200) throw new SyncStop('eia', `eia 回复 ${plan.status}：${plan.body?.error || ''}`);
+  if (plan.status !== 200) {
+    throw new SyncStop('eia', t(lang, 'eiaReply', { status: plan.status, error: plan.body?.error || '' }));
+  }
   const need = Array.isArray(plan.body?.need) ? plan.body.need : [];
 
   let formatErrors = 0;
   for (const id of need) {
     const data = await site.conversation(call, id, ctx);
     const reply = await deps.eia('POST', '/conversation', { platform: name, data });
-    if (reply.status === 0) throw new SyncStop('eia', 'eia 中途停了，稍后接着同步');
+    if (reply.status === 0) throw new SyncStop('eia', t(lang, 'eiaStopped'));
     if (reply.status === 422) {
       bump(counts, '格式认不出');
       formatErrors += 1;
       if (formatErrors >= MAX_FORMAT_ERRORS) {
-        throw new SyncStop('format', `${site.label} 连续 ${formatErrors} 个对话格式认不出，网站可能改版了`);
+        throw new SyncStop('format', t(lang, 'formatBroken', { site: site.label, count: formatErrors }));
       }
       continue;
     }
     formatErrors = 0;
-    bump(counts, reply.status === 200 ? reply.body?.result || '未知' : `eia 回复 ${reply.status}`);
+    bump(counts, reply.status === 200 ? reply.body?.result || '?' : `HTTP ${reply.status}`);
   }
   return { listed: items.length, needed: need.length, counts, home: ctx.home };
 }
 
 // 包一层：请求之间至少隔 GAP_MS；429 按 Retry-After 等，一天 MAX_LIMITED 次就停；没登录、出错就停。
 export function rateLimited(site, deps) {
+  const lang = deps.lang || 'zh';
   let last = -Infinity;
   return async function call(request) {
     for (;;) {
@@ -66,15 +72,15 @@ export function rateLimited(site, deps) {
       if (response.status === 429) {
         deps.state.limited = (deps.state.limited || 0) + 1;
         if (deps.state.limited >= MAX_LIMITED) {
-          throw new SyncStop('limited', `${site.label} 今天被限速 ${deps.state.limited} 次，明天再同步`);
+          throw new SyncStop('limited', t(lang, 'limited', { site: site.label, count: deps.state.limited }));
         }
         await deps.sleep(retryAfterMs(response.retryAfter));
         continue;
       }
       if (response.status === 401 || response.status === 403) {
-        throw new SyncStop('login', `请先在浏览器里登录 ${site.label}`);
+        throw new SyncStop('login', t(lang, 'login', { site: site.label }));
       }
-      throw new SyncStop('site', `${site.label} 回复 ${response.status || '连不上'}`);
+      throw new SyncStop('site', t(lang, 'siteError', { site: site.label, status: response.status || t(lang, 'unreachable') }));
     }
   };
 }

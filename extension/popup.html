@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>eia 对话同步</title>
+<title>ai-chat-sync</title>
 <style>
   :root { --ink: #1f2328; --muted: #6b7280; --line: #e5e7eb; --bad: #c0392b; --ok: #1a7f37; }
   body { font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif; color: var(--ink); width: 320px; margin: 0; padding: 14px 16px; }
@@ -25,32 +25,34 @@
 </style>
 </head>
 <body>
-  <h1>eia 对话同步</h1>
-  <p class="lead">每天一次，把 ChatGPT、Claude、Gemini 上更新过的对话存到你的电脑。内容不出电脑。</p>
+  <h1 data-t="title"></h1>
+  <p class="lead" data-t="lead"></p>
   <div id="sites"></div>
   <div class="row">
-    <button id="now">现在同步</button>
+    <button id="now" data-t="syncNow"></button>
     <button id="pause" class="plain"></button>
   </div>
   <details id="setup">
-    <summary>设置</summary>
-    <p><b>存到哪里</b></p>
-    <label><input type="radio" name="mode" value="files"> 存成文件：放进「下载」文件夹的 <code>ai-chat-sync</code> 里，每个对话一个文件</label>
+    <summary data-t="settings"></summary>
+    <p><b data-t="whereTo"></b></p>
+    <label><input type="radio" name="mode" value="files"> <span data-t="modeFiles"></span></label>
     <div id="files-box" class="sub">
-      <label><input id="fmt-md" type="checkbox"> Markdown（.md，适合用 Obsidian、记事本看）</label>
-      <label><input id="fmt-json" type="checkbox"> 网站返回的原始数据（.json，适合给别的程序用）</label>
+      <label><input id="fmt-md" type="checkbox"> <span data-t="fmtMd"></span></label>
+      <label><input id="fmt-json" type="checkbox"> <span data-t="fmtJson"></span></label>
     </div>
-    <label><input type="radio" name="mode" value="eia"> 发给 eia：写进 eia 的知识库（要先装 <a href="https://github.com/CaoLongyang/everything-in-ai" target="_blank">eia</a>）</label>
+    <label><input type="radio" name="mode" value="eia"> <span data-t="modeEia"></span></label>
     <div id="eia-box" class="sub">
-      <label>端口 <input id="port" type="number" min="1" max="65535"></label>
-      <label>口令 <input id="token" type="text" autocomplete="off" spellcheck="false"></label>
-      <p class="hint">先在电脑上运行 <code>eia sync autostart --vault 你的vault</code>，再把 <code>eia sync token --vault 你的vault</code> 显示的口令填在这里。</p>
+      <label><span data-t="port"></span> <input id="port" type="number" min="1" max="65535"></label>
+      <label><span data-t="token"></span> <input id="token" type="text" autocomplete="off" spellcheck="false"></label>
+      <p class="hint" data-t="eiaHint"></p>
     </div>
-    <p><b>同步哪些</b></p>
-    <label><input id="site-chatgpt" type="checkbox"> 同步 ChatGPT</label>
-    <label><input id="site-claude" type="checkbox"> 同步 Claude</label>
-    <label><input id="site-gemini" type="checkbox"> 同步 Gemini（登录了多个 Google 账号时，先打开要同步的那个账号的 Gemini）</label>
-    <button id="save" class="plain">保存</button> <span id="saved" class="hint"></span>
+    <p><b data-t="which"></b></p>
+    <label><input id="site-chatgpt" type="checkbox"> ChatGPT</label>
+    <label><input id="site-claude" type="checkbox"> Claude</label>
+    <label><input id="site-gemini" type="checkbox"> Gemini<span class="hint" data-t="geminiHint"></span></label>
+    <p><b data-t="language"></b></p>
+    <label><select id="lang"><option value="auto" data-t="langAuto"></option><option value="zh">中文</option><option value="en">English</option></select></label>
+    <button id="save" class="plain" data-t="save"></button> <span id="saved" class="hint"></span>
   </details>
   <script src="popup.js" type="module"></script>
 </body>

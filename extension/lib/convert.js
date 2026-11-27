@@ -5,19 +5,22 @@
 //   Gemini：按时间排每一轮；只取选中的回答；同一轮的提问和回答共用时间
 // 不认识的格式抛 FormatError，调用方记成「格式认不出」，不写文件。
 
+import { t } from './i18n.js';
+
 export class FormatError extends Error {}
 
 const NAMES = { chatgpt: 'ChatGPT', claude: 'Claude', gemini: 'Gemini' };
 
-export function toRecord(platform, data) {
+// lang：占位文字（图片、附件、未命名）用中文（'zh'，默认）还是英文（'en'）
+export function toRecord(platform, data, lang = 'zh') {
   if (!data || typeof data !== 'object') throw new FormatError('对话应为一个对象');
-  if (platform === 'chatgpt') return chatgpt(data);
-  if (platform === 'claude') return claude(data);
-  if (platform === 'gemini') return gemini(data);
+  if (platform === 'chatgpt') return chatgpt(data, lang);
+  if (platform === 'claude') return claude(data, lang);
+  if (platform === 'gemini') return gemini(data, lang);
   throw new FormatError(`不认识的平台：${platform}`);
 }
 
-function chatgpt(data) {
+function chatgpt(data, lang) {
   const id = data.conversation_id || data.id;
   const mapping = data.mapping;
   if (typeof id !== 'string' || !mapping || typeof mapping !== 'object') {
@@ -44,8 +47,8 @@ function chatgpt(data) {
     const text = (Array.isArray(content.parts) ? content.parts : [])
       .map((part) => {
         if (typeof part === 'string') return part.trim();
-        if (part?.content_type === 'image_asset_pointer') return '[图片]';
-        if (part?.content_type === 'audio_transcription' && part.text) return `（语音）${part.text.trim()}`;
+        if (part?.content_type === 'image_asset_pointer') return t(lang, 'image');
+        if (part?.content_type === 'audio_transcription' && part.text) return `${t(lang, 'voice')}${part.text.trim()}`;
         return '';
       })
       .filter(Boolean)
@@ -53,10 +56,10 @@ function chatgpt(data) {
     if (!text) continue;
     messages.push({ role, time: iso(seconds(message.create_time) ?? created), text });
   }
-  return record('chatgpt', id, data.title, `https://chatgpt.com/c/${id}`, created, seconds(data.update_time), messages);
+  return record(lang, 'chatgpt', id, data.title, `https://chatgpt.com/c/${id}`, created, seconds(data.update_time), messages);
 }
 
-function claude(data) {
+function claude(data, lang) {
   const id = data.uuid;
   if (typeof id !== 'string' || !Array.isArray(data.chat_messages)) {
     throw new FormatError('Claude：缺少 uuid 或 chat_messages');
@@ -89,13 +92,14 @@ function claude(data) {
     const files = [...(m.files || []), ...(m.attachments || [])]
       .map((f) => f?.file_name)
       .filter(Boolean)
-      .map((name) => `[附件：${name}]`)
+      .map((name) => t(lang, 'attachment', { name }))
       .join('\n');
     const body = [role === 'user' ? files : '', text, role === 'user' ? '' : files].filter(Boolean).join('\n\n');
     if (!body) continue;
     messages.push({ role, time: isoString(m.created_at), text: body });
   }
   return record(
+    lang,
     'claude',
     id,
     data.name,
@@ -107,7 +111,7 @@ function claude(data) {
 }
 
 // 每一轮：[0]=[c_id, r_id]  [2][0][0]=提问  [3][0]=回答候选  [3][3]=选中的候选  [4]=[秒, 纳秒]
-function gemini(data) {
+function gemini(data, lang) {
   const id = data.conversationId;
   if (typeof id !== 'string' || !Array.isArray(data.turns)) throw new FormatError('Gemini：缺少 conversationId 或 turns');
   const turns = data.turns.map((turn) => ({ turn, at: stamp(turn?.[4]) }));
@@ -124,16 +128,16 @@ function gemini(data) {
     if (answer) messages.push({ role: 'assistant', time: iso(at), text: answer });
   }
   const first = turns.length ? turns[0].at : null;
-  return record('gemini', id, data.title, data.url, first, stamp(data.updated), messages);
+  return record(lang, 'gemini', id, data.title, data.url, first, stamp(data.updated), messages);
 }
 
-function record(platform, id, title, url, created, updated, messages) {
+function record(lang, platform, id, title, url, created, updated, messages) {
   const times = messages.map((m) => Date.parse(m.time) / 1000).filter(Number.isFinite);
   const newest = Math.max(created ?? -Infinity, updated ?? -Infinity, ...times);
   return {
     platform,
     id,
-    title: typeof title === 'string' && title.trim() ? title.trim().split('\n')[0] : '未命名对话',
+    title: typeof title === 'string' && title.trim() ? title.trim().split('\n')[0] : t(lang, 'untitled'),
     url: url || null,
     created: iso(created ?? (times.length ? Math.min(...times) : null)),
     updated: iso(Number.isFinite(newest) ? newest : null),
@@ -141,7 +145,7 @@ function record(platform, id, title, url, created, updated, messages) {
   };
 }
 
-export function toMarkdown(rec) {
+export function toMarkdown(rec, lang = 'zh') {
   const yaml = (value) => JSON.stringify(value ?? null);
   const lines = [
     '---',
@@ -159,20 +163,19 @@ export function toMarkdown(rec) {
     '',
   ];
   for (const m of rec.messages) {
-    const who = m.role === 'user' ? '我' : NAMES[rec.platform];
-    lines.push(`## ${who} · ${localTime(m.time)}`, '', m.text, '');
+    const who = m.role === 'user' ? t(lang, 'you') : NAMES[rec.platform];
+    lines.push(`## ${who} · ${m.time ? localTime(m.time) : t(lang, 'unknownTime')}`, '', m.text, '');
   }
   return lines.join('\n');
 }
 
 export function fileName(rec) {
-  const safe = rec.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || '未命名对话';
+  const safe = rec.title.replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'untitled';
   const short = rec.id.replace(/^c_/, '').replace(/-/g, '').slice(0, 8);
   return `${safe.replace(/[. ]+$/, '')} ${short}`;
 }
 
 function localTime(value) {
-  if (!value) return '时间未知';
   const d = new Date(value);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;

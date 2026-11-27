@@ -1,8 +1,10 @@
+import { resolveLang, t } from './lib/i18n.js';
 import { SITES } from './lib/sites.js';
 
 const DEFAULTS = {
   mode: '',
   formats: ['md'],
+  lang: 'auto',
   port: 27771,
   token: '',
   paused: false,
@@ -17,18 +19,25 @@ async function load() {
   return { config, records };
 }
 
+let lang = 'zh';
+
 function describe(record) {
-  if (!record) return { text: '还没同步过', cls: 'state' };
+  if (!record) return { text: t(lang, 'never'), cls: 'state' };
   const when = record.at ? new Date(record.at).toLocaleString() : '';
-  if (record.error) return { text: `${when}：${record.error}`, cls: 'error' };
+  if (record.error) return { text: `${when}${lang === 'zh' ? '：' : ': '}${record.error}`, cls: 'error' };
   const counts = record.result?.counts || {};
-  const parts = Object.entries(counts).map(([k, v]) => `${k} ${v}`);
-  const text = parts.length ? parts.join('，') : '没有更新过的对话';
-  return { text: `${when}：${text}`, cls: 'good' };
+  const parts = Object.entries(counts).map(([k, v]) => `${t(lang, k)} ${v}`);
+  const sep = lang === 'zh' ? '，' : ', ';
+  const text = parts.length ? parts.join(sep) : t(lang, 'nothingNew');
+  return { text: `${when}${lang === 'zh' ? '：' : ': '}${text}`, cls: 'good' };
 }
 
 async function render() {
   const { config, records } = await load();
+  lang = resolveLang(config.lang, chrome.i18n.getUILanguage());
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(lang, el.dataset.t);
+  $('lang').value = config.lang;
   $('sites').replaceChildren(
     ...Object.entries(SITES).map(([name, site]) => {
       const box = document.createElement('div');
@@ -37,7 +46,7 @@ async function render() {
       head.textContent = site.label;
       const state = document.createElement('span');
       state.className = 'state';
-      state.textContent = config.sites[name] ? '' : '已关闭';
+      state.textContent = config.sites[name] ? '' : t(lang, 'off');
       head.append(state);
       const line = document.createElement('div');
       const { text, cls } = describe(records[name]);
@@ -47,7 +56,7 @@ async function render() {
       return box;
     }),
   );
-  $('pause').textContent = config.paused ? '继续自动同步' : '暂停自动同步';
+  $('pause').textContent = t(lang, config.paused ? 'resume' : 'pause');
   for (const radio of document.querySelectorAll('input[name=mode]')) radio.checked = radio.value === config.mode;
   $('fmt-md').checked = config.formats.includes('md');
   $('fmt-json').checked = config.formats.includes('json');
@@ -63,7 +72,7 @@ async function render() {
 $('now').addEventListener('click', async () => {
   await save(); // 填了口令没点「保存」就点同步，也照样用新填的
   $('now').disabled = true;
-  $('now').textContent = '同步中…';
+  $('now').textContent = t(lang, 'syncing');
   await chrome.runtime.sendMessage({ type: 'sync-now' });
 });
 
@@ -75,7 +84,7 @@ $('pause').addEventListener('click', async () => {
 
 $('save').addEventListener('click', async () => {
   await save();
-  $('saved').textContent = '已保存';
+  $('saved').textContent = t(lang, 'saved');
   render();
 });
 
@@ -87,6 +96,7 @@ async function save() {
   const next = {
     ...config,
     mode,
+    lang: $('lang').value,
     formats: formats.length ? formats : ['md'],
     port,
     token: $('token').value.replace(/\s+/g, ''), // 复制时容易带上空格、换行

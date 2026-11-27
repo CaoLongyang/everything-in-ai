@@ -1,0 +1,4 @@
+{
+  "name": { "message": "AI Chat Sync" },
+  "description": { "message": "Saves your new and updated ChatGPT, Claude and Gemini conversations to your computer once a day, as Markdown files (or into an everything-in-ai vault). Nothing leaves your machine." }
+}
