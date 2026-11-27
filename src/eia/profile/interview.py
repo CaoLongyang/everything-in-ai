@@ -3,6 +3,7 @@
 - 「访谈设置」：第一次出题时建好，之后程序只读；唯一的例外是在末尾追加「（自动）」不想聊的行。
 - 以前的每一轮访谈：问过什么、你答了什么、每题属于哪个方面。
 - 发给 AI 的内容在这里拼好；AI 出的题，程序再按设置和以前的问题过滤一遍。
+- 深度和「还没想好」：docs/specs/profile.delta-interview-depth.md。
 """
 
 from __future__ import annotations
@@ -22,6 +23,19 @@ MAX_QUESTIONS = 8
 MAX_FOLLOW_UPS = 3
 SIMILAR = 0.85  # 问题文字相似到这个程度就算问过
 AUTO = "（自动）"
+REASK_DAYS = 30  # 「还没想好」的问题，过了这么多天可以再问
+UNDECIDED_CHARS = 20
+_UNDECIDED = ("还没想好", "没想好", "不知道", "没想清楚", "说不清", "还没想清楚", "不确定")
+
+# 深度：key、名字、说明。勾了几个按最浅的；都没勾按轻松
+DEPTHS: tuple[tuple[str, str, str], ...] = (
+    ("light", "轻松", "只问事实和经历：在哪长大、最近在忙什么、做过什么"),
+    ("medium", "适中", "也可以问原因和感受：为什么这样选、那时候是什么感觉"),
+    ("deep", "深入", "也可以问困惑、矛盾、自己还没想清楚的事"),
+)
+DEPTH_NAMES = {key: name for key, name, _ in DEPTHS}
+_DEPTH_BY_NAME = {name: key for key, name, _ in DEPTHS}
+_DEPTH_HINTS = {key: hint for key, _, hint in DEPTHS}
 
 # 人生故事框架的七个方面（Life Story Interview 的简化版）：key、名字、说明、对应画像里的哪些小节
 ASPECTS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
@@ -39,6 +53,7 @@ _BY_NAME = {name: key for key, name, _, _ in ASPECTS}
 WANT_HEADING = "## 想聊的方面"
 ALSO_HEADING = "## 也想聊（自己写，一行一个）"
 AVOID_HEADING = "## 不想聊（一行一个；这些话题不会被问到）"
+DEPTH_HEADING = "## 深度（勾一个；默认轻松）"
 
 _QUESTION = re.compile(r"^###\s*(\d+)\.\s*(.+)$")
 _META = re.compile(r"^（方面：(?P<aspect>[^·）]+)(?: · 追问 (?P<ref>[^）]+))?）$")
@@ -53,6 +68,15 @@ class Settings:
     also: list[str] = field(default_factory=list)  # 也想聊（你写的话题）
     avoid: list[str] = field(default_factory=list)  # 不想聊（方面名字或话题词）
     auto_done: set[str] = field(default_factory=set)  # 自动加过的方面：你删掉那行后不再自动加
+    depths: list[str] = field(default_factory=list)  # 勾了的深度
+    has_depth: bool = False  # 文件里有没有「深度」这一节（旧文件没有）
+
+    @property
+    def depth(self) -> str:
+        for key, _, _ in DEPTHS:
+            if key in self.depths:
+                return key
+        return "light"
 
     @property
     def avoided_aspects(self) -> set[str]:
@@ -73,6 +97,21 @@ class Asked:
     question: str
     aspect: str  # key；旧访谈没标方面的是 ""
     answer: str
+    day: str = ""  # 那一轮访谈的日期
+
+    @property
+    def undecided(self) -> bool:
+        """回答只是「还没想好」之类：算答了（不是跳过），但不拿来追问。"""
+        text = self.answer.strip().strip("。.！!…~～ ")
+        return 0 < len(text) <= UNDECIDED_CHARS and any(word in text for word in _UNDECIDED)
+
+    def reaskable(self, today: dt.date) -> bool:
+        """「还没想好」过了 REASK_DAYS 天，可以换个问法再问。"""
+        try:
+            asked = dt.date.fromisoformat(self.day)
+        except ValueError:
+            return False
+        return self.undecided and (today - asked).days >= REASK_DAYS
 
 
 @dataclass(frozen=True)
@@ -96,10 +135,31 @@ def settings_text() -> str:
         "",
         ALSO_HEADING,
         "",
+        depth_text(),
         AVOID_HEADING,
         "",
     ]
     return "\n".join(lines)
+
+
+def depth_text() -> str:
+    return "\n".join(
+        [
+            DEPTH_HEADING,
+            "轻松：只问事实和经历。想让访谈问得更深，改勾下面的一项。",
+            "",
+            *(f"- [{'x' if key == 'light' else ' '}] {name}：{hint}" for key, name, hint in DEPTHS),
+            "",
+        ]
+    )
+
+
+def add_depth_section(path: Path) -> None:
+    """旧的设置文件没有「深度」这一节：在末尾追加一次（只追加，不改你写的）。"""
+    text = path.read_text(encoding="utf-8")
+    tail = "" if text.endswith("\n") else "\n"
+    with path.open("a", encoding="utf-8", newline="") as handle:
+        handle.write(tail + "\n" + depth_text())
 
 
 def read_settings(path: Path) -> Settings:
@@ -115,6 +175,7 @@ def read_settings(path: Path) -> Settings:
         line = _AUTO_MARK.sub("", line).strip()
         if line.startswith("## "):
             section = line
+            settings.has_depth = settings.has_depth or line.startswith("## 深度")
             continue
         if not line or line.startswith(">"):
             continue
@@ -122,6 +183,10 @@ def read_settings(path: Path) -> Settings:
             box = _CHECKBOX.match(line)
             if box and box["mark"] != " " and box["name"].strip() in _BY_NAME:
                 settings.want.append(_BY_NAME[box["name"].strip()])
+        elif section.startswith("## 深度"):
+            box = _CHECKBOX.match(line)
+            if box and box["mark"] != " " and box["name"].strip() in _DEPTH_BY_NAME:
+                settings.depths.append(_DEPTH_BY_NAME[box["name"].strip()])
         elif section.startswith("## 也想聊") and line.startswith("-"):
             settings.also.append(line.lstrip("- ").strip())
         elif section.startswith("## 不想聊") and line.startswith("-"):
@@ -132,18 +197,27 @@ def read_settings(path: Path) -> Settings:
 
 
 def add_auto_avoid(path: Path, aspects: Sequence[str]) -> None:
-    """在文件末尾追加「（自动）方面」的行（只追加，不改你写的内容）。
+    """在「不想聊」那一节的最后加「（自动）方面」的行（只加行，不改你写的内容）。
 
     另起一行留一个看不见的记号（HTML 注释，Obsidian 阅读模式里不显示）：你删掉「（自动）」那行之后，
-    记号还在，程序就不会再自动把这个方面加回去。
+    记号还在，程序就不会再自动把这个方面加回去。找不到「不想聊」这一节时加在文件末尾、连同标题。
     """
     if not aspects:
         return
-    text = path.read_text(encoding="utf-8")
-    tail = "" if text.endswith("\n") else "\n"
-    lines = "".join(f"- {AUTO}{ASPECT_NAMES[a]}\n<!-- eia:auto {a} -->\n" for a in aspects)
-    with path.open("a", encoding="utf-8", newline="") as handle:
-        handle.write(tail + lines)
+    added = [
+        line for a in aspects for line in (f"- {AUTO}{ASPECT_NAMES[a]}", f"<!-- eia:auto {a} -->")
+    ]
+    lines = path.read_text(encoding="utf-8").split("\n")
+    start = next((i for i, line in enumerate(lines) if line.strip().startswith("## 不想聊")), None)
+    if start is None:
+        lines = [*lines, "", AVOID_HEADING, "", *added, ""]
+    else:
+        end = next(
+            (i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines)
+        )
+        last = max((i for i in range(start, end) if lines[i].strip()), default=start)
+        lines[last + 1 : last + 1] = added
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def read_rounds(root: Path) -> list[Round]:
@@ -157,11 +231,11 @@ def read_rounds(root: Path) -> list[Round]:
             continue
         created = document.meta.get("created")
         day = created.date().isoformat() if isinstance(created, dt.datetime) else path.stem[3:13]
-        rounds.append(Round(path, day, tuple(_questions(path.stem, document.body))))
+        rounds.append(Round(path, day, tuple(_questions(path.stem, day, document.body))))
     return sorted(rounds, key=lambda r: (r.day, r.path.name))
 
 
-def _questions(stem: str, body: str) -> list[Asked]:
+def _questions(stem: str, day: str, body: str) -> list[Asked]:
     label = stem.removeprefix("访谈 ").strip()
     found: list[Asked] = []
     number, question, aspect = "", "", ""
@@ -171,7 +245,7 @@ def _questions(stem: str, body: str) -> list[Asked]:
     def flush() -> None:
         if question:
             text = "\n".join(answer).strip()
-            found.append(Asked(f"{label} 第 {number} 题", question, aspect, text))
+            found.append(Asked(f"{label} 第 {number} 题", question, aspect, text, day))
 
     for line in [*body.replace("\r\n", "\n").split("\n"), "### "]:
         if line.startswith("### ") or line.startswith("---"):
@@ -240,6 +314,7 @@ def prompt_text(
     settings: Settings,
     rounds: Sequence[Round],
     cover: dict[str, tuple[int, int]],
+    today: dt.date,
 ) -> str:
     """发给 AI 的全部内容：画像结论、访谈设置、各方面的覆盖、以前的问题和你的回答。"""
     want = "、".join(ASPECT_NAMES[k] for k in settings.want) or "没勾（都可以问）"
@@ -251,6 +326,7 @@ def prompt_text(
         f"想聊的方面：{want}",
         f"也想聊：{'；'.join(settings.also) or '（没写）'}",
         f"不想聊（绝对不要问）：{'；'.join(settings.avoided_words) or '（没写）'}",
+        f"这次的深度：{DEPTH_NAMES[settings.depth]}（{_DEPTH_HINTS[settings.depth]}）",
         "",
         "## 七个方面现在有多少（方面 key：名字｜你已经写了几条回答｜画像里有几条要点）",
     ]
@@ -259,11 +335,19 @@ def prompt_text(
         + ("｜不想聊，不要问" if key in settings.avoided_aspects else "")
         for key, name, _, _ in ASPECTS
     ]
-    asked = [q for r in rounds for q in r.questions]
+    every = [q for r in rounds for q in r.questions]
+    asked = [q for q in every if not q.reaskable(today)]
     if asked:
         lines += ["", "## 以前问过的问题（不要再问，换个说法也不行）"]
         lines += [f"- {q.question}" for q in asked]
-    answered = [q for q in asked if q.answer]
+    again = [q for q in every if q.reaskable(today)]
+    if again:
+        lines += [
+            "",
+            f"## TA以前说还没想好的问题（已经过了 {REASK_DAYS} 天，可以换个更轻的问法再问）",
+        ]
+        lines += [f"- {q.question}" for q in again]
+    answered = [q for q in every if q.answer and not q.undecided]
     if answered:
         lines += ["", "## TA以前的回答（可以从这里追问；follow_up 填方括号里的编号）"]
         lines += [f"[{q.ref}] 问：{q.question}\n答：{q.answer}" for q in answered]
@@ -282,11 +366,14 @@ def pick(
     raw: Sequence[tuple[str, str, str, str]],
     settings: Settings,
     rounds: Sequence[Round],
+    today: dt.date,
 ) -> list[Picked]:
     """AI 出的 (问题, 为什么问, 方面, 追问哪一题)，程序再过滤、排序、限量。"""
-    asked = [_norm(q.question) for r in rounds for q in r.questions]
+    asked = [_norm(q.question) for r in rounds for q in r.questions if not q.reaskable(today)]
     # AI 填出处时常带上方括号、换掉空格（实测：第二轮的追问一个都没认出来），比对时去掉这些
-    refs = {_ref_key(q.ref): q.ref for r in rounds for q in r.questions if q.answer}
+    refs = {
+        _ref_key(q.ref): q.ref for r in rounds for q in r.questions if q.answer and not q.undecided
+    }
     words = [w for w in settings.avoided_words if w]
     kept: list[Picked] = []
     seen: list[str] = []

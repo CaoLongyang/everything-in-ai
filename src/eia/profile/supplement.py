@@ -58,6 +58,7 @@ class AskPlan:
     rounds: list[interview.Round]
     auto_avoid: list[str]  # 这次要自动加进「不想聊」的方面（key）
     answers: int  # 发出去的以前的回答有几条
+    today: dt.date
 
     @property
     def chars(self) -> int:
@@ -79,7 +80,7 @@ def ensure_supplement(root: Path, *, now: dt.datetime | None = None) -> Path:
     return path
 
 
-def plan_ask(root: Path) -> AskPlan:
+def plan_ask(root: Path, *, now: dt.datetime | None = None) -> AskPlan:
     path = latest_profile(root)
     if path is None:
         raise ProfileAskError("还没有画像。先运行 eia profile run --yes 生成一份，再来出访谈问题")
@@ -92,9 +93,10 @@ def plan_ask(root: Path) -> AskPlan:
     auto = interview.skipped_aspects(rounds, settings.avoided_aspects | settings.auto_done)
     settings.avoid += [interview.AUTO + interview.ASPECT_NAMES[k] for k in auto]
     cover = interview.coverage(rounds, body)
-    text = interview.prompt_text(conclusions(body), settings, rounds, cover)
+    today = (now or dt.datetime.now(dt.UTC)).date()
+    text = interview.prompt_text(conclusions(body), settings, rounds, cover, today)
     config = llm.get_client(root).config.text
-    answers = sum(1 for r in rounds for q in r.questions if q.answer)
+    answers = sum(1 for r in rounds for q in r.questions if q.answer and not q.undecided)
     return AskPlan(
         path,
         text,
@@ -104,6 +106,7 @@ def plan_ask(root: Path) -> AskPlan:
         rounds,
         auto,
         answers,
+        today,
     )
 
 
@@ -142,9 +145,11 @@ def conclusions(body: str) -> str:
 def run_ask(root: Path, plan: AskPlan, *, now: dt.datetime | None = None) -> tuple[Path, int]:
     reply = llm.get_client(root).complete_json(plan.text, _Questions, system=ASK_SYSTEM)
     raw = [(q.question, q.why, q.aspect, q.follow_up) for q in reply.questions]
-    questions = interview.pick(raw, plan.settings, plan.rounds)
+    questions = interview.pick(raw, plan.settings, plan.rounds, plan.today)
     when = (now or dt.datetime.now(dt.UTC)).replace(microsecond=0)
     settings_path = ensure_settings(root, now=when)
+    if not interview.read_settings(settings_path).has_depth:
+        interview.add_depth_section(settings_path)
     interview.add_auto_avoid(settings_path, plan.auto_avoid)
     folder = root / PROFILE_DIR
     folder.mkdir(parents=True, exist_ok=True)

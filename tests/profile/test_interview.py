@@ -174,3 +174,59 @@ def test_F18_26_prompts_have_no_author_specifics() -> None:
     for text in texts:
         for word in ("马来西亚", "基督", "室友", "签证在等"):
             assert word not in text, word
+
+
+def test_F18_27_depth_defaults_to_light_and_old_files_get_the_section(
+    vault: Path, model: FakeModel
+) -> None:
+    _run(vault)
+    ask(vault, model, [q("热身")], 0)
+    assert "这次的深度：轻松" in model.ask_prompts[-1]
+    settings = interview.read_settings(vault / SETTINGS)
+    assert settings.has_depth and settings.depth == "light"
+
+    # 勾了几个按最浅的
+    text = (vault / SETTINGS).read_text(encoding="utf-8")
+    text = text.replace("- [x] 轻松：", "- [ ] 轻松：").replace("- [ ] 深入：", "- [x] 深入：")
+    text = text.replace("- [ ] 适中：", "- [x] 适中：")
+    (vault / SETTINGS).write_text(text, encoding="utf-8")
+    assert interview.read_settings(vault / SETTINGS).depth == "medium"
+
+    # 旧的设置文件（没有「深度」）：末尾追加一次，你写的不变；以后的（自动）行还在「不想聊」里
+    old = text[: text.index(interview.DEPTH_HEADING)] + text[text.index(interview.AVOID_HEADING) :]
+    old = old.replace(interview.AVOID_HEADING + "\n", interview.AVOID_HEADING + "\n- 我写的\n")
+    (vault / SETTINGS).write_text(old, encoding="utf-8")
+    ask(vault, model, [q("第二轮")], 1)
+    after = (vault / SETTINGS).read_text(encoding="utf-8")
+    assert after.startswith(old.rstrip("\n")) and after.count(interview.DEPTH_HEADING) == 1
+    ask(vault, model, [q("第三轮")], 2)
+    assert (vault / SETTINGS).read_text(encoding="utf-8").count(interview.DEPTH_HEADING) == 1
+    interview.add_auto_avoid(vault / SETTINGS, ["family"])
+    settings = interview.read_settings(vault / SETTINGS)
+    assert "family" in settings.avoided_aspects and "我写的" in settings.avoid
+
+
+def test_F18_28_tone_rules_and_undecided_answers(vault: Path, model: FakeModel) -> None:
+    assert "不要把两件事拼在一起对质" in prompts_mod.ASK_SYSTEM
+    assert "不要先下结论再问" in prompts_mod.ASK_SYSTEM
+    _run(vault)
+    one = ask(vault, model, [q("将来想做什么？", "now"), q("你最在意什么？", "values")], 0)
+    answer(one, 1, "还没想好。")
+    answer(one, 2, "真诚")
+    two = ask(vault, model, [q("最近读了什么书？", "now"), q("小时候的家", "family")], 1)
+    answer(two, 1, "不知道")
+    plan = supplement_mod.plan_ask(vault, now=NOW + dt.timedelta(days=2))
+    assert plan.auto_avoid == []  # 「还没想好」「不知道」算答了，不是跳过
+    assert plan.answers == 1  # 只有「真诚」会发出去当回答、拿来追问
+    assert "答：还没想好" not in plan.text and "答：真诚" in plan.text
+    ref = f"{one.stem.removeprefix('访谈 ')} 第 1 题"
+    model.ask_reply = [q("将来想做什么？", "now"), q("追问", "now", follow_up=ref)]
+    third, _ = supplement_mod.run_ask(vault, plan, now=NOW + dt.timedelta(days=2))
+    assert headings(third) == ["追问"]  # 30 天内不再问；也不能当追问的出处
+    assert "追问 " not in read_document(third).body
+
+    later = supplement_mod.plan_ask(vault, now=NOW + dt.timedelta(days=40))
+    assert "还没想好的问题" in later.text and "- 将来想做什么？" in later.text
+    model.ask_reply = [q("将来想做什么？", "now")]
+    fourth, _ = supplement_mod.run_ask(vault, later, now=NOW + dt.timedelta(days=40))
+    assert headings(fourth) == ["将来想做什么？"]  # 过了 30 天可以再问
