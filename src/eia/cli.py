@@ -798,6 +798,9 @@ def sync_group() -> None:
     """接收浏览器插件每天同步的 ChatGPT、Claude 对话（docs/specs/chat-sync.md）。"""
 
 
+SYNC_JOB = "sync"
+
+
 def _sync_vault(vault: Path) -> None:
     if not is_vault(vault):
         raise click.ClickException(f"{vault} 不是一个 vault（找不到 config.yaml）")
@@ -826,6 +829,39 @@ def sync_serve(vault: Path, port: int) -> None:
         click.echo("已停止")
     finally:
         server.server_close()
+
+
+@sync_group.command(name="autostart")
+@click.option("--vault", type=_DIR, default=".", help="vault 所在目录，默认当前目录。")
+@click.option(
+    "--port", type=int, default=sync_server.DEFAULT_PORT, show_default=True, help="插件里填同一个"
+)
+@click.option("--remove", is_flag=True, help="不再自动启动，并停掉正在后台运行的。")
+def sync_autostart(vault: Path, port: int, remove: bool) -> None:
+    """登录 Windows 时自动在后台运行 eia sync serve（不弹窗口），现在也马上启动。"""
+    _sync_vault(vault)
+    if not schedule_windows.supported():
+        raise click.ClickException(
+            "这个系统还不支持自动启动（只做了 Windows）。可以把下面这条命令加进系统的开机启动：\n"
+            f'  {sys.executable} -m eia sync serve --vault "{vault.resolve()}" --port {port}'
+        )
+    scheduler = WindowsScheduler()
+    try:
+        if remove:
+            scheduler.stop(SYNC_JOB, vault)
+            name = scheduler.remove(SYNC_JOB, vault)
+            click.echo(f"已删除 {name}，后台的接收服务也停了")
+            return
+        name = scheduler.install_logon(
+            SYNC_JOB,
+            vault,
+            f'-m eia sync serve --vault "{vault.resolve()}" --port {port}',
+            "eia sync autostart --remove",
+        )
+    except ScheduleError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"已登记 {name}：以后登录 Windows 时自动在后台运行，现在也已经启动")
+    click.echo(f"插件里端口填 {port}，口令填 eia sync token 显示的那串")
 
 
 @sync_group.command(name="token")

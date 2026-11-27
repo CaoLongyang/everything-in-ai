@@ -1,0 +1,9 @@
+{
+  "name": "eia-chat-sync",
+  "private": true,
+  "type": "module",
+  "description": "eia 对话同步插件。不用构建：Chrome 里「加载已解压的扩展程序」选这个文件夹即可。",
+  "scripts": {
+    "test": "node --test"
+  }
+}

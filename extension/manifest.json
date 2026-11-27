@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "eia 对话同步",
+  "version": "0.1.0",
+  "description": "每天把 ChatGPT、Claude 上更新过的对话发给你电脑上的 eia，写进你的知识库。只发到 127.0.0.1。",
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "eia 对话同步" },
+  "permissions": ["alarms", "storage", "scripting"],
+  "host_permissions": ["https://chatgpt.com/*", "https://claude.ai/*", "http://127.0.0.1/*"],
+  "minimum_chrome_version": "116"
+}

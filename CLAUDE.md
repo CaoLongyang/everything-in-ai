@@ -101,6 +101,12 @@ ruff format .                      # 自动格式化
 - `supplement.py`：`eia profile ask` 出访谈问题（只发结论）、建空的「我的补充」；`material.collect_self` 把访谈回答和「我的补充」当作第 2 步的材料。
 - 测试用 `tests/profile/conftest.py` 的假模型：第 2 步故意编原话、引用不存在的对话，第 3 步故意引用不存在的观察编号。
 
+**sync/**（`docs/specs/chat-sync.md`，实现决定见 ADR 0010）+ **extension/**（浏览器插件）
+- 插件（纯 JavaScript、不用构建）每天在已登录的 ChatGPT / Claude 网页里请求网站自己的接口，把**原始对话 JSON** 发给本机的 `eia sync serve`（只听 127.0.0.1，要 `X-Eia-Token` 口令，口令在 `meta` 表）。
+- `convert.py` 直接复用 `chat/chatgpt.py`、`chat/claude.py` 的 `parse_conversation`，写文件复用 `import_conversations(refuse_fewer=True)`；网站改格式时改这里，不用重装插件。
+- 哪些对话要取由 eia 的 `/plan` 和 vault 的 `updated` 比（ADR 0010 第 7 条），插件不记状态。运行记录在 `runs` 表（job = sync），不记标题和内容。
+- 插件的测试在 `extension/` 里 `node --test`，不在 `check.py` 里（F19-08、F19-09 在验收报告里显示「未实现」是正常的）。
+
 ## 改规格的方式
 
 已批准的 spec 不直接改，在旁边写 `docs/specs/<name>.delta-<主题>.md`；实现中做出的偏离 spec 的决定记到 `docs/adr/`。

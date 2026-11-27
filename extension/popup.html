@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>eia 对话同步</title>
+<style>
+  :root { --ink: #1f2328; --muted: #6b7280; --line: #e5e7eb; --bad: #c0392b; --ok: #1a7f37; }
+  body { font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif; color: var(--ink); width: 320px; margin: 0; padding: 14px 16px; }
+  h1 { font-size: 15px; margin: 0 0 2px; }
+  p.lead { color: var(--muted); margin: 0 0 12px; }
+  .site { border-top: 1px solid var(--line); padding: 8px 0; }
+  .site header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+  .site .state { color: var(--muted); font-weight: 400; }
+  .site .error { color: var(--bad); }
+  .site .good { color: var(--ok); }
+  button { font: inherit; padding: 5px 12px; border-radius: 6px; border: 1px solid #1f2328; background: #1f2328; color: #fff; cursor: pointer; }
+  button.plain { background: #fff; color: var(--ink); border-color: var(--line); }
+  .row { display: flex; gap: 8px; margin: 10px 0; }
+  details { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 4px; }
+  label { display: block; margin: 6px 0; }
+  input[type=text], input[type=number] { width: 100%; box-sizing: border-box; padding: 4px 6px; font: inherit; border: 1px solid var(--line); border-radius: 4px; }
+  .hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <h1>eia 对话同步</h1>
+  <p class="lead">每天一次，把更新过的对话发给你电脑上的 eia。内容不出电脑。</p>
+  <div id="sites"></div>
+  <div class="row">
+    <button id="now">现在同步</button>
+    <button id="pause" class="plain"></button>
+  </div>
+  <details id="setup">
+    <summary>设置</summary>
+    <label>端口 <input id="port" type="number" min="1" max="65535"></label>
+    <label>口令 <input id="token" type="text" autocomplete="off" spellcheck="false"></label>
+    <p class="hint">先在电脑上运行 <code>eia sync serve --vault 你的vault</code>，再把 <code>eia sync token --vault 你的vault</code> 显示的口令填在这里。</p>
+    <label><input id="site-chatgpt" type="checkbox"> 同步 ChatGPT</label>
+    <label><input id="site-claude" type="checkbox"> 同步 Claude</label>
+    <button id="save" class="plain">保存</button> <span id="saved" class="hint"></span>
+  </details>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

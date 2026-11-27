@@ -1,6 +1,6 @@
 # Spec: chat-sync（浏览器插件每天自动同步对话）
 
-Status: 草案 2026-11-27（第 9 节已按作者的决定写好；2026-11-27 作者定为「每天一次，第一次全部、之后只要更新过的」「走网站的接口」，等最后确认）　版本：V2
+Status: 已批准 2026-11-27（实现时的调整见 ADR 0010 第 7–11 条）　版本：V2
 依赖：`docs/specs/chat-import.md`（重复导入、标记块、保留用户内容）、`docs/specs/chat-import.delta-gemini.md` 第 4 节（消息变少时不更新）
 实现决定：`docs/adr/0010-chat-sync-site-api.md`（为什么可以用网站的接口）
 在总目标里的位置：第 1 层「采集」（`docs/ROADMAP.md` 开头）
@@ -63,22 +63,22 @@ ChatGPT 和 Claude 的网页本身就是通过一些接口取你的对话列表�
 
 - **什么时候**：每天第一次打开浏览器 10 分钟后开始；当天成功了就不再跑。eia 没开、中途关了浏览器，之后每小时再试，从断开的地方接着来。
 - 插件需要一个这个网站的标签页来发请求：你开着就用你的（不切过去、不打扰你）；没开就在后台开一个，跑完关掉。没登录就跳过这个网站，图标上提示。
-- **挑哪些对话**：取对话列表，和插件记下的「每个对话上次同步时的更新时间」比：
-  - **第一次**：全部。
-  - **之后**：更新时间比记下的新的，加上从没同步过的。
-- 逐个取内容，发给 eia；eia 回成功才记下这个对话的更新时间，失败的明天重试。
+- **挑哪些对话**：取对话列表（编号 + 更新时间）发给 eia，**由 eia 和 vault 比**：vault 里没有的、网站上的更新时间比 vault 里新的才要取（ADR 0010 第 7 条）。
+  - 第一次：vault 里没有或者变了的全部取；之前用官方导出包导入过、没变的不再取。
+  - 之后：一般只有当天聊过的几个。
+- 逐个取内容，发给 eia；中途停了，下次再问 eia 一遍，已经写进 vault 的自然不会再取。
 - 第一次同步你约 1,000 个 ChatGPT 和 Claude 对话，按每个 2 秒，大约半小时到一小时；之后每天一般几个到几十个，一两分钟。
 
 ### 4.3 eia 这边：`eia sync serve`
 
 ```powershell
-eia sync serve --vault <vault>         # 前台运行，Ctrl+C 停止
-eia sync token --vault <vault>         # 显示插件要填的口令（第一次运行时自动生成）
-eia sync status --vault <vault>        # 最近几次同步了哪些、有没有失败
-eia schedule add sync --vault <vault>  # 登录 Windows 时自动在后台启动（复用 scheduler 模块）
+eia sync serve --vault <vault> [--port 8771]  # 前台运行，Ctrl+C 停止
+eia sync autostart --vault <vault>            # 登录 Windows 时自动在后台运行，现在也马上启动；--remove 取消
+eia sync token --vault <vault>                # 显示插件要填的口令（第一次运行时自动生成）
+eia sync status --vault <vault>               # 最近同步了哪些、有没有失败
 ```
 
-- 只监听 `127.0.0.1`，端口默认 `8771`，可在 `config.yaml` 的 `sync.port` 改；插件选项里填同一个端口。
+- 只监听 `127.0.0.1`，端口默认 `8771`，用 `--port` 改；插件设置里填同一个端口。
 - **口令**：随机生成，存在 `.eia/eia.db`（不放 vault 的 Markdown 里，不进 git）。请求不带对的口令就拒绝。这样别的网页即使知道端口，也写不进你的 vault。
 - 单次最大 20 MB；不认识的平台、认不出的 JSON 直接拒绝并返回原因，不写文件。
 - **转换**：ChatGPT 的对话 JSON 和官方导出包里每个对话的格式基本相同，复用 `chat/chatgpt.py` 的解析（`current_node` 路径、角色、文字）；Claude 的复用 `chat/claude.py`（`text` 块、沿 `parent_message_uuid` 走到最新、附件只留占位）。两边有差别的地方实现前用真实返回核对，只记字段名和类型，不读内容（和 Gemini 规格第 2 节的做法一样）。

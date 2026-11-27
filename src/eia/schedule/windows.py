@@ -90,10 +90,44 @@ def task_xml(
         "</CalendarTrigger>"
         for h, m in times
     )
-    arguments = escape(f'-m eia run {job} --vault "{vault}"')
-    description = escape(
-        f"everything-in-ai：{job}（vault：{vault}）。用 eia schedule remove 删除。"
+    return _xml(
+        triggers=triggers,
+        arguments=f'-m eia run {job} --vault "{vault}"',
+        description=f"everything-in-ai：{job}（vault：{vault}）。用 eia schedule remove 删除。",
+        vault=vault,
+        python=python,
+        time_limit=TIME_LIMIT,
+        network=True,
     )
+
+
+def logon_task_xml(job: str, vault: Path, python: Path, arguments: str, removal: str) -> str:
+    """登录 Windows 时启动、一直运行的任务（eia sync serve）：不限时长、不要求联网。"""
+    vault = vault.resolve()
+    return _xml(
+        triggers="<LogonTrigger><Enabled>true</Enabled></LogonTrigger>",
+        arguments=arguments,
+        description=f"everything-in-ai：{job}（vault：{vault}）。用 {removal} 删除。",
+        vault=vault,
+        python=python,
+        time_limit="PT0S",
+        network=False,
+    )
+
+
+def _xml(
+    *,
+    triggers: str,
+    arguments: str,
+    description: str,
+    vault: Path,
+    python: Path,
+    time_limit: str,
+    network: bool,
+) -> str:
+    arguments = escape(arguments)
+    description = escape(description)
+    network_only = "true" if network else "false"
     return f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
@@ -110,8 +144,8 @@ def task_xml(
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
     <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
     <StartWhenAvailable>true</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
-    <ExecutionTimeLimit>{TIME_LIMIT}</ExecutionTimeLimit>
+    <RunOnlyIfNetworkAvailable>{network_only}</RunOnlyIfNetworkAvailable>
+    <ExecutionTimeLimit>{time_limit}</ExecutionTimeLimit>
     <Enabled>true</Enabled>
     <Hidden>false</Hidden>
     <WakeToRun>false</WakeToRun>
@@ -143,6 +177,25 @@ class WindowsScheduler:
         if result.returncode != 0:
             raise ScheduleError(f"登记失败：{_decode(result.stderr or result.stdout).strip()}")
         return name
+
+    def install_logon(self, job: str, vault: Path, arguments: str, removal: str) -> str:
+        """登记登录时启动的任务，并马上启动一次（不用等下次登录）。"""
+        name = task_name(job, vault)
+        xml = logon_task_xml(job, vault, pythonw(), arguments, removal)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "task.xml"
+            path.write_bytes(xml.encode("utf-16"))
+            result = self._run(["/Create", "/TN", name, "/XML", str(path), "/F"])
+        if result.returncode != 0:
+            raise ScheduleError(f"登记失败：{_decode(result.stderr or result.stdout).strip()}")
+        started = self._run(["/Run", "/TN", name])
+        if started.returncode != 0:
+            raise ScheduleError(f"登记好了，但启动失败：{_decode(started.stderr).strip()}")
+        return name
+
+    def stop(self, job: str, vault: Path) -> None:
+        """结束正在运行的任务（删除任务不会结束已经在跑的程序）。没在跑也不算错。"""
+        self._run(["/End", "/TN", task_name(job, vault)])
 
     def remove(self, job: str, vault: Path) -> str:
         name = task_name(job, vault)

@@ -9,3 +9,8 @@
 4. **转换放在 eia 里**。插件只把网站返回的原始 JSON 发给本机的 eia，由 Python 转换：和官方导出包的解析共用规则、能用 pytest 测；网站改格式时只改 eia。
 5. **参考的开源代码**：pionxzh/chatgpt-exporter（MIT，`src/api.ts`）、agoramachina/claude-exporter（MIT，`chrome/content.js`、`chrome/utils.js`）。只改写请求接口和走对话树的部分，写进 `THIRD_PARTY_NOTICES.md`。
 6. **Gemini 不在这一版**：接口返回没有字段名的嵌套数组，难度和维护成本都高得多，先继续用现有的 Gemini 导出插件。
+7. **哪些对话要取由 eia 决定，不由插件记**（规格原来写插件记下每个对话上次同步的更新时间）。插件把对话列表（编号 + 更新时间）发给 eia 的 `/plan`，eia 和 vault 里 frontmatter 的 `updated` 比。好处：vault 是唯一的依据，第一次同步时已经从官方导出包导入过、没变的对话不用再取（作者约 1,000 个对话里大部分是这样）；插件的存储被清掉、换电脑重装都不会重取一遍；中途停了下次自然接着来。比较时网站的时间截到秒（vault 只存到秒，不截的话每次都算「变了」）。
+8. **端口用 `--port`**，不放进 `config.yaml`：只有 `serve` 和 `autostart` 两处用到，插件里也要填同一个，命令行参数更直观。
+9. **自动启动是 `eia sync autostart`**（规格原来写 `eia schedule add sync`，但 `eia schedule` 只有每天定时运行一次的任务）。复用 `schedule/windows.py`，加了一种「登录时启动、不限时长、不要求联网」的任务，登记后马上 `/Run` 一次；`--remove` 先 `/End` 再删除（删除任务不会停掉已经在跑的程序）。
+10. **插件的后台会被浏览器停掉**：Chrome 的 service worker 闲置 30 秒就停。同步中每次请求网站都要调用插件接口（`chrome.scripting.executeScript`），会让它继续运行；被限速要等 60 秒时，每 20 秒读一下插件存储保持运行。万一还是被停，下个小时再试，因为第 7 条，已经写进去的不会重取。
+11. **接收服务先读完请求体再回复**：在 Windows 上，不读完请求体就拒绝（口令错等），对方会收到「连接被重置」而看不到原因。
