@@ -1,11 +1,19 @@
 import { SITES } from './lib/sites.js';
 
-const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true, gemini: true } };
+const DEFAULTS = {
+  mode: '',
+  formats: ['md'],
+  port: 27771,
+  token: '',
+  paused: false,
+  sites: { chatgpt: true, claude: true, gemini: true },
+};
 const $ = (id) => document.getElementById(id);
 
 async function load() {
   const { settings: saved, records = {} } = await chrome.storage.local.get(['settings', 'records']);
   const config = { ...DEFAULTS, ...(saved || {}), sites: { ...DEFAULTS.sites, ...(saved?.sites || {}) } };
+  config.mode = config.mode || (config.token ? 'eia' : 'files');
   return { config, records };
 }
 
@@ -40,12 +48,16 @@ async function render() {
     }),
   );
   $('pause').textContent = config.paused ? '继续自动同步' : '暂停自动同步';
+  for (const radio of document.querySelectorAll('input[name=mode]')) radio.checked = radio.value === config.mode;
+  $('fmt-md').checked = config.formats.includes('md');
+  $('fmt-json').checked = config.formats.includes('json');
+  showMode(config.mode);
   $('port').value = config.port;
   $('token').value = config.token;
   $('site-chatgpt').checked = config.sites.chatgpt;
   $('site-claude').checked = config.sites.claude;
   $('site-gemini').checked = config.sites.gemini;
-  if (!config.token) $('setup').open = true;
+  if (config.mode === 'eia' && !config.token) $('setup').open = true;
 }
 
 $('now').addEventListener('click', async () => {
@@ -70,8 +82,12 @@ $('save').addEventListener('click', async () => {
 async function save() {
   const { config } = await load();
   const port = Number($('port').value) || DEFAULTS.port;
+  const mode = document.querySelector('input[name=mode]:checked')?.value || 'files';
+  const formats = [$('fmt-md').checked && 'md', $('fmt-json').checked && 'json'].filter(Boolean);
   const next = {
     ...config,
+    mode,
+    formats: formats.length ? formats : ['md'],
     port,
     token: $('token').value.replace(/\s+/g, ''), // 复制时容易带上空格、换行
     sites: {
@@ -81,6 +97,15 @@ async function save() {
     },
   };
   await chrome.storage.local.set({ settings: next });
+}
+
+function showMode(mode) {
+  $('files-box').hidden = mode !== 'files';
+  $('eia-box').hidden = mode !== 'eia';
+}
+
+for (const radio of document.querySelectorAll('input[name=mode]')) {
+  radio.addEventListener('change', () => showMode(radio.value));
 }
 
 chrome.storage.onChanged.addListener(() => render());

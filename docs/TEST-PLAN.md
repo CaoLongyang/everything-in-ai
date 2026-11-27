@@ -216,7 +216,7 @@
 
 ### F19 chat-sync（docs/specs/chat-sync.md，V2）
 
-eia 这边用 pytest；插件的 F19-08、F19-09、F19-12 用 Node 自带的测试工具，在 `extension/` 目录里跑（`node --test`），不在 `check.py` 里。
+eia 这边用 pytest；插件的 F19-08、F19-09、F19-12、F19-13、F19-14 用 Node 自带的测试工具，在 `extension/` 目录里跑（`node --test`），不在 `check.py` 里。
 
 | 编号 | 验收标准 | 方式 |
 |---|---|---|
@@ -232,6 +232,8 @@ eia 这边用 pytest；插件的 F19-08、F19-09、F19-12 用 Node 自带的测�
 | F19-10 | `eia sync autostart` 登记「登录时启动」的任务（运行 `eia sync serve`、不限时长、不要求联网）并马上启动；`--remove` 先停掉再删除；测试里不真的登记 | 自动 |
 | F19-11 | Gemini 的原始轮转成合规的 chat 文件：按时间排序、只取选中的回答、同一轮共用时间；和 gemini-chat-exporter 导出的是同一个文件；没有时间、格式认不出的拒绝、不写文件（docs/specs/chat-sync.delta-gemini.md） | 自动 |
 | F19-12 | 插件取 Gemini：列表按翻页标记取完、两个分组都取、重复的去掉；对话按翻页取完、按轮去重；网址带账号；请求在网页主环境里运行 | 自动（Node） |
+| F19-13 | 插件把三家的原始对话转成统一结构和 Markdown：分支、时间、附件占位、选中的回答和 eia 一致；格式认不出的拒绝（docs/specs/chat-sync.delta-standalone.md） | 自动（Node） |
+| F19-14 | 不装 eia 时存成文件：第一次全存，之后只存更新过的；插件重启后照样记得；文件名不随标题变；可同时存 JSON；格式认不出的不写文件 | 自动（Node） |
 
 ### F6 重复导入
 | 编号 | 验收标准 | 方式 |

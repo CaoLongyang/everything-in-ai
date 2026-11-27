@@ -1,8 +1,17 @@
-// 插件的后台：每天一次，把 ChatGPT、Claude 上更新过的对话发给本机的 eia（docs/specs/chat-sync.md）。
+// 插件的后台：每天一次，把 ChatGPT、Claude、Gemini 上更新过的对话
+// 发给本机的 eia，或者（没装 eia 时）存成文件放进「下载」文件夹（docs/specs/chat-sync.md、chat-sync.delta-standalone.md）。
+import { localSink } from './lib/local.js';
 import { SITES } from './lib/sites.js';
 import { SyncStop, afterRun, localDay, shouldRun, syncSite } from './lib/sync.js';
 
-const DEFAULTS = { port: 27771, token: '', paused: false, sites: { chatgpt: true, claude: true, gemini: true } };
+const DEFAULTS = {
+  mode: '', // 'files' 存成文件；'eia' 发给 eia。没选过时：填了口令就是 eia，否则是 files
+  formats: ['md'],
+  port: 27771,
+  token: '',
+  paused: false,
+  sites: { chatgpt: true, claude: true, gemini: true },
+};
 const FIRST_DELAY_MIN = 10; // 打开浏览器 10 分钟后开始
 const RETRY_MIN = 60; // 没成功的，每小时再试
 let running = false;
@@ -24,9 +33,10 @@ function schedule() {
   chrome.alarms.create('tick', { delayInMinutes: FIRST_DELAY_MIN, periodInMinutes: RETRY_MIN });
 }
 
-export async function settings() {
+async function settings() {
   const { settings: saved } = await chrome.storage.local.get('settings');
-  return { ...DEFAULTS, ...(saved || {}), sites: { ...DEFAULTS.sites, ...(saved?.sites || {}) } };
+  const config = { ...DEFAULTS, ...(saved || {}), sites: { ...DEFAULTS.sites, ...(saved?.sites || {}) } };
+  return { ...config, mode: config.mode || (config.token ? 'eia' : 'files') };
 }
 
 async function runAll({ manual }) {
@@ -35,13 +45,18 @@ async function runAll({ manual }) {
   try {
     const config = await settings();
     if (config.paused && !manual) return;
-    const { records = {} } = await chrome.storage.local.get('records');
-    for (const [name, site] of Object.entries(SITES)) {
-      if (!config.sites[name]) continue;
-      const today = localDay(Date.now());
-      if (!manual && !shouldRun(records[name], today)) continue;
-      records[name] = await runOne(name, site, config, records[name], today);
-      await chrome.storage.local.set({ records });
+    const { records = {}, known = {} } = await chrome.storage.local.get(['records', 'known']);
+    const target = config.mode === 'files' ? await filesTarget(config, known) : null;
+    try {
+      for (const [name, site] of Object.entries(SITES)) {
+        if (!config.sites[name]) continue;
+        const today = localDay(Date.now());
+        if (!manual && !shouldRun(records[name], today)) continue;
+        records[name] = await runOne(name, site, config, records[name], today, target);
+        await chrome.storage.local.set({ records, ...(target ? { known } : {}) });
+      }
+    } finally {
+      if (target) await target.done();
     }
     await badge(records);
   } finally {
@@ -49,7 +64,7 @@ async function runAll({ manual }) {
   }
 }
 
-async function runOne(name, site, config, record, today) {
+async function runOne(name, site, config, record, today, target) {
   const state = { limited: record?.day === today ? record.limited || 0 : 0 };
   let tab = null;
   let opened = false;
@@ -64,7 +79,7 @@ async function runOne(name, site, config, record, today) {
     }
     const result = await syncSite(name, site, {
       req: (request, which) => inPage(tab.id, request, which),
-      eia: (method, path, body) => eia(config, method, path, body),
+      eia: target ? target.eia : (method, path, body) => eia(config, method, path, body),
       sleep: keepAliveSleep,
       now: () => Date.now(),
       state,
@@ -78,6 +93,23 @@ async function runOne(name, site, config, record, today) {
   } finally {
     if (opened && tab) chrome.tabs.remove(tab.id).catch(() => {});
   }
+}
+
+// 存成文件：存进「下载」文件夹的 ai-chat-sync/<平台>/，同名覆盖；同步期间不弹下载提示
+async function filesTarget(config, known) {
+  const hide = chrome.downloads.setUiOptions ? chrome.downloads.setUiOptions({ enabled: false }).catch(() => {}) : null;
+  await hide;
+  return {
+    eia: localSink({ known, formats: config.formats, save: download }),
+    async done() {
+      if (chrome.downloads.setUiOptions) await chrome.downloads.setUiOptions({ enabled: true }).catch(() => {});
+    },
+  };
+}
+
+async function download(filename, text, mime) {
+  const url = `data:${mime};charset=utf-8,${encodeURIComponent(text)}`;
+  await chrome.downloads.download({ url, filename, conflictAction: 'overwrite', saveAs: false });
 }
 
 async function inPage(tabId, request, site) {

@@ -105,7 +105,8 @@ ruff format .                      # 自动格式化
 - 插件（纯 JavaScript、不用构建）每天在已登录的 ChatGPT / Claude / Gemini 网页里请求网站自己的接口，把**原始对话 JSON** 发给本机的 `eia sync serve`（只听 127.0.0.1，要 `X-Eia-Token` 口令，口令在 `meta` 表）。
 - `convert.py` 直接复用 `chat/chatgpt.py`、`chat/claude.py`、`chat/gemini.py` 的 `parse_conversation`（Gemini 先由 `gemini_record` 把接口的原始「轮」按位置拼成导出格式，见 chat-sync.delta-gemini.md），写文件复用 `import_conversations(refuse_fewer=True)`；网站改格式时改这里，不用重装插件。
 - 哪些对话要取由 eia 的 `/plan` 和 vault 的 `updated` 比（ADR 0010 第 7 条），插件不记状态。运行记录在 `runs` 表（job = sync），不记标题和内容。
-- 插件的测试在 `extension/` 里 `node --test`，不在 `check.py` 里（F19-08、F19-09、F19-12 在验收报告里显示「未实现」是正常的）。
+- 插件的测试在 `extension/` 里 `node --test`，不在 `check.py` 里（F19-08、F19-09、F19-12、F19-13、F19-14 在验收报告里显示「未实现」是正常的）。
+- 插件也能不装 eia 单独用（`lib/convert.js` + `lib/local.js` 模拟 eia 的三个接口，存成文件，见 chat-sync.delta-standalone.md），单独开源在 `CaoLongyang/ai-chat-sync`；**本仓库的 `extension/` 是源头**，改完要同步过去。改 `chat/` 的导入规则时，`lib/convert.js` 也要跟着改。
 
 ## 改规格的方式
 

@@ -20,11 +20,13 @@
   label { display: block; margin: 6px 0; }
   input[type=text], input[type=number] { width: 100%; box-sizing: border-box; padding: 4px 6px; font: inherit; border: 1px solid var(--line); border-radius: 4px; }
   .hint { color: var(--muted); font-size: 12px; }
+  .sub { margin-left: 22px; }
+  .sub[hidden] { display: none; }
 </style>
 </head>
 <body>
   <h1>eia 对话同步</h1>
-  <p class="lead">每天一次，把更新过的对话发给你电脑上的 eia。内容不出电脑。</p>
+  <p class="lead">每天一次，把 ChatGPT、Claude、Gemini 上更新过的对话存到你的电脑。内容不出电脑。</p>
   <div id="sites"></div>
   <div class="row">
     <button id="now">现在同步</button>
@@ -32,9 +34,19 @@
   </div>
   <details id="setup">
     <summary>设置</summary>
-    <label>端口 <input id="port" type="number" min="1" max="65535"></label>
-    <label>口令 <input id="token" type="text" autocomplete="off" spellcheck="false"></label>
-    <p class="hint">先在电脑上运行 <code>eia sync serve --vault 你的vault</code>，再把 <code>eia sync token --vault 你的vault</code> 显示的口令填在这里。</p>
+    <p><b>存到哪里</b></p>
+    <label><input type="radio" name="mode" value="files"> 存成文件：放进「下载」文件夹的 <code>ai-chat-sync</code> 里，每个对话一个文件</label>
+    <div id="files-box" class="sub">
+      <label><input id="fmt-md" type="checkbox"> Markdown（.md，适合用 Obsidian、记事本看）</label>
+      <label><input id="fmt-json" type="checkbox"> 网站返回的原始数据（.json，适合给别的程序用）</label>
+    </div>
+    <label><input type="radio" name="mode" value="eia"> 发给 eia：写进 eia 的知识库（要先装 <a href="https://github.com/CaoLongyang/everything-in-ai" target="_blank">eia</a>）</label>
+    <div id="eia-box" class="sub">
+      <label>端口 <input id="port" type="number" min="1" max="65535"></label>
+      <label>口令 <input id="token" type="text" autocomplete="off" spellcheck="false"></label>
+      <p class="hint">先在电脑上运行 <code>eia sync autostart --vault 你的vault</code>，再把 <code>eia sync token --vault 你的vault</code> 显示的口令填在这里。</p>
+    </div>
+    <p><b>同步哪些</b></p>
     <label><input id="site-chatgpt" type="checkbox"> 同步 ChatGPT</label>
     <label><input id="site-claude" type="checkbox"> 同步 Claude</label>
     <label><input id="site-gemini" type="checkbox"> 同步 Gemini（登录了多个 Google 账号时，先打开要同步的那个账号的 Gemini）</label>
